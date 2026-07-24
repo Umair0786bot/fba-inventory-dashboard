@@ -6,13 +6,19 @@
 <title>LTSF / Aged-Inventory Surcharge Dashboard</title>
 <style>
   :root{
-    --bg:#0f1419; --panel:#171e26; --panel2:#1e2731; --line:#2a3642;
-    --txt:#e6edf3; --muted:#8b98a5; --accent:#4f9dff; --accent2:#7c5cff;
-    --green:#2ea043; --amber:#d29922; --red:#e5534b; --blue:#388bfd; --grey:#6e7681;
-    --radius:12px;
+    --bg:#0a0d14; --bg2:#0d121c;
+    --panel:#121826; --panel2:#182135; --line:#273246;
+    --txt:#eef2f9; --muted:#95a3ba; --accent:#6aa3ff; --accent2:#a678ff; --accent3:#2dd4bf;
+    --green:#34d399; --amber:#fbbf24; --red:#fb7185; --blue:#60a5fa; --grey:#6e7681;
+    --glass:rgba(255,255,255,.045); --glass-line:rgba(255,255,255,.08);
+    --grad:linear-gradient(135deg,#6aa3ff,#a678ff);
+    --grad-hero:linear-gradient(135deg,#fb7185,#a678ff 55%,#6aa3ff);
+    --radius:14px;
   }
   *{box-sizing:border-box}
-  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--txt);font-size:14px}
+  html{scroll-behavior:smooth}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--txt);font-size:14px}
   header{padding:18px 24px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:linear-gradient(180deg,#141b22,#0f1419)}
   header h1{font-size:18px;margin:0;font-weight:650;letter-spacing:.2px}
   header .sub{color:var(--muted);font-size:12px}
@@ -162,21 +168,15 @@
   @keyframes pulseRing{0%{box-shadow:0 0 0 0 rgba(229,83,75,.30)}70%{box-shadow:0 0 0 8px rgba(229,83,75,0)}100%{box-shadow:0 0 0 0 rgba(229,83,75,0)}}
   @keyframes spin{to{transform:rotate(360deg)}}
 
-  /* ---- cinematic ambient backdrop: slow-drifting colour glows + vignette ---- */
+  /* ---- ambient colour glows + vignette (fixed & composited, no blur/animation → smooth scroll) ---- */
   body{position:relative;isolation:isolate}
-  body::before{content:"";position:fixed;inset:-10%;z-index:-2;pointer-events:none;
+  body::before{content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;
     background:
-      radial-gradient(42% 40% at 14% 12%, rgba(79,157,255,.13), transparent 62%),
-      radial-gradient(40% 40% at 86% 16%, rgba(124,92,255,.13), transparent 62%),
-      radial-gradient(48% 46% at 72% 92%, rgba(229,83,75,.09), transparent 62%),
-      radial-gradient(40% 40% at 25% 85%, rgba(46,160,67,.07), transparent 62%);
-    filter:blur(8px);animation:drift 30s ease-in-out infinite alternate}
+      radial-gradient(60% 45% at 12% -5%, rgba(106,163,255,.12), transparent 60%),
+      radial-gradient(55% 45% at 100% 0%, rgba(166,120,255,.12), transparent 60%),
+      radial-gradient(50% 40% at 85% 105%, rgba(45,212,191,.07), transparent 60%)}
   body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
-    background:radial-gradient(120% 100% at 50% 40%, transparent 55%, rgba(0,0,0,.45) 100%)}
-  @keyframes drift{
-    0%{transform:translate3d(0,0,0) scale(1);opacity:.9}
-    50%{transform:translate3d(1.5%,-2%,0) scale(1.06);opacity:1}
-    100%{transform:translate3d(-1%,1.5%,0) scale(1.03);opacity:.92}}
+    background:radial-gradient(130% 100% at 50% 35%, transparent 52%, rgba(0,0,0,.5) 100%)}
 
   /* header intro */
   header h1{animation:fadeUp .7s .04s both}
@@ -191,9 +191,8 @@
   @keyframes breathe{0%,100%{opacity:.55;transform:scaleY(.8)}50%{opacity:1;transform:scaleY(1)}}
 
   /* filmic view transition: rise + settle from a soft blur */
-  #viewLtsf,#viewDeals,#viewProj{animation:viewIn .6s cubic-bezier(.22,1,.36,1) both}
-  @keyframes viewIn{from{opacity:0;transform:translateY(18px) scale(.992);filter:blur(7px)}
-    to{opacity:1;transform:none;filter:blur(0)}}
+  #viewLtsf,#viewProj,#viewTrack,#viewKpi{animation:viewIn .42s cubic-bezier(.22,1,.36,1) both;will-change:transform,opacity}
+  @keyframes viewIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 
   /* hero card: rotating gradient ring behind the existing sweep */
   .kpi.hero::before{content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1.4px;z-index:0;
@@ -288,6 +287,90 @@
   @media (prefers-reduced-motion: reduce){
     *,*::before,*::after{animation:none!important;transition-duration:.001ms!important}
   }
+
+  /* ============================================================
+     PREMIUM THEME LAYER  (overrides — richer colour, gradient,
+     contrast, glass, and buttery scrolling)
+     ============================================================ */
+  /* slim, tasteful scrollbars everywhere */
+  *{scrollbar-width:thin;scrollbar-color:#3a4763 transparent}
+  *::-webkit-scrollbar{width:10px;height:10px}
+  *::-webkit-scrollbar-track{background:transparent}
+  *::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#3a4763,#2b3549);border-radius:20px;border:2px solid transparent;background-clip:padding-box}
+  *::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,#4a5b80,#37425c);background-clip:padding-box}
+  .tablewrap,.modal-body{overscroll-behavior:contain}
+
+  /* header — glass bar with gradient hairline */
+  header{background:linear-gradient(180deg,rgba(20,26,38,.92),rgba(10,13,20,.75));
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--glass-line);box-shadow:0 1px 0 rgba(255,255,255,.03)}
+  header h1{background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-weight:750}
+
+  /* glass panels + KPI cards */
+  .panel{background:linear-gradient(180deg,var(--glass),transparent),var(--panel);
+    border:1px solid var(--glass-line);box-shadow:0 1px 0 rgba(255,255,255,.03),0 12px 30px -18px rgba(0,0,0,.6)}
+  .kpi{background:linear-gradient(180deg,var(--glass),transparent),var(--panel);border:1px solid var(--glass-line);
+    box-shadow:0 12px 26px -20px rgba(0,0,0,.7)}
+  .kpi::after{content:"";position:absolute;left:0;right:0;top:0;height:2px;border-radius:2px 2px 0 0;
+    background:var(--grad);opacity:.55}
+  .kpi:hover{border-color:rgba(106,163,255,.55);box-shadow:0 18px 40px -22px rgba(106,163,255,.5)}
+  .kpi .val{background:linear-gradient(180deg,#fff,#c7d3e6);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .kpi.good .val{background:linear-gradient(180deg,#5ff0b8,#22c58a);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .kpi.warn .val{background:linear-gradient(180deg,#ffd45e,#e59a12);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .kpi.alert .val,.kpi.hero .val{background:linear-gradient(180deg,#ff9db0,#f43f6a);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .kpi.hero{background:linear-gradient(180deg,rgba(251,113,133,.14),rgba(166,120,255,.05)),var(--panel);border-color:rgba(251,113,133,.4)}
+  .kpi.hero::after{background:var(--grad-hero);opacity:.9;height:3px}
+  .kpi .label{letter-spacing:.7px}
+
+  /* section titles — gradient bar + subtle gradient text */
+  .sectiontitle::before{background:var(--grad);box-shadow:0 0 14px rgba(139,120,255,.55)}
+  .sectiontitle{color:#c9d5ea}
+
+  /* tabs — pill nav with gradient active state */
+  .tabs{gap:4px;border-bottom:1px solid var(--glass-line)}
+  .tab{border-radius:10px 10px 0 0;padding:11px 18px;position:relative}
+  .tab.active{color:#fff;border-bottom-color:transparent}
+  .tab.active::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:3px;border-radius:3px;background:var(--grad);box-shadow:0 0 12px rgba(106,163,255,.6)}
+  .tab:hover{background:rgba(255,255,255,.04)}
+
+  /* primary buttons — gradient, glossy */
+  button:not(.ghost):not(.tab){background:var(--grad);border:none;
+    box-shadow:0 6px 18px -8px rgba(106,163,255,.7),inset 0 1px 0 rgba(255,255,255,.28);font-weight:600}
+  button:not(.ghost):not(.tab):hover{filter:brightness(1.07);box-shadow:0 10px 24px -8px rgba(139,120,255,.7),inset 0 1px 0 rgba(255,255,255,.32)}
+  button.ghost{background:var(--glass);border:1px solid var(--glass-line);backdrop-filter:blur(6px)}
+  button.ghost:hover{border-color:var(--accent);background:rgba(106,163,255,.10)}
+
+  /* inputs/selects — cohesive, glassy focus glow */
+  .filters input,.filters select{background:rgba(255,255,255,.03);border:1px solid var(--glass-line)}
+  .filters input:focus,.filters select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(106,163,255,.18)}
+
+  /* tables — sticky header with gradient underline, smoother rows */
+  .tablewrap{background:linear-gradient(180deg,var(--glass),transparent),var(--panel);border:1px solid var(--glass-line)}
+  thead th{background:linear-gradient(180deg,#1b2438,#151c2a);
+    box-shadow:inset 0 -1px 0 var(--glass-line);backdrop-filter:blur(4px)}
+  thead th:hover{background:rgba(106,163,255,.12)}
+  tbody tr:hover{background:rgba(106,163,255,.06)}
+  .band-row-click:hover{background:rgba(106,163,255,.10)}
+  .sku{color:#dbe6f7}
+  .tagchip{background:linear-gradient(180deg,rgba(106,163,255,.20),rgba(106,163,255,.10));color:#a9c9ff;border:1px solid rgba(106,163,255,.18)}
+
+  /* semantic badges refreshed */
+  .badge.v-run,.b-Healthy{background:rgba(52,211,153,.16);color:#5ff0b8}
+  .badge.v-skip,.b-Outofstock{background:rgba(251,113,133,.16);color:#ff9db0}
+  .badge.v-cost,.b-Lowstock{background:rgba(251,191,36,.16);color:#ffd45e}
+  .pos{color:#5ff0b8}.neg{color:#ff9db0}
+
+  /* bars — gradient fills */
+  .bar-fill{background:linear-gradient(90deg,var(--accent),var(--accent2))}
+  .ah-bar{box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 8px 18px -6px rgba(0,0,0,.5)}
+
+  /* modal — deeper glass */
+  .modal{background:linear-gradient(180deg,rgba(24,33,53,.98),rgba(18,24,38,.98));border:1px solid var(--glass-line);
+    box-shadow:0 30px 80px -20px rgba(0,0,0,.75)}
+  .modal-overlay{backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+
+  /* range slider accent */
+  input[type=range]{accent-color:var(--accent)}
 </style>
 </head>
 <body>
@@ -318,238 +401,194 @@
 
   <nav class="tabs">
     <button class="tab active" data-tab="ltsf">📊 LTSF Overview</button>
-    <button class="tab" data-tab="deals">💰 Deal Feasibility</button>
-    <button class="tab" data-tab="proj">📈 1-Year Projection</button>
+    <button class="tab" data-tab="proj">🧮 Decision Engine</button>
+    <button class="tab" data-tab="track">📈 Sales Tracking</button>
+    <button class="tab" data-tab="kpi">📊 KPI Metrics</button>
   </nav>
 
   <div id="viewLtsf">
-  <!-- ============ LTSF OVERVIEW ============ -->
-  <div class="sectiontitle">Next-month surcharge outlook</div>
+  <!-- ============ LTSF OVERVIEW (Summary USA mirror) ============ -->
+  <div class="sectiontitle">Next-month LTSF surcharge — overview</div>
   <div class="kpis" id="kpis"></div>
 
   <div class="grid2">
     <div class="panel">
       <h3>💸 Where next month's surcharge comes from — by age band</h3>
-      <div id="aisBandChartTop"></div>
-      <div class="footnote">Amazon's own estimate for the next AIS billing cycle, broken out by how long each unit has been in storage. The rate climbs with age — the 366+ and 456+ tiers are the steepest.</div>
+      <div id="bandChart"></div>
+      <div class="footnote">Amazon's estimated Aged-Inventory Surcharge for the next billing cycle, split by how long each unit has been stored. The rate escalates with age — the 366+ and 456+ tiers are steepest. Click a band to see its SKUs.</div>
     </div>
     <div class="panel">
-      <h3>📅 Units by inventory age — older brackets carry the surcharge</h3>
+      <h3>📅 Units to be charged, by inventory age</h3>
       <div id="ageChart"></div>
     </div>
   </div>
 
-  <div class="grid2">
-    <div class="panel">
-      <h3>🔥 Top SKUs by estimated AIS next month</h3>
-      <div id="topAisChart"></div>
+  <!-- ============ BY PARENT (TAG) ============ -->
+  <div class="sectiontitle">By parent (product tag)</div>
+  <div class="panel" style="margin-bottom:16px">
+    <div class="panel" style="background:var(--panel2)">
+      <h3>🏷️ Estimated AIS by parent — descending by next-month charge</h3>
+      <div id="parentChart"></div>
     </div>
-    <div class="panel">
-      <h3>⏳ Crossing into surcharge soon — 91–180d units (charged once past 181d)</h3>
-      <div id="agingSoonChart"></div>
+    <div class="filters" style="margin-top:12px">
+      <input type="search" id="povSearch" placeholder="Search parent tag…" />
+      <span class="spacer"></span>
+      <button class="ghost" id="exportParents">⤓ Export parents (CSV)</button>
     </div>
+    <span class="chip" id="parentSummary"></span>
+    <div class="tablewrap" style="max-height:46vh;margin-top:8px">
+      <table><thead><tr id="parentHead"></tr></thead><tbody id="parentBody"></tbody></table>
+    </div>
+    <div class="footnote">Click a parent row to drill into its child SKUs. Parent = product tag (e.g. <b>SLQS</b> = Sleephoria Quilt Set); all sizes/variations under a tag roll up together.</div>
   </div>
 
-  <div class="grid2">
-    <div class="panel">
-      <h3>🏷️ Estimated AIS by brand</h3>
-      <div id="brandAisChart"></div>
-    </div>
-    <div class="panel">
-      <h3>🧷 Estimated AIS by product tag</h3>
-      <div id="tagAisChart"></div>
-    </div>
-  </div>
-
-  <!-- ============ AGED DETAIL & CHARGES ============ -->
-  <div class="sectiontitle">Aged-inventory detail &amp; projected charges</div>
+  <!-- ============ SKU DETAIL ============ -->
+  <div class="sectiontitle">SKU detail — aged brackets &amp; charges</div>
   <div class="panel" style="margin-bottom:16px">
     <div class="filters">
-      <input type="search" id="ageSearch" placeholder="Search SKU or ASIN…" />
-      <select id="ageBrand"><option value="">All brands</option></select>
-      <select id="ageTag"><option value="">All product tags</option></select>
-      <select id="ageBand">
-        <option value="">All aged SKUs</option>
+      <input type="search" id="skuSearch" placeholder="Search SKU or ASIN…" />
+      <select id="skuTag"><option value="">All parents</option></select>
+      <select id="skuSize"><option value="">All sizes</option></select>
+      <select id="skuBand">
+        <option value="">All charged SKUs</option>
+        <option value="365">Only 366+ days (top tier)</option>
         <option value="charged">Only SKUs charged next month</option>
-        <option value="365">Only 365+ days (top tier)</option>
-        <option value="soon">Only 91–180d (entering soon)</option>
       </select>
       <span class="spacer"></span>
-      <button class="ghost" id="exportAged">⤓ Export aged view (CSV)</button>
+      <button class="ghost" id="exportSkus">⤓ Export SKU view (CSV)</button>
     </div>
-    <span class="chip" id="ageSummary"></span>
-    <div class="grid2" style="margin:10px 0 16px">
-      <div class="panel" style="background:var(--panel2)">
-        <h3>💸 Est. AIS charge next month, by age band (current filter)</h3>
-        <div id="aisBandChart"></div>
-      </div>
-      <div class="panel" style="background:var(--panel2)">
-        <h3>🧮 Projected next-month charges (current filter)</h3>
-        <div id="chargeTotals"></div>
-      </div>
+    <span class="chip" id="skuSummary"></span>
+    <div class="tablewrap" style="max-height:62vh;margin-top:10px">
+      <table><thead><tr id="skuHead"></tr></thead><tbody id="skuBody"></tbody></table>
     </div>
-    <div class="tablewrap" style="max-height:52vh">
-      <table>
-        <thead><tr>
-          <th>SKU</th><th>Tag</th><th>Brand</th><th>Product</th>
-          <th class="num">91–180d</th><th class="num">181–270d</th><th class="num">271–365d</th>
-          <th class="num">366–455d</th><th class="num">456d+</th>
-          <th class="num">Aged 181+</th><th class="num">Units to charge</th><th class="num">Est. AIS/mo</th><th class="num">Storage/mo</th><th class="num">Total fee/mo</th>
-        </tr></thead>
-        <tbody id="agingTbody"></tbody>
-      </table>
-    </div>
-    <div class="footnote">
-      <b>LTSF / AIS</b> = Amazon's Aged-Inventory Surcharge (formerly the Long-Term Storage Fee), billed monthly on units stored <b>181+ days</b>; the rate climbs the longer stock sits, with the steepest jump past <b>365 days</b>.
-      “91–180d” units are the ones about to start incurring the surcharge next. Figures shown are Amazon's own estimates from this report — replace with the actual fee reports for billed figures.
-      Sorted by estimated AIS, then by aged units.
-    </div>
-  </div>
-
-  <!-- ============ FULL SKU REFERENCE TABLE ============ -->
-  <div class="sectiontitle">Full inventory — reference</div>
-  <div class="panel" style="margin-bottom:16px">
-    <div class="filters">
-      <input type="search" id="search" placeholder="Search SKU, ASIN or product name…" />
-      <select id="fBrand"><option value="">All brands</option></select>
-      <select id="fCat"><option value="">All categories</option></select>
-      <select id="fTag"><option value="">All product tags</option></select>
-      <select id="fHealth"><option value="">All health statuses</option></select>
-      <select id="fSize"><option value="">All sizes</option></select>
-      <label class="chip"><input type="checkbox" id="fAged" /> Only aged 181+</label>
-      <span class="spacer"></span>
-      <button class="ghost" id="exportBtn">⤓ Export view (CSV)</button>
-    </div>
-    <div class="chip" id="tableSummary"></div>
-  </div>
-
-  <div class="tablewrap">
-    <table id="tbl">
-      <thead><tr id="thead"></tr></thead>
-      <tbody id="tbody"></tbody>
-    </table>
-  </div>
-  <div class="footnote">
-    Aged = units in stock 181+ days (subject to AIS). Inventory value uses available units × your price.
+    <div class="footnote">Estimated AIS = Amazon's own per-band estimate from the LTSF workbook (Summary USA tab). Total reconciles to <b id="reconTotal">$52,311</b> across all SKUs next month.</div>
   </div>
   </div><!-- /viewLtsf -->
 
-  <!-- ============ DEAL FEASIBILITY (LTSF mitigation) ============ -->
-  <div id="viewDeals" class="hide">
-    <div class="sectiontitle">Deal feasibility — should we discount this LTSF variation?</div>
-
-    <div class="panel" style="margin-bottom:16px">
-      <div class="filters">
-        <button id="loadTracker">⤒ Upload Deal files (Dashboard + Overview tabs)</button>
-        <span class="chip" id="trackerFileChip">No files loaded</span>
-        <span class="spacer"></span>
-        <label class="chip">Referral %&nbsp;<input type="number" id="refPct" value="15" min="0" max="100" step="0.5" style="width:62px" /></label>
-        <label class="chip">Default FBA $/unit&nbsp;<input type="number" id="defFba" value="0" min="0" step="0.25" style="width:68px" /></label>
-      </div>
-      <div class="filters" style="margin-top:2px">
-        <span class="chip">Cost source:</span>
-        <button class="ghost" id="loadCogs">⤒ COGS / Overview tabs (multi)</button>
-        <span class="chip" id="cogsFileChip">none</span>
-        <button class="ghost" id="loadFees">⤒ Fee Preview</button>
-        <span class="chip" id="feeFileChip">none</span>
-        <button class="ghost" id="loadDeals">⤒ Simple deals CSV</button>
-        <span class="chip" id="dealsFileChip">none</span>
-      </div>
-      <div class="footnote">
-        <b>Upload Deal files (select several at once):</b> drop in the <b>Deals Dashboard</b> tab (per-row Date · Tag · SKU · Current Deal Price) <u>together with</u> your per-tag <b>Overview tabs</b> (which carry <b>Cost</b> + <b>FBA</b> + Selling Price). The Dashboard sets the dated deal schedule; the Overview tabs fill in Cost/FBA next to each SKU so margins compute. Pick a deal date + tag above to scope the view; the table joins your inventory report for the AIS surcharge.<br/>
-        <b>Cost source:</b> if the deals file has no Cost/FBA columns, click <b>COGS / Overview tabs</b> and select your per-tag <b>Overview tabs</b> (they carry Cost, FBA and Selling Price) — pick several at once; they merge. Cost priority: <b>tracker → COGS/Overview file</b>; FBA priority: <b>Fee Preview → tracker → COGS/Overview → Default FBA</b>; base price: <b>tracker → COGS/Overview → inventory selling price</b>.<br/>
-        Margin/unit = price − COGS − FBA − (referral% × price). <b>Verdict (one-month rule):</b> a SKU is <span class="badge v-run">✅ RUN</span> when <i>deal margin/unit + AIS/unit ≥ 0</i> — i.e. selling now (even at a loss) beats paying even one more month of surcharge. Otherwise <span class="badge v-skip">⛔ SKIP</span>. Only units aged 181+ drive the impact.
-      </div>
-    </div>
-
-    <div class="kpis" id="dealKpis"></div>
-
-    <div class="panel" style="margin-bottom:16px">
-      <div class="filters">
-        <input type="search" id="dealSearch" placeholder="Search SKU…" />
-        <select id="dealDate"><option value="">All deal dates</option></select>
-        <select id="dealVerdict">
-          <option value="">All verdicts</option>
-          <option value="run">✅ Run</option>
-          <option value="skip">⛔ Skip</option>
-          <option value="not-ltsf">No AIS pressure</option>
-          <option value="no-cost">⚠ Missing COGS</option>
-        </select>
-        <select id="dealTag"><option value="">All tags</option></select>
-        <select id="dealBrand"><option value="">All brands</option></select>
-        <label class="chip"><input type="checkbox" id="dealOnlyLtsf" checked /> Only LTSF (aged 181+)</label>
-        <span class="spacer"></span>
-        <button class="ghost" id="exportDeals">⤓ Export analysis</button>
-      </div>
-      <span class="chip" id="dealSummary"></span>
-    </div>
-
-    <div class="tablewrap">
-      <table><thead><tr id="dealHead"></tr></thead><tbody id="dealBody"></tbody></table>
-    </div>
-    <div class="footnote">
-      <b>AIS $/unit</b> = SKU's estimated surcharge next month ÷ units being charged. <b>Net/unit</b> = deal margin/unit + AIS/unit (the decision metric; ≥ 0 ⇒ run).
-      <b>Discount cost/unit</b> = base margin − deal margin (margin given up vs selling at base, net of saved referral). The surcharge recurs and escalates monthly, so a positive net/unit understates the real benefit of clearing now.
-    </div>
-
-    <input type="file" id="trackerInput" accept=".csv,.txt" class="hide" multiple />
-    <input type="file" id="dealsInput" accept=".csv,.txt" class="hide" />
-    <input type="file" id="cogsInput" accept=".csv,.txt" class="hide" multiple />
-    <input type="file" id="feeInput" accept=".csv,.txt,.tsv" class="hide" multiple />
-  </div><!-- /viewDeals -->
-
-  <!-- ============ 1-YEAR AIS PROJECTION (discount vs no-discount) ============ -->
+  <!-- ============ DECISION ENGINE / 1-YEAR (1-Year Projections mirror) ============ -->
   <div id="viewProj" class="hide">
-    <div class="sectiontitle">1-year AIS roll-forward — discount vs no-discount</div>
+    <div class="sectiontitle">Discount decision engine — cash payout &amp; COGS recovery</div>
 
     <div class="panel" style="margin-bottom:16px">
       <div class="filters">
-        <label class="chip">Horizon (months)&nbsp;<input type="number" id="projHorizon" value="12" min="1" max="36" step="1" style="width:60px" /></label>
-        <label class="chip">Fallback discount %&nbsp;
-          <select id="projDisc">
-            <option value="0">0%</option><option value="10">10%</option><option value="15">15%</option>
-            <option value="20" selected>20%</option><option value="25">25%</option><option value="30">30%</option>
-            <option value="40">40%</option><option value="50">50%</option>
-          </select>
+        <label class="chip" style="min-width:300px">Model a discount&nbsp;
+          <input type="range" id="engDisc" min="0" max="90" step="1" value="50" style="vertical-align:middle;width:170px" />
+          &nbsp;<b id="engDiscVal" style="color:var(--accent);font-size:15px">50%</b>
         </label>
-        <label class="chip">Velocity change on discount&nbsp;
-          <select id="projVel">
-            <option value="-25">−25%</option><option value="0">no change</option><option value="25">+25%</option>
-            <option value="50" selected>+50%</option><option value="75">+75%</option><option value="100">+100%</option>
-            <option value="150">+150%</option><option value="200">+200%</option>
-          </select>
-        </label>
-        <label class="chip">Referral %&nbsp;<input type="number" id="projRef" value="15" min="0" max="100" step="0.5" style="width:60px" /></label>
+        <label class="chip">Referral %&nbsp;<input type="number" id="engRef" value="15" min="0" max="100" step="0.5" style="width:60px" /></label>
         <span class="spacer"></span>
-        <button class="ghost" id="exportProj">⤓ Export projection</button>
+        <button class="ghost" id="exportEng">⤓ Export engine (CSV)</button>
       </div>
       <div class="footnote">
-        Closed-cohort roll-forward of <b>today's aged units</b>: each month every unit ages one 30-day band, the oldest band sells off first at the SKU's velocity, and the 181+ bands are charged the aged-inventory surcharge. No new stock is added — this is "what happens to the inventory we hold now."<br/>
-        <b>No-discount</b> sells at current price &amp; velocity (units-shipped-t30). <b>Discount</b> applies a per-SKU <b>%off computed from your loaded deal prices</b> (Deal/COGS uploads on the Deal tab) — base − deal ÷ base; SKUs with no deal price use the fallback % above — and adjusts velocity by the selected amount, clearing faster so fewer months of AIS accrue.<br/>
-        <b>Net</b> = clear-units × margin/unit − projected AIS over the horizon. <b>Action = Discount</b> when discount Net beats no-discount Net. Margin/unit = price − COGS − FBA − referral×price. AIS rate per band is taken from the report's own estimate (<i>estimated-ais ÷ qty-charged</i>); empty bands use a median $/cu-ft card derived across all SKUs × this SKU's volume.
+        Drag the <b>discount</b> slider to model a global %-off (the sheet's <b>BM3</b>). Per SKU, at that discount:
+        <b>Adj price</b> = price·(1−disc) &nbsp;·&nbsp; <b>Net cash payout/unit</b> = adjP·(1−ref%) − FBA <i>(product COGS is a sunk cost, excluded — this is the future cash you still collect/pay)</i> &nbsp;·&nbsp; <b>% COGS recovery</b> = payout ÷ COGS.<br/>
+        Guard rails: <span class="badge v-run">🟢 Ceiling</span> = deepest discount that still recovers <b>full COGS</b> = 1−(COGS+FBA)/(1−ref)·price⁻¹ &nbsp;·&nbsp; <span class="badge v-cost">🟡 Floor</span> = point past which you pay Amazon <b>out of pocket</b> = 1−FBA/((1−ref)·price) &nbsp;·&nbsp; <b>Break-even $</b> = (COGS+FBA)/(1−15%). Below the floor, net cash payout goes negative (you pay to sell).
       </div>
     </div>
 
-    <div class="kpis" id="projKpis"></div>
+    <div class="kpis" id="engKpis"></div>
 
     <div class="panel" style="margin-bottom:16px">
       <div class="filters">
-        <input type="search" id="projSearch" placeholder="Search SKU…" />
-        <select id="projTag"><option value="">All tags</option></select>
-        <select id="projBrand"><option value="">All brands</option></select>
-        <select id="projAction"><option value="">All actions</option><option value="Discount">Discount wins</option><option value="No Discount">No-discount wins</option><option value="no-cost">⚠ Missing COGS</option></select>
-        <label class="chip"><input type="checkbox" id="projOnlyAged" checked /> Only aged 181+</label>
-        <span class="chip" id="projSummary"></span>
+        <input type="search" id="engSearch" placeholder="Search SKU…" />
+        <select id="engTag"><option value="">All parents</option></select>
+        <select id="engVerdict">
+          <option value="">All discount zones</option>
+          <option value="safe">🟢 Within full-COGS ceiling</option>
+          <option value="thin">🟡 Below ceiling, above floor</option>
+          <option value="oop">🔴 Out of pocket (past floor)</option>
+        </select>
+        <select id="eng3pl">
+          <option value="">All 3PL statuses</option>
+          <option value="removal">🚚 Remove to 3PL is cheaper</option>
+          <option value="hold">🏬 Hold at Amazon</option>
+        </select>
+        <span class="spacer"></span>
+        <span class="chip" id="engSummary"></span>
       </div>
-    </div>
-
-    <div class="tablewrap">
-      <table><thead><tr id="projHead"></tr></thead><tbody id="projBody"></tbody></table>
-    </div>
-    <div class="footnote">
-      <b>Mo→clear</b> = months until the cohort fully sells through at that velocity. <b>1yr AIS</b> = surcharge accrued over the horizon. Slow movers that never clear keep accruing — that's where discounting pays off most. Figures use Amazon's own per-band AIS estimates from the inventory report.
+      <div class="tablewrap" style="max-height:64vh;margin-top:6px">
+        <table><thead><tr id="engHead"></tr></thead><tbody id="engBody"></tbody></table>
+      </div>
+      <div class="footnote">
+        <b>3PL vs Amazon:</b> from the workbook's 3PL model — if removal + inbound + outbound + a year of third-party storage costs less than a year of AIS at Amazon, the status is <b>🚚 Remove to 3PL</b>. <b>Variance</b> = (base Amazon storage + 1-yr AIS) − total 3PL cost; positive means removal saves money. <b>1yr AIS</b> is the workbook's FIFO roll-forward (units sell oldest-first at current velocity; 181+ bands accrue surcharge each month).
+      </div>
     </div>
   </div><!-- /viewProj -->
+
+  <!-- ============ SALES TRACKING (Summary USA daily + SV/DOH targets) ============ -->
+  <div id="viewTrack" class="hide">
+    <div class="sectiontitle">Daily sales tracking — actuals vs target</div>
+
+    <div class="kpis" id="trkKpis"></div>
+
+    <div class="panel" style="margin-bottom:16px">
+      <div class="filters">
+        <label class="chip">Target basis&nbsp;
+          <select id="trkBasis">
+            <option value="coverage">Coverage window — clear in N days</option>
+            <option value="uplift">SV uplift — +X% vs current</option>
+            <option value="adjdoh">Adjusted DOH — clear X% faster</option>
+          </select>
+        </label>
+        <label class="chip">Coverage (days)&nbsp;
+          <select id="trkCoverage">
+            <option>15</option><option>20</option><option selected>30</option><option>45</option><option>60</option><option>90</option><option>120</option>
+          </select>
+        </label>
+        <label class="chip">% lever&nbsp;
+          <select id="trkPct">
+            <option value="10">10%</option><option value="20">20%</option><option value="30" selected>30%</option>
+            <option value="40">40%</option><option value="50">50%</option><option value="75">75%</option><option value="100">100%</option>
+          </select>
+        </label>
+        <span class="spacer"></span>
+        <span class="chip" id="trkBasisNote"></span>
+      </div>
+      <div class="filters" style="margin-top:2px">
+        <span class="chip">Daily sales for:</span>
+        <select id="trkParentSel"><option value="">All parents (total)</option></select>
+        <span class="spacer"></span>
+        <span class="chip" id="trkWindow"></span>
+      </div>
+      <h3 style="margin:10px 0 6px">📈 Units sold per day</h3>
+      <div id="dailyChart"></div>
+      <div class="footnote">Daily units shipped over the tracking window (from Summary USA). The dashed line marks the <b>target daily pace</b> needed to clear the remaining aged units within the coverage window. Bars above the line = on track; below = falling behind.</div>
+    </div>
+
+    <div class="sectiontitle">Target monitoring — SV &amp; DOH</div>
+    <div class="panel" style="margin-bottom:16px">
+      <div class="filters">
+        <input type="search" id="trkSearch" placeholder="Search SKU or parent…" />
+        <select id="trkTag"><option value="">All parents</option></select>
+        <select id="trkMode"><option value="sku">By SKU</option><option value="parent">By parent</option></select>
+        <select id="trkStatus"><option value="">All statuses</option><option value="behind">🔴 Behind target</option><option value="ontrack">🟢 On / ahead</option><option value="done">✅ Target met</option></select>
+        <span class="spacer"></span>
+        <button class="ghost" id="exportTrack">⤓ Export tracking (CSV)</button>
+      </div>
+      <span class="chip" id="trkSummary"></span>
+      <div class="tablewrap" style="max-height:62vh;margin-top:8px">
+        <table><thead><tr id="trkHead"></tr></thead><tbody id="trkBody"></tbody></table>
+      </div>
+      <div class="footnote">
+        <b>Current SV</b> = units sold ÷ days elapsed (actual pace). <b>Current DOH</b> = remaining units ÷ current SV (days to clear at today's pace). <b>Target SV</b> = remaining ÷ coverage days (pace required). <b>Target DOH</b> = coverage window. <b>Uplift needed</b> = Target SV − Current SV, shown absolute (units/day) and % over current. 🔴 behind = current pace won't clear within the coverage window.
+      </div>
+    </div>
+  </div><!-- /viewTrack -->
+
+  <!-- ============ KPI METRICS (embedded standalone tracker) ============ -->
+  <div id="viewKpi" class="hide">
+    <div class="sectiontitle">KPI metrics — full catalog &amp; LTSF</div>
+    <div class="panel" style="padding:4px;overflow:hidden">
+      <iframe src="metrics-tracker.html" title="KPI Metrics Tracker"
+              style="width:100%;height:82vh;border:0;border-radius:10px;display:block"
+              loading="lazy"></iframe>
+    </div>
+    <div class="footnote">
+      Embedded from <b>metrics-tracker.html</b> — a self-contained KPI dashboard (auto-refreshed by the metrics tracker's <code>Update-Dashboard.bat</code>; do not edit by hand).
+      Live standalone version: <a href="https://umair0786bot.github.io/daily-metrics-dashboard/" target="_blank" rel="noopener" style="color:var(--accent)">daily-metrics-dashboard</a>.
+    </div>
+  </div><!-- /viewKpi -->
+
 </div>
 
 <!-- ============ AGE-BAND SKU BREAKDOWN MODAL ============ -->
@@ -579,6 +618,7 @@
   </div>
 </div>
 
+<script src="ltsf-data.js"></script>
 <script>
 /* ---------- tiny CSV parser (handles quoted fields & commas) ---------- */
 function parseCSV(text){
@@ -620,7 +660,13 @@ function animateCount(el){
     if(p<1) requestAnimationFrame(step); else el.textContent=txt; })(t0);
 }
 /* one-shot staggered reveal + count-up (auto-clears so filter re-renders don't re-animate) */
-function reveal(id){ const e=document.getElementById(id); if(!e) return; e.classList.add('reveal'); clearTimeout(e._rv); e._rv=setTimeout(()=>e.classList.remove('reveal'),1050);
+/* entrance reveal + count-up — animates ONCE per element id (re-render/tab-return
+   just shows final values instantly, so nothing ever looks "blank" on return). */
+const _revealed=new Set();
+function reveal(id){ const e=document.getElementById(id); if(!e) return;
+  if(_revealed.has(id)) return;               // already animated once — leave values as-is
+  _revealed.add(id);
+  e.classList.add('reveal'); clearTimeout(e._rv); e._rv=setTimeout(()=>e.classList.remove('reveal'),1050);
   e.querySelectorAll('.val').forEach(animateCount); }
 
 function brandOf(name,sku){
@@ -1617,87 +1663,685 @@ function exportProjCSV(){
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='ais-1yr-projection.csv'; a.click();
 }
 
-/* ---------- load ---------- */
-function loadData(text){
-  const rows=parseCSV(text);
-  DATA=buildRecords(rows);
-  if(!DATA.length){ alert('No rows found — is this the FBA inventory CSV?'); return; }
+
+/* =======================================================================
+   LTSF WORKBOOK ENGINE  —  auto-loaded from ltsf-data.js (window.LTSF_DATA)
+   Rebuilt Overview (Summary USA mirror) + Decision Engine (1-Year mirror).
+   Reuses helpers above: fmt, money, money2, TAG_LABELS, tagLabel, reveal,
+   buildRateCard, rateFor, seedBuckets, rollForward, computeDeals, renderDeals.
+   ======================================================================= */
+const LT = (window.LTSF_DATA || {skus:[],parents:[],meta:{},rateCard:{}});
+const BANDS8=['181–210','211–240','241–270','271–300','301–330','331–365','366–455','456+'];
+const BAND8_COLORS=['#e3833b','#e5733b','#e5633b','#e5534b','#d6443f','#c93c37','#a82a26','#8b1a1a'];
+const pct0=v=>(v*100).toFixed(0)+'%';
+const pct1=v=>(v*100).toFixed(1)+'%';
+const m2=v=>(v<0?'-$':'$')+Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const dash='<span class=muted>—</span>';
+const moneyK=v=>v>=1000?'$'+(v/1000).toFixed(1)+'k':'$'+Math.round(v);
+const shortDate=d=>{ const p=String(d||'').split('-'); return p.length===3?(+p[1])+'/'+(+p[2]):d; };
+
+/* vertical column chart (reuses the .agehist / .ah-* styling) */
+function columnChart(elId, items, opts){
+  opts=opts||{};
+  const vfmt=opts.fmt||fmt;
+  const max=Math.max(1,...items.map(d=>d.value||0));
+  /* .ah-plot height is driven by --plotH (only set on #ageChart in the base CSS),
+     so set it here per-container or bars collapse. */
+  let html=`<div class="agehist" style="--plotH:${opts.height||240}px;align-items:flex-end">`;
+  items.forEach((d,i)=>{
+    const v=d.value||0, h=v>0?6+(v/max)*82:1;
+    const col=d.color||'#4f9dff';
+    const tip=(d.tip||(d.label+'\n'+vfmt(v)));
+    html+=`<div class="ah-col" data-tip="${tip}">
+      <div class="ah-plot">
+        <div class="ah-val">${v?(opts.compact?moneyK(v):vfmt(v)):'0'}</div>
+        <div class="ah-bar" style="height:${h}%;background:${col};animation-delay:${40+i*40}ms;width:82%;max-width:${opts.barMax||54}px"></div>
+      </div>
+      <div class="ah-lbl" title="${d.label}">${d.short||d.label}</div>
+      ${d.sub?`<div class="ah-pct">${d.sub}</div>`:''}
+    </div>`;
+  });
+  html+='</div>';
+  document.getElementById(elId).innerHTML=html;
+}
+
+/* ---------- adapter: LTSF_DATA -> DATA[] (inventory shape, shared by all tabs) ---------- */
+function buildFromLTSF(){
+  DATA = LT.skus.map(s=>{
+    const q=s.bands.map(b=>b.q), e=s.bands.map(b=>b.e);
+    const aged=q.reduce((a,b)=>a+b,0);
+    const aged365=(q[6]||0)+(q[7]||0);
+    // seed the Deal-tab cost map so an uploaded deal-price file evaluates instantly
+    if(s.cogs>0) COGS[s.sku]={cogs:s.cogs, fba:s.fba||0, base:s.price||0};
+    return {
+      sku:s.sku, asin:s.asin||'', name:(TAG_LABELS[s.tag]||s.tag||'')+(s.size?' · '+s.size:''),
+      brand:brandOf('',s.sku), category:categoryOf('',s.sku), size:s.size||sizeOf('',s.sku), tag:s.tag||'—',
+      health:'', available:0, inbound:0, reserved:0, sold7:0, sold30:s.velocity||0, sold90:0, cover:0, days:0,
+      aged, aged365, ais:s.totalAIS||0, aisB:e, aisQ:q, unitsCharged:s.totalUnits||0, totalCharge:s.totalAIS||0,
+      a0_30:0,a31_60:0,a61_90:0,a91_180:s.soon90_180||0,
+      a181_270:(q[0]||0)+(q[1]||0)+(q[2]||0), a271_365:(q[3]||0)+(q[4]||0)+(q[5]||0), a366_455:q[6]||0, a456:q[7]||0,
+      price:s.price||0, cogs:s.cogs||0, fba:s.fba||0, referral:s.referral||0, margin:s.margin||0,
+      volume:s.volume||0, value:0, storage:0, action:'',
+      velocity:s.velocity||0, removalRate:s.removalRate||0,
+      ceiling:s.ceiling||0, floor:s.floor||0, bePrice:s.bePrice||0,
+      charges1yrNo:s.charges1yrNo||0, charges1yrDisc:s.charges1yrDisc||0,
+      removalCost:s.removalCost||0, baseStorage:s.baseStorage||0, out3pl:s.out3pl||0, in3pl:s.in3pl||0,
+      storage3pl:s.storage3pl||0, total3pl:s.total3pl||0, totalAmz:s.totalAmz||0,
+      removalStatus:(s.removalStatus||''), variance3pl:s.variance3pl||0,
+      targetUnits:s.targetUnits||0, totalSold:s.totalSold||0, trackStatus:s.trackStatus||'', daily:s.daily||[],
+    };
+  });
+}
+
+/* ============================ OVERVIEW (Summary USA) ============================ */
+function renderLtsfKpis(){
+  const d=DATA;
+  const ais=d.reduce((s,x)=>s+x.ais,0);
+  const units=d.reduce((s,x)=>s+x.unitsCharged,0);
+  const skusCharged=d.filter(x=>x.ais>0).length;
+  const parentsCharged=new Set(d.filter(x=>x.ais>0).map(x=>x.tag)).size;
+  const aged365=d.reduce((s,x)=>s+x.aged365,0);
+  const soon=d.reduce((s,x)=>s+x.a91_180,0);
+  const perU=units?ais/units:0;
+  const pa=parentAgg()[0];
+  const cards=[
+    {label:'Est. LTSF / AIS next month',val:money(ais),cls:'hero',sub:LT.meta.source||'aged-inventory surcharge'},
+    {label:'Units to be charged',val:fmt(units),cls:units?'warn':'',sub:'stored 181+ days'},
+    {label:'SKUs incurring AIS',val:fmt(skusCharged),cls:skusCharged?'warn':'',sub:'of '+fmt(d.length)+' total'},
+    {label:'Parents affected',val:fmt(parentsCharged),sub:'product tags with charges'},
+    {label:'Aged 366+ units',val:fmt(aged365),cls:aged365?'alert':'',sub:'top-tier surcharge'},
+    {label:'Entering AIS soon',val:fmt(soon),cls:soon?'warn':'',sub:'91–180d → 181d next'},
+    {label:'Avg AIS / unit',val:money2(perU),sub:'blended across charged units'},
+    {label:'Biggest parent',val:pa?pa.tag:'—',cls:'alert',sub:pa?money(pa.ais)+' · '+pct0(ais?pa.ais/ais:0):''},
+  ];
+  document.getElementById('kpis').innerHTML=cards.map(c=>
+    `<div class="kpi ${c.cls||''}"><div class="label">${c.label}</div><div class="val">${c.val}</div>${c.sub?`<div class="sub">${c.sub}</div>`:''}</div>`).join('');
+  reveal('kpis');
+}
+function ltsfBands(){
+  const u=new Array(8).fill(0), e=new Array(8).fill(0);
+  DATA.forEach(x=>{ for(let i=0;i<8;i++){ u[i]+=x.aisQ[i]||0; e[i]+=x.aisB[i]||0; } });
+  return {u,e};
+}
+function renderBandBreakdown(){
+  const {u,e}=ltsfBands();
+  const totU=u.reduce((a,b)=>a+b,0), totE=e.reduce((a,b)=>a+b,0), maxE=Math.max(1,...e);
+  document.getElementById('bandChart').innerHTML=
+   `<table style="width:100%;font-size:12.5px;border-collapse:collapse">
+     <thead><tr style="color:var(--muted)">
+       <th style="text-align:left;padding:4px 6px">Age band (days)</th>
+       <th style="text-align:right;padding:4px 6px">Units</th>
+       <th style="text-align:left;padding:4px 6px;width:52%">Est. charge next mo.</th></tr></thead><tbody>
+     ${BANDS8.map((b,i)=>`<tr class="band-row-click" data-bi="${i}" title="Click for SKU breakdown of ${b} days">
+        <td style="padding:5px 6px"><span class="dot" style="background:${BAND8_COLORS[i]}"></span> ${b} <span class="muted" style="font-size:10px">›</span></td>
+        <td class="num" style="padding:5px 6px">${u[i]?fmt(u[i]):'<span class=muted>0</span>'}</td>
+        <td style="padding:5px 6px"><div style="display:flex;align-items:center;gap:8px">
+          <span class="bar-track" style="flex:1"><span class="bar-fill" style="width:${e[i]/maxE*100}%;background:${BAND8_COLORS[i]}"></span></span>
+          <span class="num" style="width:82px">${e[i]?money2(e[i]):dash}</span></div></td>
+     </tr>`).join('')}
+     <tr style="border-top:1px solid var(--line);font-weight:700">
+       <td style="padding:6px">Total</td><td class="num" style="padding:6px">${fmt(totU)}</td>
+       <td style="padding:6px">${money(totE)}</td></tr>
+     </tbody></table>`;
+  document.querySelectorAll('#bandChart tr[data-bi]').forEach(tr=>tr.onclick=()=>openBandModalX(+tr.dataset.bi));
+  barChart('ageChart', BANDS8.map((b,i)=>[b,u[i]]), fmt);
+}
+
+/* ---------- parents (tag rollup) ---------- */
+function parentAgg(){
+  const m={};
+  DATA.forEach(x=>{ const t=x.tag||'—'; const p=m[t]||(m[t]={tag:t,skus:0,units:0,ais:0,c1yr:0,aged365:0});
+    p.skus++; p.units+=x.unitsCharged; p.ais+=x.ais; p.c1yr+=x.charges1yrNo||0; p.aged365+=x.aged365; });
+  return Object.values(m).sort((a,b)=>b.ais-a.ais);
+}
+let parentSortKey='ais', parentSortDir=-1;
+const PARENT_COLS=[
+  {k:'tag',t:'Parent',cls:''},{k:'skus',t:'SKUs',cls:'num'},{k:'units',t:'Units charged',cls:'num'},
+  {k:'ais',t:'Est. AIS/mo',cls:'num'},{k:'share',t:'% of total',cls:'num'},{k:'c1yr',t:'1yr AIS',cls:'num'},
+];
+function renderParents(){
+  const all=parentAgg();
+  const grand=all.reduce((s,p)=>s+p.ais,0)||1;
+  columnChart('parentChart', all.slice(0,12).map((p,i)=>({
+    label:tagLabel(p.tag), short:p.tag, value:p.ais, color:BAND8_COLORS[Math.min(i,7)],
+    sub:pct0(p.ais/grand), tip:tagLabel(p.tag)+'\n'+money2(p.ais)+' · '+pct0(p.ais/grand)+' of AIS\n'+fmt(p.units)+' units · '+p.skus+' SKUs'
+  })), {compact:true, height:260, barMax:58});
+  const top5=all.slice(0,5).reduce((s,p)=>s+p.ais,0);
+  // filtered table
+  const q=(document.getElementById('povSearch').value||'').toLowerCase().trim();
+  let rows=all.filter(p=>!q||p.tag.toLowerCase().includes(q)||tagLabel(p.tag).toLowerCase().includes(q));
+  rows.sort((a,b)=>{ let A=a[parentSortKey==='share'?'ais':parentSortKey],B=b[parentSortKey==='share'?'ais':parentSortKey];
+    if(typeof A==='string'){A=A.toLowerCase();B=String(B).toLowerCase();return A<B?-parentSortDir:A>B?parentSortDir:0;}
+    return (A-B)*parentSortDir; });
+  document.getElementById('parentHead').innerHTML=PARENT_COLS.map(c=>{
+    const arr=parentSortKey===c.k?`<span class="sortarrow">${parentSortDir<0?'▼':'▲'}</span>`:'';
+    return `<th class="${c.cls.includes('num')?'num':''}" data-k="${c.k}">${c.t} ${arr}</th>`;}).join('');
+  document.querySelectorAll('#parentHead th').forEach(th=>th.onclick=()=>{
+    const k=th.dataset.k; if(parentSortKey===k) parentSortDir*=-1; else {parentSortKey=k; parentSortDir=(k==='tag')?1:-1;} renderParents();});
+  document.getElementById('parentBody').innerHTML=rows.map(p=>`<tr class="band-row-click" data-tag="${p.tag}" title="Click for child SKUs">
+      <td><span class="tagchip" title="${TAG_LABELS[p.tag]||''}">${p.tag}</span> <span class="muted" style="font-size:11px">${tagLabel(p.tag).replace(p.tag,'').replace(/^ · /,'')}</span> <span class="muted" style="font-size:10px">›</span></td>
+      <td class="num">${fmt(p.skus)}</td>
+      <td class="num">${fmt(p.units)}</td>
+      <td class="num"><b>${money2(p.ais)}</b></td>
+      <td class="num">${pct1(p.ais/grand)}</td>
+      <td class="num">${p.c1yr?money(p.c1yr):dash}</td>
+    </tr>`).join('')||`<tr><td colspan="6" class="muted" style="padding:20px;text-align:center">No parents match.</td></tr>`;
+  document.querySelectorAll('#parentBody tr[data-tag]').forEach(tr=>tr.onclick=()=>openParentModal(tr.dataset.tag));
+  document.getElementById('parentSummary').innerHTML=`<b>${rows.length}</b> parents · ${money(grand)} total est. AIS next month · top 5 = <b>${pct0(top5/grand)}</b> of all AIS`;
+}
+
+/* ---------- SKU detail table ---------- */
+let skuSortKey='ais', skuSortDir=-1, skuView=[];
+const SKU_COLS=[
+  {k:'sku',t:'SKU',cls:''},{k:'tag',t:'Parent',cls:''},{k:'size',t:'Size',cls:''},
+  {k:'price',t:'Price',cls:'num'},{k:'cogs',t:'COGS',cls:'num'},{k:'fba',t:'FBA',cls:'num'},{k:'margin',t:'Margin',cls:'num'},
+  {k:'aged365',t:'366+ units',cls:'num'},{k:'unitsCharged',t:'Units charged',cls:'num'},{k:'ais',t:'Est. AIS/mo',cls:'num'},{k:'aged',t:'Aged 181+',cls:'num'},
+];
+function filteredSkus(){
+  const q=(document.getElementById('skuSearch').value||'').toLowerCase().trim();
+  const tg=document.getElementById('skuTag').value, sz=document.getElementById('skuSize').value, bd=document.getElementById('skuBand').value;
+  let rows=DATA.filter(x=>x.aged>0||x.ais>0);
+  if(tg) rows=rows.filter(x=>x.tag===tg);
+  if(sz) rows=rows.filter(x=>x.size===sz);
+  if(bd==='365') rows=rows.filter(x=>x.aged365>0);
+  else if(bd==='charged') rows=rows.filter(x=>x.ais>0);
+  if(q) rows=rows.filter(x=>x.sku.toLowerCase().includes(q)||(x.asin||'').toLowerCase().includes(q));
+  rows.sort((a,b)=>{ let A=a[skuSortKey],B=b[skuSortKey];
+    if(typeof A==='string'){A=A.toLowerCase();B=String(B||'').toLowerCase();return A<B?-skuSortDir:A>B?skuSortDir:0;}
+    return ((A||0)-(B||0))*skuSortDir; });
+  return rows;
+}
+function renderSkuTable(){
+  const rows=skuView=filteredSkus();
+  document.getElementById('skuHead').innerHTML=SKU_COLS.map(c=>{
+    const arr=skuSortKey===c.k?`<span class="sortarrow">${skuSortDir<0?'▼':'▲'}</span>`:'';
+    return `<th class="${c.cls.includes('num')?'num':''}" data-k="${c.k}">${c.t} ${arr}</th>`;}).join('');
+  document.querySelectorAll('#skuHead th').forEach(th=>th.onclick=()=>{
+    const k=th.dataset.k; if(skuSortKey===k) skuSortDir*=-1; else {skuSortKey=k; skuSortDir=(k==='sku'||k==='tag'||k==='size')?1:-1;} renderSkuTable();});
+  const z=v=>v?fmt(v):'<span class=muted>0</span>';
+  document.getElementById('skuBody').innerHTML=rows.map(x=>`<tr>
+    <td class="sku">${x.sku}</td>
+    <td><span class="tagchip" title="${TAG_LABELS[x.tag]||''}">${x.tag}</span></td>
+    <td>${x.size||dash}</td>
+    <td class="num">${x.price?money2(x.price):dash}</td>
+    <td class="num">${x.cogs?money2(x.cogs):dash}</td>
+    <td class="num">${x.fba?money2(x.fba):dash}</td>
+    <td class="num"><span class="${x.margin<0?'neg':'pos'}">${x.price?money2(x.margin):dash}</span></td>
+    <td class="num">${z(x.aged365)}</td>
+    <td class="num">${z(x.unitsCharged)}</td>
+    <td class="num"><b>${x.ais?money2(x.ais):dash}</b></td>
+    <td class="num">${z(x.aged)}</td>
+  </tr>`).join('')||`<tr><td colspan="${SKU_COLS.length}" class="muted" style="padding:24px;text-align:center">No SKUs match.</td></tr>`;
+  const tU=rows.reduce((s,x)=>s+x.unitsCharged,0), tA=rows.reduce((s,x)=>s+x.ais,0);
+  document.getElementById('skuSummary').innerHTML=`Showing <b>${rows.length}</b> SKUs · ${fmt(tU)} units to charge · ${money(tA)}/mo est. AIS`;
+}
+function renderLtsfOverview(){ renderLtsfKpis(); renderBandBreakdown(); renderParents(); renderSkuTable(); }
+
+/* ============================ DECISION ENGINE (1-Year) ============================ */
+let engSortKey='totalPayout', engSortDir=-1, engView=[];
+const ENG_COLS=[
+  {k:'sku',t:'SKU',cls:''},{k:'tag',t:'Parent',cls:''},
+  {k:'price',t:'Price',cls:'num'},{k:'cogs',t:'COGS',cls:'num'},{k:'fba',t:'FBA',cls:'num'},{k:'bePrice',t:'BE $',cls:'num'},
+  {k:'ceiling',t:'Ceiling %',cls:'num'},{k:'floor',t:'Floor %',cls:'num'},
+  {k:'adjP',t:'Adj $',cls:'num'},{k:'payout',t:'Net payout/u',cls:'num'},{k:'totalPayout',t:'Total payout',cls:'num'},
+  {k:'recovery',t:'% COGS rec.',cls:'num'},{k:'zone',t:'Zone',cls:''},{k:'threePL',t:'3PL vs Amz',cls:''},{k:'variance3pl',t:'3PL variance',cls:'num'},
+];
+function engParams(){
+  return {disc:(+document.getElementById('engDisc').value||0)/100, ref:(num(document.getElementById('engRef').value)||15)/100};
+}
+function computeEngine(){
+  const {disc,ref}=engParams();
+  return DATA.map(x=>{
+    const price=x.price,cogs=x.cogs,fba=x.fba,units=x.unitsCharged;
+    const ok=price>0;
+    const ceiling = ok? 1-(cogs+fba)/((1-ref)*price):0;
+    const floor   = ok? 1- fba/((1-ref)*price):0;
+    const bePrice = (1-ref)>0? (cogs+fba)/(1-ref):0;
+    const adjP=price*(1-disc);
+    const payout=adjP*(1-ref)-fba;
+    const totalPayout=payout*units;
+    const recovery=cogs>0?payout/cogs:0;
+    const zone = !ok?'na':(disc<=ceiling?'safe':(disc<=floor?'thin':'oop'));
+    const remove=(x.removalStatus||'').trim().toLowerCase()==='removal';
+    return {sku:x.sku,tag:x.tag,price,cogs,fba,units,ceiling,floor,bePrice,adjP,payout,totalPayout,recovery,zone,
+      remove,threePL:remove?'removal':'hold',total3pl:x.total3pl,totalAmz:x.totalAmz,variance3pl:x.variance3pl,
+      c1yrNo:x.charges1yrNo,hasCost:cogs>0};
+  });
+}
+function renderEngineKpis(all){
+  const cost=all.filter(r=>r.hasCost);
+  const totalPayout=cost.reduce((s,r)=>s+r.totalPayout,0);
+  const units=cost.reduce((s,r)=>s+r.units,0);
+  const wRec=units?cost.reduce((s,r)=>s+r.recovery*r.units,0)/units:0;
+  const safe=cost.filter(r=>r.zone==='safe').length;
+  const oop=cost.filter(r=>r.zone==='oop').length;
+  const rem=all.filter(r=>r.remove);
+  const remSave=rem.reduce((s,r)=>s+Math.max(0,r.variance3pl),0);
+  const ais1yr=all.reduce((s,r)=>s+r.c1yrNo,0);
+  const {disc}=engParams();
+  const cards=[
+    {label:'Modeled discount',val:pct0(disc),cls:'',sub:'global %-off (BM3)'},
+    {label:'Total cash payout',val:money(totalPayout),cls:totalPayout<0?'alert':'good',sub:'across charged units @ this disc'},
+    {label:'Avg % COGS recovery',val:pct0(wRec),cls:wRec<0?'alert':(wRec<0.5?'warn':'good'),sub:'units-weighted'},
+    {label:'🟢 Within COGS ceiling',val:fmt(safe),cls:safe?'good':'',sub:'still recover full COGS'},
+    {label:'🔴 Out of pocket',val:fmt(oop),cls:oop?'alert':'',sub:'past the cash floor'},
+    {label:'🚚 Remove to 3PL',val:fmt(rem.length),cls:rem.length?'warn':'',sub:'cheaper than holding'},
+    {label:'3PL potential saving',val:money(remSave),cls:remSave?'good':'',sub:'vs a year of AIS'},
+    {label:'1yr AIS at Amazon',val:money(ais1yr),cls:'alert',sub:'if held (FIFO roll-forward)'},
+  ];
+  document.getElementById('engKpis').innerHTML=cards.map(c=>
+    `<div class="kpi ${c.cls||''}"><div class="label">${c.label}</div><div class="val">${c.val}</div>${c.sub?`<div class="sub">${c.sub}</div>`:''}</div>`).join('');
+}
+const ZONE_MAP={safe:['v-run','🟢 full COGS'],thin:['v-cost','🟡 partial'],oop:['v-skip','🔴 out of pocket'],na:['v-na','—']};
+function engCell(r,k){
+  switch(k){
+    case 'sku': return `<span class="sku">${r.sku}</span>`;
+    case 'tag': return `<span class="tagchip" title="${TAG_LABELS[r.tag]||''}">${r.tag}</span>`;
+    case 'price': return r.price?money2(r.price):dash;
+    case 'cogs': return r.cogs?money2(r.cogs):dash;
+    case 'fba': return r.fba?money2(r.fba):dash;
+    case 'bePrice': return r.bePrice?money2(r.bePrice):dash;
+    case 'ceiling': return r.price?pct1(r.ceiling):dash;
+    case 'floor': return r.price?pct1(r.floor):dash;
+    case 'adjP': return r.price?money2(r.adjP):dash;
+    case 'payout': return r.price?`<span class="${r.payout<0?'neg':'pos'}">${m2(r.payout)}</span>`:dash;
+    case 'totalPayout': return r.price?`<span class="${r.totalPayout<0?'neg':'pos'}"><b>${m2(r.totalPayout)}</b></span>`:dash;
+    case 'recovery': return r.hasCost?`<span class="${r.recovery<0?'neg':(r.recovery<0.5?'':'pos')}">${pct0(r.recovery)}</span>`:dash;
+    case 'zone': { const [cls,txt]=ZONE_MAP[r.zone]; return `<span class="badge ${cls}">${txt}</span>`; }
+    case 'threePL': return r.remove?'<span class="badge v-cost">🚚 remove</span>':'<span class="badge v-na">🏬 hold</span>';
+    case 'variance3pl': return r.variance3pl?`<span class="${r.variance3pl>0?'pos':'neg'}">${m2(r.variance3pl)}</span>`:dash;
+  }
+  return '';
+}
+function renderEngine(){
+  const all=computeEngine();
+  renderEngineKpis(all);
+  const q=(document.getElementById('engSearch').value||'').toLowerCase().trim();
+  const tg=document.getElementById('engTag').value, zv=document.getElementById('engVerdict').value, tp=document.getElementById('eng3pl').value;
+  let rows=all.filter(r=>{
+    if(tg&&r.tag!==tg) return false;
+    if(zv&&r.zone!==zv) return false;
+    if(tp==='removal'&&!r.remove) return false;
+    if(tp==='hold'&&r.remove) return false;
+    if(q&&!r.sku.toLowerCase().includes(q)) return false;
+    return true;
+  });
+  rows.sort((a,b)=>{ let A=a[engSortKey],B=b[engSortKey];
+    if(typeof A==='string'){A=A.toLowerCase();B=String(B||'').toLowerCase();return A<B?-engSortDir:A>B?engSortDir:0;}
+    return ((A||0)-(B||0))*engSortDir; });
+  engView=rows;
+  document.getElementById('engHead').innerHTML=ENG_COLS.map(c=>{
+    const arr=engSortKey===c.k?`<span class="sortarrow">${engSortDir<0?'▼':'▲'}</span>`:'';
+    return `<th class="${c.cls.includes('num')?'num':''}" data-k="${c.k}">${c.t} ${arr}</th>`;}).join('');
+  document.querySelectorAll('#engHead th').forEach(th=>th.onclick=()=>{
+    const k=th.dataset.k; if(engSortKey===k) engSortDir*=-1; else {engSortKey=k; engSortDir=(k==='sku'||k==='tag'||k==='zone'||k==='threePL')?1:-1;} renderEngine();});
+  document.getElementById('engBody').innerHTML=rows.map(r=>'<tr>'+ENG_COLS.map(c=>`<td class="${c.cls.includes('num')?'num':''}">${engCell(r,c.k)}</td>`).join('')+'</tr>').join('')
+    ||`<tr><td colspan="${ENG_COLS.length}" class="muted" style="padding:24px;text-align:center">No SKUs match.</td></tr>`;
+  const tot=rows.reduce((s,r)=>s+r.totalPayout,0);
+  document.getElementById('engSummary').innerHTML=`<b>${rows.length}</b> SKUs · net cash payout ${money(tot)} @ ${pct0(engParams().disc)} off`;
+}
+
+/* ============================ drill-down modal (reuses #bandModal) ============================ */
+let _modalRows=[], _modalCols=[], _modalTitle='ltsf';
+function showListModal(title,sub,cols,rows){
+  document.getElementById('bandModalTitle').textContent=title;
+  document.getElementById('bandModalSub').textContent=sub;
+  ['bandModalBrand','bandModalTag'].forEach(id=>{const el=document.getElementById(id); if(el) el.style.display='none';});
+  document.getElementById('bandModalSearch').value='';
+  _modalRows=rows; _modalCols=cols;
+  document.querySelector('#bandModal thead tr').innerHTML=cols.map(c=>`<th class="${c.num?'num':''}">${c.t}</th>`).join('');
+  fillListModal();
+  document.getElementById('bandModal').classList.add('show');
+}
+function fillListModal(){
+  const q=(document.getElementById('bandModalSearch').value||'').toLowerCase().trim();
+  const rows=_modalRows.filter(r=>!q||(r._k||'').toLowerCase().includes(q));
+  document.getElementById('bandModalCount').innerHTML=`Showing <b>${rows.length}</b> of ${_modalRows.length}`;
+  document.getElementById('bandModalBody').innerHTML=rows.map(r=>'<tr>'+_modalCols.map(c=>`<td class="${c.num?'num':''}">${c.f(r)}</td>`).join('')+'</tr>').join('')
+    ||`<tr><td colspan="${_modalCols.length}" class="muted" style="padding:20px;text-align:center">None match.</td></tr>`;
+}
+function closeListModal(){ document.getElementById('bandModal').classList.remove('show'); }
+function openBandModalX(i){
+  const list=DATA.filter(x=>(x.aisQ[i]||0)>0||(x.aisB[i]||0)>0)
+    .map(x=>({sku:x.sku,tag:x.tag,size:x.size,q:x.aisQ[i]||0,e:x.aisB[i]||0,_k:x.sku+' '+x.tag}))
+    .sort((a,b)=>(b.e-a.e)||(b.q-a.q));
+  const totU=list.reduce((s,x)=>s+x.q,0), totE=list.reduce((s,x)=>s+x.e,0);
+  showListModal('Age band '+BANDS8[i]+' days — SKU breakdown',
+    list.length+' SKUs · '+fmt(totU)+' units · '+money2(totE)+' est. next month',
+    [{t:'SKU',f:r=>`<span class="sku">${r.sku}</span>`},{t:'Parent',f:r=>`<span class="tagchip">${r.tag}</span>`},
+     {t:'Size',f:r=>r.size||dash},{t:'Units',num:1,f:r=>`<b>${fmt(r.q)}</b>`},{t:'Est. charge',num:1,f:r=>r.e?money2(r.e):dash}], list);
+}
+function openParentModal(tag){
+  const list=DATA.filter(x=>x.tag===tag).map(x=>({...x,_k:x.sku+' '+x.size})).sort((a,b)=>b.ais-a.ais);
+  const totU=list.reduce((s,x)=>s+x.unitsCharged,0), totE=list.reduce((s,x)=>s+x.ais,0);
+  showListModal(tagLabel(tag)+' — child SKUs',
+    list.length+' SKUs · '+fmt(totU)+' units to charge · '+money(totE)+'/mo est. AIS',
+    [{t:'SKU',f:r=>`<span class="sku">${r.sku}</span>`},{t:'Size',f:r=>r.size||dash},
+     {t:'Price',num:1,f:r=>r.price?money2(r.price):dash},{t:'Units charged',num:1,f:r=>fmt(r.unitsCharged)},
+     {t:'Est. AIS/mo',num:1,f:r=>r.ais?money2(r.ais):dash}], list);
+}
+function exportListModal(){
+  if(!_modalRows.length) return;
+  const esc=v=>{ v=String(v==null?'':v).replace(/<[^>]+>/g,''); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; };
+  const head=_modalCols.map(c=>c.t);
+  const lines=[head.join(',')].concat(_modalRows.map(r=>_modalCols.map(c=>esc(c.f(r))).join(',')));
+  dl(lines.join('\n'),'ltsf-drilldown.csv');
+}
+
+/* ============================ CSV exports ============================ */
+function dl(text,name){ const b=new Blob([text],{type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=name; a.click(); }
+function esc(v){ v=String(v==null?'':v); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
+function exportParentsCSV(){
+  const head=['Parent','SKUs','Units charged','Est AIS/mo','1yr AIS'];
+  const lines=[head.join(',')].concat(parentAgg().map(p=>[p.tag,p.skus,p.units,p.ais.toFixed(2),p.c1yr.toFixed(2)].map(esc).join(',')));
+  dl(lines.join('\n'),'ltsf-parents.csv');
+}
+function exportSkusCSV(){
+  const head=['SKU','ASIN','Parent','Size','Price','COGS','FBA','Margin','181-210','211-240','241-270','271-300','301-330','331-365','366-455','456+','366+ units','Units charged','Est AIS/mo','Aged 181+'];
+  const lines=[head.join(',')].concat(skuView.map(x=>[
+    x.sku,x.asin,x.tag,x.size,x.price.toFixed(2),x.cogs.toFixed(2),x.fba.toFixed(2),x.margin.toFixed(2),
+    ...x.aisQ.map(v=>v||0), x.aged365, x.unitsCharged, x.ais.toFixed(2), x.aged
+  ].map(esc).join(',')));
+  dl(lines.join('\n'),'ltsf-sku-detail.csv');
+}
+function exportEngineCSV(){
+  const {disc,ref}=engParams();
+  const head=['SKU','Parent','Price','COGS','FBA','BE price','Ceiling %','Floor %','Modeled disc %','Adj price','Net payout/unit','Units','Total payout','% COGS recovery','Zone','3PL','3PL variance','1yr AIS'];
+  const lines=[head.join(',')].concat(engView.map(r=>[
+    r.sku,r.tag,r.price.toFixed(2),r.cogs.toFixed(2),r.fba.toFixed(2),r.bePrice.toFixed(2),
+    (r.ceiling*100).toFixed(1),(r.floor*100).toFixed(1),(disc*100).toFixed(0),r.adjP.toFixed(2),r.payout.toFixed(2),
+    r.units,r.totalPayout.toFixed(2),(r.recovery*100).toFixed(1),r.zone,r.threePL,r.variance3pl.toFixed(2),r.c1yrNo.toFixed(2)
+  ].map(esc).join(',')));
+  dl(lines.join('\n'),'ltsf-decision-engine.csv');
+}
+
+/* ============================ SALES TRACKING (daily + SV/DOH targets) ============================ */
+const TRK = LT.meta.tracking || {daysElapsed:0,coverageDays:30,startDate:'',endDate:'',totalSold:0};
+const DAILY = LT.daily || {dates:[],totals:[],byParent:{}};
+let trkSortKey='remaining', trkSortDir=-1, trkView=[];
+const TRK_COLS=[
+  {k:'name',t:'Name',cls:''},{k:'skus',t:'SKUs',cls:'num'},
+  {k:'target',t:'Target',cls:'num'},{k:'sold',t:'Sold',cls:'num'},{k:'remaining',t:'Remaining',cls:'num'},
+  {k:'curSV',t:'Current SV',cls:'num'},{k:'curDOH',t:'Current DOH',cls:'num'},
+  {k:'tgtSV',t:'Target SV',cls:'num'},{k:'tgtDOH',t:'Target DOH',cls:'num'},
+  {k:'upAbs',t:'Uplift/day',cls:'num'},{k:'upPct',t:'Uplift %',cls:'num'},{k:'status',t:'Status',cls:''},
+];
+function coverageDays(){ return Math.max(1, num(document.getElementById('trkCoverage').value)||TRK.coverageDays||30); }
+function trkParams(){
+  return { basis:document.getElementById('trkBasis').value,
+           cov:coverageDays(),
+           lever:(num(document.getElementById('trkPct').value)||30)/100 };
+}
+/* overall target daily pace, consistent with the chosen basis (for KPI + chart line) */
+function overallTargetDaily(remaining,curSV){
+  const {basis,cov,lever}=trkParams();
+  if(basis==='uplift') return curSV*(1+lever);
+  if(basis==='adjdoh') return curSV>0 ? curSV/(1-lever) : 0;
+  return cov>0 ? remaining/cov : 0;
+}
+function trkRowCalc(target,sold,skus,name,tag){
+  const {basis,cov,lever}=trkParams();
+  const days=TRK.daysElapsed||1;
+  const remaining=Math.max(0,target-sold);
+  const curSV = days>0 ? sold/days : 0;
+  const curDOH = curSV>0 ? remaining/curSV : (remaining>0?Infinity:0);
+  let tgtSV, tgtDOH;
+  if(basis==='uplift'){                     // Target SV = CurrentSV × (1+X%)   [sheet AQ]
+    tgtSV = curSV*(1+lever);
+    tgtDOH = tgtSV>0 ? remaining/tgtSV : (remaining>0?Infinity:0);
+  } else if(basis==='adjdoh'){              // Adjusted DOH = CurrentDOH × (1−X%) [sheet AM→AN]
+    tgtDOH = isFinite(curDOH) ? curDOH*(1-lever) : Infinity;
+    tgtSV = (isFinite(tgtDOH)&&tgtDOH>0) ? remaining/tgtDOH : 0;
+  } else {                                  // Coverage window: Target SV = remaining ÷ N  [sheet AP]
+    tgtSV = remaining>0 ? remaining/cov : 0;
+    tgtDOH = cov;
+  }
+  const upAbs = tgtSV-curSV;
+  const upPct = curSV>0 ? (tgtSV/curSV-1) : (tgtSV>0?Infinity:0);
+  let status = remaining<=0 ? 'done' : (upAbs<=0.0001 ? 'ontrack' : 'behind');
+  return {name,tag,skus,target,sold,remaining,curSV,curDOH,tgtSV,tgtDOH,upAbs,upPct,status};
+}
+function computeTracking(){
+  const mode=document.getElementById('trkMode').value;
+  if(mode==='parent'){
+    const m={};
+    DATA.forEach(x=>{ if(x.targetUnits<=0&&x.totalSold<=0) return; const t=x.tag||'—';
+      const p=m[t]||(m[t]={target:0,sold:0,skus:0}); p.target+=x.targetUnits; p.sold+=x.totalSold; p.skus++; });
+    return Object.entries(m).map(([t,p])=>{ const r=trkRowCalc(p.target,p.sold,p.skus,tagLabel(t),t); r.daily=DAILY.byParent[t]||[]; return r; });
+  }
+  return DATA.filter(x=>x.targetUnits>0||x.totalSold>0)
+    .map(x=>{ const r=trkRowCalc(x.targetUnits,x.totalSold,1,x.sku,x.tag); r.daily=x.daily||[]; return r; });
+}
+function renderTrkKpis(rows){
+  const target=rows.reduce((s,r)=>s+r.target,0);
+  const sold=TRK.totalSold||rows.reduce((s,r)=>s+r.sold,0);
+  const remaining=rows.reduce((s,r)=>s+r.remaining,0);
+  const days=TRK.daysElapsed||0, {basis,cov,lever}=trkParams();
+  const avgSV=days>0?sold/days:0;
+  const tgtDaily=overallTargetDaily(remaining,avgSV);
+  const onTrack=tgtDaily>0?avgSV/tgtDaily:0;
+  const projDays=avgSV>0?remaining/avgSV:Infinity;
+  const behind=rows.filter(r=>r.status==='behind').length;
+  const basisTxt = basis==='uplift'?('+'+pct0(lever)+' vs current'):basis==='adjdoh'?('clear '+pct0(lever)+' faster'):('clear in '+cov+'d');
+  const basisCard = basis==='coverage'?{label:'Coverage target',val:cov+'d',sub:'clear-by window'}
+                   :{label:'% lever',val:pct0(lever),sub:basis==='uplift'?'SV uplift target':'DOH reduction'};
+  const cards=[
+    {label:'Units sold (window)',val:fmt(sold),cls:'good',sub:days+' days · '+(TRK.startDate||'')+'→'+(TRK.endDate||'')},
+    {label:'Avg daily velocity',val:fmt(Math.round(avgSV)),sub:'units/day actual'},
+    {label:'Target daily velocity',val:fmt(Math.round(tgtDaily)),cls:'warn',sub:basisTxt},
+    {label:'On-track',val:pct0(onTrack),cls:onTrack>=1?'good':(onTrack>=0.6?'warn':'alert'),sub:'actual ÷ target pace'},
+    {label:'Aged units remaining',val:fmt(remaining),cls:remaining?'warn':'good',sub:'of '+fmt(target)+' target'},
+    {label:'Proj. days to clear',val:isFinite(projDays)?fmt(Math.round(projDays)):'∞',cls:isFinite(projDays)&&projDays<=cov?'good':'alert',sub:'at current pace'},
+    {label:'🔴 SKUs behind target',val:fmt(behind),cls:behind?'alert':'good',sub:'need velocity uplift'},
+    basisCard,
+  ];
+  document.getElementById('trkKpis').innerHTML=cards.map(c=>
+    `<div class="kpi ${c.cls||''}"><div class="label">${c.label}</div><div class="val">${c.val}</div>${c.sub?`<div class="sub">${c.sub}</div>`:''}</div>`).join('');
+}
+function renderDailyChart(){
+  const sel=document.getElementById('trkParentSel').value;
+  const series = sel ? (DAILY.byParent[sel]||[]) : DAILY.totals;
+  const dates=DAILY.dates||[];
+  // target daily pace line (remaining across current scope / coverage)
+  const scopeRows = sel ? DATA.filter(x=>x.tag===sel) : DATA;
+  const remaining = scopeRows.reduce((s,x)=>s+Math.max(0,x.targetUnits-x.totalSold),0);
+  const scopeSold = scopeRows.reduce((s,x)=>s+x.totalSold,0);
+  const scopeSV = (TRK.daysElapsed||1)>0 ? scopeSold/(TRK.daysElapsed||1) : 0;
+  const tgtDaily = overallTargetDaily(remaining,scopeSV);
+  const max=Math.max(1,tgtDaily,...series);
+  const items=dates.map((d,i)=>{
+    const v=series[i]||0;
+    return {label:d, short:shortDate(d), value:v,
+      color: v>=tgtDaily?'#2ea043':'#e5534b',
+      tip:d+'\n'+fmt(v)+' units'+(tgtDaily?'\ntarget '+Math.round(tgtDaily)+'/day':'')};
+  });
+  // render columns then overlay a dashed target line
+  columnChart('dailyChart', items, {fmt:fmt, height:210, barMax:48});
+  if(tgtDaily>0){
+    const host=document.getElementById('dailyChart').querySelector('.agehist');
+    if(host){ const pctFromTop=100-(6+(tgtDaily/max)*82);
+      const line=document.createElement('div');
+      line.style.cssText=`position:absolute;left:0;right:0;top:calc(${pctFromTop}% );border-top:2px dashed #d29922;pointer-events:none;z-index:4`;
+      const lbl=document.createElement('div');
+      lbl.textContent='target '+Math.round(tgtDaily)+'/day';
+      lbl.style.cssText='position:absolute;right:2px;top:-16px;font-size:10px;color:#e3b341;font-weight:700';
+      line.appendChild(lbl); host.style.position='relative'; host.appendChild(line);
+    }
+  }
+  const tot=series.reduce((a,b)=>a+b,0);
+  document.getElementById('trkWindow').innerHTML=`${fmt(tot)} units over ${dates.length} days`+(sel?` · ${tagLabel(sel)}`:'');
+}
+function trkCell(r,k){
+  const inf=v=>isFinite(v)?v:'∞';
+  switch(k){
+    case 'name': return `<span class="sku">${r.name}</span>`;
+    case 'skus': return fmt(r.skus);
+    case 'target': return fmt(r.target);
+    case 'sold': return r.sold?`<b>${fmt(r.sold)}</b>`:'<span class=muted>0</span>';
+    case 'remaining': return r.remaining?fmt(r.remaining):'<span class=muted>0</span>';
+    case 'curSV': return r.curSV?r.curSV.toFixed(1):'<span class=muted>0</span>';
+    case 'curDOH': return isFinite(r.curDOH)?fmt(Math.round(r.curDOH)):'<span class="flag">∞</span>';
+    case 'tgtSV': return r.tgtSV?r.tgtSV.toFixed(1):'<span class=muted>0</span>';
+    case 'tgtDOH': return fmt(r.tgtDOH);
+    case 'upAbs': return r.remaining<=0?dash:`<span class="${r.upAbs>0?'neg':'pos'}">${(r.upAbs>0?'+':'')}${r.upAbs.toFixed(1)}</span>`;
+    case 'upPct': return r.remaining<=0?dash:(isFinite(r.upPct)?`<span class="${r.upPct>0?'neg':'pos'}">${(r.upPct>0?'+':'')}${pct0(r.upPct)}</span>`:'<span class="neg">new</span>');
+    case 'status': return r.status==='done'?'<span class="badge v-run">✅ met</span>':(r.status==='ontrack'?'<span class="badge v-run">🟢 on track</span>':'<span class="badge v-skip">🔴 behind</span>');
+  }
+  return '';
+}
+function renderTracking(){
+  const all=computeTracking();
+  renderTrkKpis(all);
+  renderDailyChart();
+  const q=(document.getElementById('trkSearch').value||'').toLowerCase().trim();
+  const tg=document.getElementById('trkTag').value, st=document.getElementById('trkStatus').value;
+  let rows=all.filter(r=>{
+    if(tg&&r.tag!==tg) return false;
+    if(st&&r.status!==st) return false;
+    if(q&&!(r.name.toLowerCase().includes(q)||(r.tag||'').toLowerCase().includes(q))) return false;
+    return true;
+  });
+  rows.sort((a,b)=>{ let A=a[trkSortKey],B=b[trkSortKey];
+    if(typeof A==='string'){A=A.toLowerCase();B=String(B||'').toLowerCase();return A<B?-trkSortDir:A>B?trkSortDir:0;}
+    A=isFinite(A)?A:1e12; B=isFinite(B)?B:1e12; return (A-B)*trkSortDir; });
+  trkView=rows;
+  const dates=DAILY.dates||[];
+  const L=TRK_COLS.slice(0,4), R=TRK_COLS.slice(4);   // left: name/skus/target/sold · right: remaining..status
+  const thSort=c=>{ const arr=trkSortKey===c.k?`<span class="sortarrow">${trkSortDir<0?'▼':'▲'}</span>`:'';
+    return `<th class="${c.cls.includes('num')?'num':''}" data-k="${c.k}">${c.t} ${arr}</th>`; };
+  const dayTh=dates.map(d=>`<th class="num" title="units sold ${d}" style="min-width:36px">${shortDate(d)}</th>`).join('');
+  document.getElementById('trkHead').innerHTML=L.map(thSort).join('')
+    +`<th class="num" style="min-width:34px;color:var(--accent)" title="daily units sold →">📅</th>`+dayTh
+    +R.map(thSort).join('');
+  document.querySelectorAll('#trkHead th[data-k]').forEach(th=>th.onclick=()=>{
+    const k=th.dataset.k; if(trkSortKey===k) trkSortDir*=-1; else {trkSortKey=k; trkSortDir=(k==='name'||k==='status')?1:-1;} renderTracking();});
+  const dcells=r=>'<td class="num muted" style="opacity:.5">·</td>'+dates.map((d,i)=>{ const v=r.daily&&r.daily[i]; return `<td class="num">${v?fmt(v):'<span class=muted style="opacity:.4">·</span>'}</td>`; }).join('');
+  const rowHtml=r=>'<tr>'+L.map(c=>`<td class="${c.cls.includes('num')?'num':''}">${trkCell(r,c.k)}</td>`).join('')
+    +dcells(r)+R.map(c=>`<td class="${c.cls.includes('num')?'num':''}">${trkCell(r,c.k)}</td>`).join('')+'</tr>';
+  // ---- live totals row (recomputes with every filter) ----
+  const sumTarget=rows.reduce((s,r)=>s+r.target,0), sumSold=rows.reduce((s,r)=>s+r.sold,0);
+  const daySums=dates.map((d,i)=>rows.reduce((s,r)=>s+((r.daily&&r.daily[i])||0),0));
+  const tot=trkRowCalc(sumTarget,sumSold,rows.length,'Σ',''); tot.daily=daySums;
+  const mode=document.getElementById('trkMode').value;
+  const totRow=`<tr style="background:linear-gradient(180deg,#1d2732,#171e26);font-weight:700;box-shadow:inset 0 -2px 0 var(--accent)">`
+    +`<td class="sku" style="color:var(--accent)">Σ ${mode==='parent'?'parents':'SKUs'}</td>`
+    +`<td class="num">${fmt(rows.length)}</td><td class="num">${fmt(sumTarget)}</td><td class="num"><b>${fmt(sumSold)}</b></td>`
+    +`<td class="num muted">·</td>`+daySums.map(v=>`<td class="num"><b>${v?fmt(v):'·'}</b></td>`).join('')
+    +R.map(c=>`<td class="num">${trkCell(tot,c.k)}</td>`).join('')+'</tr>';
+  const colspan=L.length+dates.length+1+R.length;
+  document.getElementById('trkBody').innerHTML = rows.length ? (totRow+rows.map(rowHtml).join(''))
+    : `<tr><td colspan="${colspan}" class="muted" style="padding:24px;text-align:center">No rows match.</td></tr>`;
+  const behind=rows.filter(r=>r.status==='behind').length;
+  document.getElementById('trkSummary').innerHTML=`<b>${rows.length}</b> ${mode==='parent'?'parents':'SKUs'} · <b>${fmt(sumSold)}</b> sold / ${fmt(sumTarget)} target · ${behind} behind · window ${TRK.startDate||''}→${TRK.endDate||''} (${TRK.daysElapsed} days)`;
+}
+function exportTrackCSV(){
+  const dates=DAILY.dates||[];
+  const head=['Name','Tag','SKUs','Target','Sold',...dates,'Remaining','Current SV','Current DOH','Target SV','Target DOH','Uplift/day','Uplift %','Status'];
+  const f=v=>isFinite(v)?v:'';
+  const lines=[head.join(',')].concat(trkView.map(r=>[
+    r.name,r.tag,r.skus,r.target,r.sold,...dates.map((d,i)=>(r.daily&&r.daily[i])||0),
+    r.remaining,r.curSV.toFixed(2),f(Math.round(r.curDOH)),r.tgtSV.toFixed(2),r.tgtDOH,
+    r.upAbs.toFixed(2),isFinite(r.upPct)?(r.upPct*100).toFixed(0):'new',r.status
+  ].map(esc).join(',')));
+  dl(lines.join('\n'),'ltsf-sales-tracking.csv');
+}
+function populateTrackFilters(){
+  const tags=[...new Set(DATA.filter(x=>x.targetUnits>0||x.totalSold>0).map(x=>x.tag))].sort();
+  const opts=tags.map(t=>`<option value="${t}">${tagLabel(t)}</option>`).join('');
+  document.getElementById('trkTag').innerHTML='<option value="">All parents</option>'+opts;
+  document.getElementById('trkParentSel').innerHTML='<option value="">All parents (total)</option>'+opts;
+  const cov=document.getElementById('trkCoverage'); if(cov&&TRK.coverageDays) cov.value=Math.round(TRK.coverageDays);
+  const pl=document.getElementById('trkPct'); if(pl&&TRK.pctLever) pl.value=Math.round(TRK.pctLever*100);
+  syncBasisUI();
+}
+
+/* ============================ filters, tabs, wireup, init ============================ */
+function populateOverviewFilters(){
+  const tags=[...new Set(DATA.map(x=>x.tag))].sort();
+  const sizes=[...new Set(DATA.map(x=>x.size).filter(Boolean))].sort();
+  document.getElementById('skuTag').innerHTML='<option value="">All parents</option>'+tags.map(t=>`<option value="${t}">${tagLabel(t)}</option>`).join('');
+  document.getElementById('skuSize').innerHTML='<option value="">All sizes</option>'+sizes.map(s=>`<option value="${s}">${s}</option>`).join('');
+  document.getElementById('engTag').innerHTML='<option value="">All parents</option>'+tags.map(t=>`<option value="${t}">${tagLabel(t)}</option>`).join('');
+}
+function initLTSF(){
+  if(!LT.skus || !LT.skus.length){
+    document.getElementById('empty').classList.add('show');
+    return;
+  }
+  buildFromLTSF();
+  const rb=document.getElementById('reloadBtn'); if(rb) rb.classList.add('hide');
   document.getElementById('empty').classList.remove('show');
   document.getElementById('empty').classList.add('hide');
   document.getElementById('app').classList.remove('hide');
-  document.getElementById('rowcount').textContent=DATA.length+' SKUs loaded';
-  const snap=rows[1]&&rows[1][0]?rows[1][0]:'';
-  document.getElementById('snapline').textContent = snap?('Snapshot date: '+snap+' · LTSF / aged-inventory surcharge view'):'LTSF / aged-inventory surcharge dashboard';
-  // populate filters
-  ['fBrand','fCat','fTag','fHealth','fSize','ageBrand','ageTag'].forEach(id=>{const e=document.getElementById(id);e.innerHTML=e.querySelector('option').outerHTML;});
-  fillSelect('fBrand',[...new Set(DATA.map(x=>x.brand))]);
-  fillSelect('ageBrand',[...new Set(DATA.map(x=>x.brand))]);
-  fillSelect('fCat',[...new Set(DATA.map(x=>x.category))]);
-  // tag dropdowns show "TAG · friendly name", sorted, value = raw tag
-  const tags=[...new Set(DATA.map(x=>x.tag))].sort();
-  ['fTag','ageTag'].forEach(id=>{const e=document.getElementById(id);tags.forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=tagLabel(t);e.appendChild(o);});});
-  fillSelect('fHealth',[...new Set(DATA.map(x=>x.health).filter(Boolean))]);
-  fillSelect('fSize',[...new Set(DATA.map(x=>x.size))]);
-  renderKPIs(); renderOverviewCharts(); renderAgingTable();
-  renderHead(); applyFilters();
-  if(DEAL_ROWS.length) populateDealFilters();
-  renderDeals();
-  populateProjFilters(); renderProjection();
+  document.getElementById('rowcount').textContent=DATA.length+' SKUs · '+money(LT.meta.totalAIS||0)+' AIS';
+  document.getElementById('snapline').textContent='Source: '+(LT.meta.source||'LTSF workbook')+' · '+DATA.length+' SKUs · next-month aged-inventory surcharge';
+  const rt=document.getElementById('reconTotal'); if(rt) rt.textContent=money(LT.meta.totalAIS||0);
+  populateOverviewFilters();
+  populateTrackFilters();
+  renderLtsfOverview();
+  renderEngine();
+  renderTracking();
 }
 
-/* ---------- wire up ---------- */
-const fileInput=document.getElementById('fileInput');
-function pick(){ fileInput.click(); }
-document.getElementById('reloadBtn').onclick=pick;
-document.getElementById('drop').onclick=pick;
-fileInput.onchange=e=>{ const f=e.target.files[0]; if(f){ const r=new FileReader(); r.onload=()=>loadData(r.result); r.readAsText(f); } };
-['search','fBrand','fCat','fTag','fHealth','fSize'].forEach(id=>document.getElementById(id).addEventListener('input',applyFilters));
-document.getElementById('fAged').addEventListener('change',applyFilters);
-['ageSearch','ageBrand','ageTag','ageBand'].forEach(id=>document.getElementById(id).addEventListener('input',renderAgingTable));
-document.getElementById('exportBtn').onclick=exportCSV;
-document.getElementById('exportAged').onclick=exportAgedCSV;
-
-// deal feasibility tab
-const trackerInput=document.getElementById('trackerInput'), dealsInput=document.getElementById('dealsInput'), cogsInput=document.getElementById('cogsInput'), feeInput=document.getElementById('feeInput');
-// read a FileList sequentially, then hand all texts to cb
-function readFiles(files, cb){ const out=[]; let i=0; (function nx(){ if(i>=files.length) return cb(out); const r=new FileReader(); r.onload=()=>{ out.push(r.result); i++; nx(); }; r.readAsText(files[i]); })(); }
-document.getElementById('loadTracker').onclick=()=>trackerInput.click();
-document.getElementById('loadDeals').onclick=()=>dealsInput.click();
-document.getElementById('loadCogs').onclick=()=>cogsInput.click();
-document.getElementById('loadFees').onclick=()=>feeInput.click();
-trackerInput.onchange=e=>{ const fl=[...e.target.files]; if(fl.length) readFiles(fl,processTrackerFiles); };
-dealsInput.onchange =e=>{ const f=e.target.files[0]; if(f){ const r=new FileReader(); r.onload=()=>loadDeals(r.result); r.readAsText(f); } };
-cogsInput.onchange  =e=>{ const fl=[...e.target.files]; if(fl.length) readFiles(fl,texts=>texts.forEach(loadCOGS)); };
-feeInput.onchange   =e=>{ const fl=[...e.target.files]; if(fl.length) readFiles(fl,texts=>texts.forEach(loadFees)); };
-['dealSearch','dealDate','dealVerdict','dealTag','dealBrand','refPct','defFba'].forEach(id=>document.getElementById(id).addEventListener('input',renderDeals));
-document.getElementById('dealOnlyLtsf').addEventListener('change',renderDeals);
-document.getElementById('exportDeals').onclick=exportDealsCSV;
-// tab switching
+/* ---- tab switching ---- */
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
   document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b===t));
   const tab=t.dataset.tab;
   document.getElementById('viewLtsf').classList.toggle('hide',tab!=='ltsf');
-  document.getElementById('viewDeals').classList.toggle('hide',tab!=='deals');
   document.getElementById('viewProj').classList.toggle('hide',tab!=='proj');
-  if(tab==='proj'){ renderProjection(); reveal('projKpis'); }
-  else if(tab==='deals') reveal('dealKpis');
-  else reveal('kpis');
+  document.getElementById('viewTrack').classList.toggle('hide',tab!=='track');
+  document.getElementById('viewKpi').classList.toggle('hide',tab!=='kpi');
+  if(tab==='proj'){ renderEngine(); reveal('engKpis'); }
+  else if(tab==='track'){ renderTracking(); reveal('trkKpis'); }
+  else if(tab==='kpi'){ /* self-contained iframe loads its own data */ }
+  else { renderLtsfOverview(); reveal('kpis'); }
 });
 
-// 1-year projection tab
-['projSearch','projTag','projBrand','projAction','projHorizon','projDisc','projVel','projRef']
-  .forEach(id=>document.getElementById(id).addEventListener('input',renderProjection));
-document.getElementById('projOnlyAged').addEventListener('change',renderProjection);
-document.getElementById('exportProj').onclick=exportProjCSV;
+/* ---- overview wireup ---- */
+['skuSearch','skuTag','skuSize','skuBand'].forEach(id=>document.getElementById(id).addEventListener('input',renderSkuTable));
+document.getElementById('povSearch').addEventListener('input',renderParents);
+document.getElementById('exportParents').onclick=exportParentsCSV;
+document.getElementById('exportSkus').onclick=exportSkusCSV;
 
-// band modal close: X button, click outside, Escape
-document.getElementById('bandModalClose').onclick=closeBandModal;
-document.getElementById('bandModalExport').onclick=exportBandCSV;
-['bandModalSearch','bandModalBrand','bandModalTag'].forEach(id=>document.getElementById(id).addEventListener('input',renderBandModalBody));
-document.getElementById('bandModal').addEventListener('click',e=>{ if(e.target.id==='bandModal') closeBandModal(); });
-document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeBandModal(); });
+/* ---- engine wireup ---- */
+const engDisc=document.getElementById('engDisc');
+engDisc.addEventListener('input',()=>{ document.getElementById('engDiscVal').textContent=engDisc.value+'%'; renderEngine(); });
+['engSearch','engTag','engVerdict','eng3pl','engRef'].forEach(id=>document.getElementById(id).addEventListener('input',renderEngine));
+document.getElementById('exportEng').onclick=exportEngineCSV;
 
-/* premium cursor-origin ripple on interactive elements (delegated → survives re-renders) */
+/* ---- tracking wireup ---- */
+['trkSearch','trkStatus','trkMode','trkCoverage','trkBasis','trkPct'].forEach(id=>document.getElementById(id).addEventListener('input',renderTracking));
+// tag selection is linked: picking a parent in either selector drives the chart AND the table+totals
+function syncTag(from){
+  const v=document.getElementById(from).value;
+  const other=from==='trkTag'?'trkParentSel':'trkTag';
+  const o=document.getElementById(other);
+  if([...o.options].some(op=>op.value===v)) o.value=v;
+  renderTracking();
+}
+document.getElementById('trkTag').addEventListener('change',()=>syncTag('trkTag'));
+document.getElementById('trkParentSel').addEventListener('change',()=>syncTag('trkParentSel'));
+document.getElementById('exportTrack').onclick=exportTrackCSV;
+/* enable/disable the relevant lever + note, based on chosen basis */
+function syncBasisUI(){
+  const b=document.getElementById('trkBasis').value;
+  document.getElementById('trkCoverage').disabled=(b!=='coverage');
+  document.getElementById('trkPct').disabled=(b==='coverage');
+  document.getElementById('trkBasisNote').innerHTML =
+    b==='coverage' ? 'Target SV = remaining ÷ coverage days · Target DOH = coverage days'
+    : b==='uplift' ? 'Target SV = Current SV × (1 + % lever) · Target DOH = remaining ÷ Target SV'
+    : 'Adjusted DOH = Current DOH × (1 − % lever) · Target SV = remaining ÷ Adjusted DOH';
+}
+document.getElementById('trkBasis').addEventListener('change',syncBasisUI);
+
+/* ---- drill-down modal wireup ---- */
+document.getElementById('bandModalClose').onclick=closeListModal;
+document.getElementById('bandModalExport').onclick=exportListModal;
+document.getElementById('bandModalSearch').addEventListener('input',fillListModal);
+document.getElementById('bandModal').addEventListener('click',e=>{ if(e.target.id==='bandModal') closeListModal(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeListModal(); });
+
+/* ---- premium cursor-origin ripple (delegated) ---- */
 document.addEventListener('pointerdown',e=>{
   if(_reduce||e.button!==0) return;
   const t=e.target.closest('button, .tab, .kpi, thead th, .band-row-click, .modal-head .x');
@@ -1710,21 +2354,8 @@ document.addEventListener('pointerdown',e=>{
   t.appendChild(s); setTimeout(()=>s.remove(),660);
 });
 
-// drag & drop
-const drop=document.getElementById('drop');
-['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
-['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));
-drop.addEventListener('drop',e=>{ const f=e.dataTransfer.files[0]; if(f){ const r=new FileReader(); r.onload=()=>loadData(r.result); r.readAsText(f);} });
-
-// try auto-load a sibling CSV (works when hosted next to the file)
-const CANDIDATES=['FBA INV - Sheet1.csv','FBA-INV.csv','fba-inventory.csv','inventory.csv','data.csv'];
-(async function tryAuto(){
-  for(const f of CANDIDATES){
-    try{ const res=await fetch(encodeURIComponent(f)); if(res.ok){ const t=await res.text(); if(t&&t.includes('sku')){ loadData(t); return; } } }catch(e){}
-    try{ const res=await fetch(f); if(res.ok){ const t=await res.text(); if(t&&t.includes('sku')){ loadData(t); return; } } }catch(e){}
-  }
-  document.getElementById('empty').classList.add('show');
-})();
+/* ---- go ---- */
+initLTSF();
 </script>
 </body>
 </html>

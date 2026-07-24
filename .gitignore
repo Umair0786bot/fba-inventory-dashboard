@@ -1,2 +1,6 @@
 .DS_Store
 Thumbs.db
+*.bak
+index.base.html
+METRICS-TRACKER-HANDOFF.md
+data.csv

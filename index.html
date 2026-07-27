@@ -1737,12 +1737,23 @@ const shortDate=d=>{ const p=String(d||'').split('-'); return p.length===3?(+p[1
 function columnChart(elId, items, opts){
   opts=opts||{};
   const vfmt=opts.fmt||fmt;
-  const max=Math.max(1,...items.map(d=>d.value||0));
-  /* .ah-plot height is driven by --plotH (only set on #ageChart in the base CSS),
-     so set it here per-container or bars collapse. */
-  let html=`<div class="agehist" style="--plotH:${opts.height||240}px;align-items:flex-end">`;
+  const H=opts.height||240;
+  const ref=(opts.refLine && opts.refLine.value>0) ? opts.refLine : null;
+  const dataMax=Math.max(1,...items.map(d=>d.value||0));
+  /* ONE shared scale for bars + reference line. When a ref line is present, add
+     headroom so it always sits clearly above the tallest bar (never colliding). */
+  const max=Math.max(dataMax, ref?ref.value:0) * (ref?1.16:1);
+  const barPct=v=> v>0 ? 6+(v/max)*82 : 1;         // 6–88% of plot height
+  /* .ah-plot height is driven by --plotH (only set on #ageChart in base CSS). */
+  let html=`<div class="agehist" style="--plotH:${H}px;align-items:flex-end;position:relative">`;
+  if(ref){
+    const topPx = (H*(1 - barPct(ref.value)/100)).toFixed(1);   // px from plot top → aligns to bar scale
+    html+=`<div class="ah-refline" style="position:absolute;left:0;right:0;top:${topPx}px;border-top:2px dashed ${ref.color||'#fbbf24'};pointer-events:none;z-index:4">
+      <span style="position:absolute;right:0;top:-16px;font-size:10px;font-weight:700;color:${ref.color||'#fbbf24'};background:rgba(10,13,20,.72);padding:1px 5px;border-radius:5px;white-space:nowrap">${ref.label||''}</span>
+    </div>`;
+  }
   items.forEach((d,i)=>{
-    const v=d.value||0, h=v>0?6+(v/max)*82:1;
+    const v=d.value||0, h=barPct(v);
     const col=d.color||'#4f9dff';
     const tip=(d.tip||(d.label+'\n'+vfmt(v)));
     html+=`<div class="ah-col" data-tip="${tip}">
@@ -2167,7 +2178,7 @@ function computeTracking(){
 }
 function renderTrkKpis(rows){
   const target=rows.reduce((s,r)=>s+r.target,0);
-  const sold=TRK.totalSold||rows.reduce((s,r)=>s+r.sold,0);
+  const sold=rows.reduce((s,r)=>s+r.sold,0);
   const remaining=rows.reduce((s,r)=>s+r.remaining,0);
   const days=TRK.daysElapsed||0, {basis,cov,lever}=trkParams();
   const avgSV=days>0?sold/days:0;
@@ -2195,32 +2206,24 @@ function renderDailyChart(){
   const sel=document.getElementById('trkParentSel').value;
   const series = sel ? (DAILY.byParent[sel]||[]) : DAILY.totals;
   const dates=DAILY.dates||[];
-  // target daily pace line (remaining across current scope / coverage)
-  const scopeRows = sel ? DATA.filter(x=>x.tag===sel) : DATA;
-  const remaining = scopeRows.reduce((s,x)=>s+Math.max(0,x.targetUnits-x.totalSold),0);
-  const scopeSold = scopeRows.reduce((s,x)=>s+x.totalSold,0);
-  const scopeSV = (TRK.daysElapsed||1)>0 ? scopeSold/(TRK.daysElapsed||1) : 0;
+  const days=TRK.daysElapsed||1;
+  // target daily pace — use the SAME tracking rows the KPI tiles use, so the
+  // chart's "target N/day" always matches the "Target daily velocity" KPI.
+  const trkRows=computeTracking();
+  const scoped = sel ? trkRows.filter(r=>r.tag===sel) : trkRows;
+  const remaining = scoped.reduce((s,r)=>s+r.remaining,0);
+  const scopeSold = scoped.reduce((s,r)=>s+r.sold,0);
+  const scopeSV = days>0 ? scopeSold/days : 0;
   const tgtDaily = overallTargetDaily(remaining,scopeSV);
-  const max=Math.max(1,tgtDaily,...series);
   const items=dates.map((d,i)=>{
     const v=series[i]||0;
     return {label:d, short:shortDate(d), value:v,
-      color: v>=tgtDaily?'#2ea043':'#e5534b',
-      tip:d+'\n'+fmt(v)+' units'+(tgtDaily?'\ntarget '+Math.round(tgtDaily)+'/day':'')};
+      color: v>=tgtDaily?'#34d399':'#fb7185',
+      tip:d+'\n'+fmt(v)+' units'+(tgtDaily?'\ntarget '+Math.round(tgtDaily)+'/day (need '+(v>=tgtDaily?'on track':'+'+Math.round(tgtDaily-v))+')':'')};
   });
-  // render columns then overlay a dashed target line
-  columnChart('dailyChart', items, {fmt:fmt, height:210, barMax:48});
-  if(tgtDaily>0){
-    const host=document.getElementById('dailyChart').querySelector('.agehist');
-    if(host){ const pctFromTop=100-(6+(tgtDaily/max)*82);
-      const line=document.createElement('div');
-      line.style.cssText=`position:absolute;left:0;right:0;top:calc(${pctFromTop}% );border-top:2px dashed #d29922;pointer-events:none;z-index:4`;
-      const lbl=document.createElement('div');
-      lbl.textContent='target '+Math.round(tgtDaily)+'/day';
-      lbl.style.cssText='position:absolute;right:2px;top:-16px;font-size:10px;color:#e3b341;font-weight:700';
-      line.appendChild(lbl); host.style.position='relative'; host.appendChild(line);
-    }
-  }
+  // bars + target line share one scale (with headroom) so the line never collides
+  columnChart('dailyChart', items, {fmt:fmt, height:210, barMax:48,
+    refLine: tgtDaily>0 ? {value:tgtDaily, label:'target '+Math.round(tgtDaily)+'/day', color:'#fbbf24'} : null});
   const tot=series.reduce((a,b)=>a+b,0);
   document.getElementById('trkWindow').innerHTML=`${fmt(tot)} units over ${dates.length} days`+(sel?` · ${tagLabel(sel)}`:'');
 }

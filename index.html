@@ -553,15 +553,14 @@
           <button class="ghost" id="simUseFloor" title="Set the discount to this scope's weighted out-of-pocket floor" style="padding:4px 9px;font-size:11.5px">→ floor</button>
           <button class="ghost" id="simUseBest" title="Set the discount to the level that maximises net recovery for this scope" style="padding:4px 9px;font-size:11.5px;border-color:rgba(52,211,153,.5);color:#5ff0b8">★ best</button>
         </label>
-        <label class="chip" title="How much faster stock moves when discounted. Every 10% off is assumed to lift sell velocity by this much.">Velocity response&nbsp;
+        <label class="chip" title="Price elasticity of demand: multiplier = (1/(1-discount))^E. Deliberately non-linear — a 10% cut barely moves velocity, a deep cut moves it a lot.">Elasticity (E)&nbsp;
           <select id="simElast">
-            <option value="0">none (0% per 10% off)</option>
-            <option value="10">+10% per 10% off</option>
-            <option value="20">+20% per 10% off</option>
-            <option value="25" selected>+25% per 10% off</option>
-            <option value="35">+35% per 10% off</option>
-            <option value="50">+50% per 10% off</option>
-            <option value="75">+75% per 10% off</option>
+            <option value="0">0 · no response</option>
+            <option value="75">0.75 · sluggish</option>
+            <option value="100">1.0 · modest</option>
+            <option value="150" selected>1.5 · typical clearance</option>
+            <option value="200">2.0 · responsive</option>
+            <option value="250">2.5 · very responsive</option>
           </select>
         </label>
         <label class="chip">Referral %&nbsp;<input type="number" id="engRef" value="15" min="0" max="100" step="0.5" style="width:58px" /></label>
@@ -571,7 +570,8 @@
       </div>
       <div class="footnote">
         <b>The model, in one line:</b> a discount lowers the price you collect but lifts sell velocity, so the aged stock clears sooner and stops accruing the surcharge. Net recovery counts <b>only the cash from units you actually sell inside the horizon</b>, minus the surcharge you actually pay — units still sitting at the end are neither credited nor written off (they're shown as <i>Left</i>).<br/>
-        <b>Guard-rails per SKU:</b> <span class="badge v-run">Ceiling</span> is the deepest discount that still returns <b>100% of product cost</b> — its price is the <b>COGS-recovery price</b> = (COGS + FBA) ÷ (1 − referral). <span class="badge v-cost">Floor</span> is where the cash payout hits zero; past it you pay Amazon to take the unit. <b>★ Best</b> scans every discount from 0–90% and picks the one with the highest net recovery for the scope.
+        <b>Guard-rails per SKU:</b> <span class="badge v-run">Ceiling</span> is the deepest discount that still returns <b>100% of product cost</b> — its price is the <b>COGS-recovery price</b> = (COGS + FBA) ÷ (1 − referral). <span class="badge v-cost">Floor</span> is where the cash payout hits zero; past it you pay Amazon to take the unit. <b>★ Best</b> scans every discount from 0–90% and picks the one with the highest net recovery for the scope.<br/>
+        <b>Velocity is measured, not guessed:</b> units/day comes from each SKU’s real daily sales history (the KPI tracker’s 26-day per-SKU series), falling back to the workbook’s L30 velocity where a SKU has no history — the <b>Src</b> column shows which. The response to a discount uses a <b>constant-elasticity curve</b> (multiplier = (1 ÷ (1 − discount))^E), so a 10% cut moves velocity only slightly while a deep cut moves it a lot. The <b>Target velocity</b> view shows, per SKU, the pace required to clear the cohort inside the horizon, the gap from today, and the discount that would close it.
       </div>
     </div>
 
@@ -625,11 +625,10 @@
           <button class="ghost" id="simUseCeil2" style="padding:4px 9px;font-size:11.5px">→ ceiling</button>
           <button class="ghost" id="simUseBest2" style="padding:4px 9px;font-size:11.5px;border-color:rgba(52,211,153,.5);color:#5ff0b8">★ best</button>
         </label>
-        <label class="chip">Velocity response&nbsp;
+        <label class="chip">Elasticity&nbsp;
           <select id="simElast2">
-            <option value="0">none</option><option value="10">+10%/10off</option><option value="20">+20%/10off</option>
-            <option value="25" selected>+25%/10off</option><option value="35">+35%/10off</option>
-            <option value="50">+50%/10off</option><option value="75">+75%/10off</option>
+            <option value="0">0</option><option value="75">0.75</option><option value="100">1.0</option>
+            <option value="150" selected>1.5</option><option value="200">2.0</option><option value="250">2.5</option>
           </select>
         </label>
         <label class="chip">Horizon&nbsp;<input type="number" id="simHorizon2" value="12" min="3" max="24" step="1" style="width:52px" /></label>
@@ -644,6 +643,7 @@
         <label class="chip">Show&nbsp;
           <select id="simView">
             <option value="decision" selected>Decision — the essentials</option>
+            <option value="target">Target velocity — where we must get to</option>
             <option value="pricing">Pricing &amp; guard-rails</option>
             <option value="clearance">Velocity &amp; clearance</option>
             <option value="charges">Charges &amp; 3PL</option>
@@ -1894,6 +1894,8 @@ function buildFromLTSF(){
       price:s.price||0, cogs:s.cogs||0, fba:s.fba||0, referral:s.referral||0, margin:s.margin||0,
       volume:s.volume||0, value:0, storage:0, action:'',
       velocity:s.velocity||0, origMonthly:s.origMonthly||0, svDay:s.svDay||0, removalRate:s.removalRate||0,
+      avgDaily:s.avgDaily||0, svMonthly:s.svMonthly||0, svSource:s.svSource||'none',
+      svDays:s.svDays||0, svWindow:s.svWindow||'',
       ceiling:s.ceiling||0, floor:s.floor||0, bePrice:s.bePrice||0,
       charges1yrNo:s.charges1yrNo||0, charges1yrDisc:s.charges1yrDisc||0,
       removalCost:s.removalCost||0, baseStorage:s.baseStorage||0, out3pl:s.out3pl||0, in3pl:s.in3pl||0,
@@ -2109,8 +2111,21 @@ function rollMonthlyFIFO(seed,rate,vel,horizon,m1Charge){
   }
   return {months,total,sold:soldTot,left:b.reduce((s,v)=>s+v,0)};
 }
-/* velocity multiplier implied by a discount: "+X% per 10 points off" */
-function velMultFor(disc,elast){ return 1 + (disc/0.10)*elast; }
+/* Velocity response to a discount — constant-elasticity demand curve:
+      multiplier = (1 / (1 − disc)) ^ E
+   Deliberately NON-linear: a 10% cut barely moves the needle while a deep cut moves
+   a lot, which is how clearance actually behaves. E=1.5 gives 10%→1.17x, 30%→1.70x,
+   50%→2.83x, 70%→6.1x. Capped at 12x so extreme discounts can't produce fantasy sales. */
+function velMultFor(disc,E){
+  if(!(E>0)) return 1;
+  const d=Math.min(0.95,Math.max(0,disc));
+  return Math.min(12, Math.pow(1/(1-d), E));
+}
+/* inverse: the discount needed to reach a target velocity multiplier */
+function discForMult(mult,E){
+  if(!(E>0)||!(mult>1)) return 0;
+  return Math.min(0.95, 1-Math.pow(mult,-1/E));
+}
 function simParams(){
   return {
     parent:document.getElementById('simParent').value,
@@ -2159,7 +2174,8 @@ function computeSim(){
   simScopeSkus(p).forEach(x=>{
     const seed=skuSeed9(x), units=seed.reduce((s,v)=>s+v,0);
     const rate=skuRates9(x);
-    const velBase=x.origMonthly>0?x.origMonthly:(x.svDay>0?x.svDay*30:0);
+    /* velocity from real daily sales (KPI tracker 26d) → workbook L30 SV as fallback */
+    const velBase=x.svMonthly>0?x.svMonthly:(x.origMonthly>0?x.origMonthly:(x.svDay>0?x.svDay*30:0));
     const m1=x.ais>0?x.ais:null;
     const price=x.price;
     // hold = no discount, current velocity
@@ -2172,7 +2188,17 @@ function computeSim(){
     const floor=price>0?1-x.fba/((1-p.ref)*price):0;
     const ceilPrice=(1-p.ref)>0?(x.cogs+x.fba)/(1-p.ref):0;   // 100% COGS-recovery price (= break-even)
     const floorPrice=(1-p.ref)>0?x.fba/(1-p.ref):0;
+    /* ---- target velocity: where we are vs where we must get to ---- */
+    const svTarget = hor>0 ? units/hor : 0;                 // monthly SV that clears the cohort in the horizon
+    const needMult = velBase>0 ? svTarget/velBase : Infinity;
+    const discForTarget = isFinite(needMult) ? discForMult(needMult,p.elast) : null;
+    const svAtCeil = velBase*velMultFor(ceiling,p.elast);   // SV the full-COGS ceiling would deliver
+    const svAtBest = velBase*velMultFor(opt.disc,p.elast);
+    const reachable = discForTarget!=null && discForTarget<=Math.min(0.90,Math.max(floor,0));
     const r={sku:x.sku,tag:x.tag,size:x.size,units,price,cogs:x.cogs,fba:x.fba,
+      avgDaily:x.avgDaily,svSource:x.svSource,svDays:x.svDays,svWindow:x.svWindow,
+      svTarget,svGapAbs:svTarget-velBase,svGapPct:velBase>0?svTarget/velBase-1:Infinity,
+      discForTarget,svAtCeil,svAtBest,reachable,
       ceiling,floor,ceilPrice,floorPrice,
       discPct:p.disc,adjP,payout:scen.pay,
       recovery:(x.cogs>0&&price>0)?scen.pay/x.cogs:null,
@@ -2370,8 +2396,16 @@ const SIM_COLS=[
   {k:'adjP',t:'Deal $',cls:'num',grp:'deal',tip:'Deal price at your chosen discount = base price × (1 − discount %).'},
   {k:'payout',t:'Payout/u',cls:'num',grp:'deal',tip:'Net cash you collect per unit at the deal price = deal price − referral − FBA. Product COGS is excluded because it is already spent.'},
   {k:'recovery',t:'% Rec',cls:'num',grp:'deal',tip:'Share of product COGS recovered by that cash payout. 100% = the full product cost comes back.'},
-  {k:'velBase',t:'SV now',cls:'num',grp:'vel',tip:'Current sell velocity in units per month, from the workbook (L30 trend).'},
-  {k:'velScen',t:'SV @ disc',cls:'num',grp:'vel',tip:'Sell velocity assumed at this discount, using the velocity-response setting above.'},
+  {k:'avgDaily',t:'Units/day',cls:'num',grp:'vel',tip:'Average units sold PER DAY, measured from the daily sales history. Source is shown in the Src column — the KPI tracker’s 26-day per-SKU history where available, otherwise the workbook’s L30 velocity.'},
+  {k:'svSource',t:'Src',cls:'',grp:'vel',tip:'Where the daily velocity came from: 📊 tracker = real per-SKU daily sales history · 📅 window = the workbook’s tracking window · 📄 sheet = the workbook’s L30 SV fallback.'},
+  {k:'velBase',t:'SV now',cls:'num',grp:'vel',tip:'Current sell velocity in units per MONTH (units/day × 30), from the measured daily history.'},
+  {k:'svTarget',t:'SV target',cls:'num',grp:'tgt',tip:'The monthly velocity you MUST reach to clear this SKU’s whole aged cohort inside the horizon = aged units ÷ horizon months. This is the goal line.'},
+  {k:'svGapAbs',t:'SV gap',cls:'num',grp:'tgt',tip:'Extra units per month needed to hit the target = SV target − SV now. This is the absolute distance to the goal.'},
+  {k:'svGapPct',t:'Uplift needed',cls:'num',grp:'tgt',tip:'That same gap as a % increase over today’s pace. A 300% figure means you must sell 4× as fast to clear the cohort in the horizon.'},
+  {k:'discForTarget',t:'% off to hit',cls:'num',grp:'tgt',tip:'The discount that would deliver the target velocity, per the elasticity setting. If it exceeds the cash floor the target is not reachable by discounting alone — you would be paying Amazon to move the stock.'},
+  {k:'reachable',t:'Reachable?',cls:'',grp:'tgt',tip:'✅ = the discount needed to hit the target velocity still sits above the out-of-pocket floor. ⛔ = discounting alone cannot clear this cohort in the horizon; consider removal/liquidation instead.'},
+  {k:'svAtCeil',t:'SV @ ceiling',cls:'num',grp:'tgt',tip:'The velocity you would get at the full-COGS ceiling discount — i.e. the fastest clearance available while still recovering 100% of product cost.'},
+  {k:'velScen',t:'SV @ disc',cls:'num',grp:'vel',tip:'Sell velocity implied at your chosen discount, using the elasticity response above.'},
   {k:'svGain',t:'SV gain',cls:'num',grp:'vel',tip:'Extra units per month the discount is assumed to unlock = SV @ disc − SV now.'},
   {k:'moClear',t:'Mo→clear',cls:'num',grp:'vel',tip:'Months to clear the whole aged cohort at the uplifted velocity.'},
   {k:'soldScen',t:'Sold',cls:'num',grp:'clr',tip:'Units actually sold inside the horizon at the uplifted velocity. Only these earn cash in net recovery.'},
@@ -2393,12 +2427,13 @@ const SIM_COLS=[
 ];
 const SIM_VIEWS={
   decision:['id','price','deal','dec','opt'],
+  target:  ['id','vel','tgt','deal','opt'],
   pricing: ['id','price','price2','deal'],
   clearance:['id','vel','clr','deal'],
   charges: ['id','chg','dec','tpl'],
-  all:     ['id','price','price2','deal','vel','clr','chg','dec','opt','tpl'],
+  all:     ['id','price','price2','deal','vel','tgt','clr','chg','dec','opt','tpl'],
 };
-const SIM_GROUP_LABEL={id:'SKU',price:'Pricing & COGS-recovery',price2:'Cost & cash floor',deal:'Your discount',
+const SIM_GROUP_LABEL={id:'SKU',price:'Pricing & COGS-recovery',price2:'Cost & cash floor',deal:'Your discount',tgt:'Target velocity — where we must get to',
   vel:'Velocity',clr:'Clearance',chg:'Surcharge',dec:'Decision',opt:'Optimiser',tpl:'3PL'};
 function simActiveCols(){
   const v=document.getElementById('simView').value||'decision';
@@ -2422,7 +2457,19 @@ function simCell(r,k){
     case 'adjP': { const zc=r.zone==='safe'?'pos':(r.zone==='thin'?'':'neg'); return r.price?`<span class="${zc}">${money2(r.adjP)}</span>`:dash; }
     case 'payout': return `<span class="${r.payout<0?'neg':'pos'}">${m2(r.payout)}</span>`;
     case 'recovery': return r.recovery==null?dash:`<span class="${r.recovery<0?'neg':(r.recovery>=1?'pos':'')}">${pct0(r.recovery)}</span>`;
+    case 'avgDaily': return r.avgDaily>0?`<b>${fmtN1(r.avgDaily)}</b>`:'<span class=muted>0</span>';
+    case 'svSource': { const M={tracker:['📊','26-day per-SKU sales history'],window:['📅','workbook tracking window'],sheet:['📄','workbook L30 SV fallback'],none:['—','no sales data']};
+      const [ic,lbl]=M[r.svSource]||M.none; return `<span title="${lbl}${r.svWindow?' · '+r.svWindow:''}">${ic}</span>`; }
     case 'velBase': return fmtN1(r.velBase);
+    case 'svTarget': return `<b style="color:#ffd45e">${fmtN1(r.svTarget)}</b>`;
+    case 'svGapAbs': return r.svGapAbs>0.05?`<span class="neg">+${fmtN1(r.svGapAbs)}</span>`:'<span class="pos">on pace</span>';
+    case 'svGapPct': return !isFinite(r.svGapPct)?'<span class="flag" title="no sales — any target is an infinite uplift">∞</span>'
+                       :(r.svGapPct<=0?'<span class="pos">0%</span>':`<span class="${r.svGapPct>3?'neg':''}">+${(r.svGapPct*100).toFixed(0)}%</span>`);
+    case 'discForTarget': return r.discForTarget==null?'<span class="flag">∞</span>'
+                       :`<span class="${r.discForTarget>r.floor?'neg':(r.discForTarget<=r.ceiling?'pos':'')}">${pct0(r.discForTarget)}</span>`;
+    case 'reachable': return r.discForTarget==null?'<span class="badge v-skip">⛔ no sales</span>'
+                       :(r.reachable?'<span class="badge v-run">✅ yes</span>':'<span class="badge v-skip">⛔ past floor</span>');
+    case 'svAtCeil': return fmtN1(r.svAtCeil);
     case 'velScen': return `<b>${fmtN1(r.velScen)}</b>`;
     case 'svGain': return r.svGain>0.05?`<span class="pos">+${fmtN1(r.svGain)}</span>`:'<span class=muted>—</span>';
     case 'moClear': return isFinite(r.moClear)?fmt(r.moClear):'<span class="flag" title="zero velocity — never clears">∞</span>';

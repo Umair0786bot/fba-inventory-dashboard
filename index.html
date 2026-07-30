@@ -52,7 +52,9 @@
   button,.btn{background:var(--accent);color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:550}
   button.ghost{background:var(--panel2);color:var(--txt);border:1px solid var(--line)}
   button:hover{filter:brightness(1.08)}
-  .wrap{padding:20px 24px;max-width:1600px;margin:0 auto}
+  /* Full-bleed: the dashboard is a data surface, so tables and charts should use
+     every pixel of a wide monitor. Only running prose gets a measure cap. */
+  .wrap{padding:20px 28px;max-width:none;margin:0}
 
   /* KPI cards */
   .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px;margin-bottom:20px}
@@ -128,7 +130,7 @@
   #drop h2{font-size:17px;margin:0 0 8px}
   #drop p{color:var(--muted);margin:6px 0}
   .hide{display:none!important}
-  .footnote{color:var(--muted);font-size:11px;margin-top:14px;line-height:1.6}
+  .footnote{color:var(--muted);font-size:11px;margin-top:14px;line-height:1.6;max-width:120ch}
   .snap{color:var(--muted);font-size:12px}
 
   /* clickable band rows + modal */
@@ -379,6 +381,11 @@
   /* inputs/selects — cohesive, glassy focus glow */
   .filters input,.filters select{background:rgba(255,255,255,.03);border:1px solid var(--glass-line)}
   .filters input:focus,.filters select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(204,136,41,.18)}
+  /* Open dropdown lists are painted by the OS, which defaulted to white-on-white here.
+     colour-scheme + explicit option colours make the list readable before hovering. */
+  select{color-scheme:dark}
+  select option{background:#1a1610;color:#f3ece1}
+  select option:checked{background:#cc8829;color:#171310}
 
   /* tables — sticky header with gradient underline, smoother rows */
   .tablewrap{background:linear-gradient(180deg,var(--glass),transparent),var(--panel);border:1px solid var(--glass-line)}
@@ -408,6 +415,29 @@
   /* range slider accent */
   input[type=range]{accent-color:var(--accent)}
 
+  /* ---- frozen table headers ----
+     A grouped header is two rows; both must stick, the second below the first, and the
+     first column stays put horizontally so the SKU stays readable while scrolling right. */
+  .tablewrap table{border-collapse:separate;border-spacing:0}
+  thead tr:first-child th{position:sticky;top:0;z-index:6}
+  thead tr:nth-child(2) th{position:sticky;top:var(--grpH,30px);z-index:5}
+  thead tr:only-child th{position:sticky;top:0;z-index:6}
+  tbody td:first-child,thead th:first-child{position:sticky;left:0;z-index:4;
+    background:#1a1610;box-shadow:1px 0 0 var(--glass-line)}
+  thead th:first-child{z-index:7}
+  tbody tr:hover td:first-child{background:#241e16}
+  /* sticky totals strip that sits above the header and follows the current filter */
+  .subtotals{position:sticky;top:0;z-index:8;display:flex;gap:0;flex-wrap:wrap;
+    background:linear-gradient(180deg,#221c13,#1a1610);border:1px solid var(--accent);
+    border-bottom:2px solid var(--accent);border-radius:10px 10px 0 0;padding:9px 12px;margin-bottom:-1px}
+  .subtotals .st{padding:0 16px 0 0;margin-right:16px;border-right:1px solid var(--glass-line)}
+  .subtotals .st:last-child{border-right:0}
+  .subtotals .k{font-size:9.5px;letter-spacing:.7px;text-transform:uppercase;color:var(--muted)}
+  .subtotals .v{font-size:15px;font-weight:750;font-variant-numeric:tabular-nums;margin-top:1px}
+
+  thead th.grp{text-align:center;font-size:9.5px;letter-spacing:.8px;text-transform:uppercase;
+    color:var(--accent);background:linear-gradient(180deg,#241c12,#1d1810);
+    border-bottom:1px solid var(--glass-line);padding:5px 8px;cursor:default}
   /* wide chart/table children must scroll inside their panel, never widen the page */
   .panel{min-width:0}
   #simChart{overflow-x:auto;-webkit-overflow-scrolling:touch}
@@ -425,6 +455,36 @@
     text-transform:none;white-space:normal;padding:9px 12px;border-radius:10px;
     box-shadow:0 16px 40px rgba(0,0,0,.65);pointer-events:none}
   .hdrtip b{color:#e0b062}
+
+  /* ============================================================
+     NATIVE CONTROL PALETTE
+     An open <select> drop-list is painted by the OS, not by our CSS — so on
+     Windows it came up white-on-white and was only legible on hover. The fix
+     is color-scheme, which tells the platform to paint the popup dark; the
+     explicit option colours cover engines that ignore it.
+     ============================================================ */
+  select,input,textarea{color-scheme:dark}
+  select option,select optgroup{background:#241e16;color:#ffffff}
+  select option:checked{background:#3a3020;color:#ffffff;font-weight:600}
+  .filters select,.filters input{color:var(--txt)}
+
+  /* ============================================================
+     STICKY CHROME — the app header and tab bar stay put while you scroll,
+     so you never lose which tab and which dataset you are reading.
+     ============================================================ */
+  header{position:sticky;top:0;z-index:60}
+  .tabs{position:sticky;top:var(--hdrH,64px);z-index:50;
+    background:linear-gradient(180deg,var(--bg) 72%,transparent);
+    padding-top:6px;margin-bottom:14px}
+  /* Table heads sit below both. Two sticky rows: the totals strip, then the
+     column labels — so a filtered subtotal is always on screen. */
+  .tablewrap thead th{z-index:2}
+  tr.totrow th{position:sticky;top:0;z-index:4;
+    background:linear-gradient(180deg,#2b2418,#221c13);
+    color:var(--txt);font-weight:700;letter-spacing:.2px;text-transform:none;font-size:12px;
+    border-bottom:1px solid var(--accent);white-space:nowrap;cursor:default}
+  tr.totrow th .tl{color:var(--accent);font-size:10px;letter-spacing:.7px;text-transform:uppercase;display:block}
+  tr.totrow+tr th{top:31px;z-index:3}
 
   /* ============================================================
      MOBILE / RESPONSIVE  — comfortable on a phone
@@ -573,153 +633,63 @@
   </div>
   </div><!-- /viewLtsf -->
 
-  <!-- ============ DECISION ENGINE (consolidated: scenario + guard-rails + optimiser) ============ -->
+  <!-- ============ DECISION ENGINE — deliberately minimal ============ -->
   <div id="viewProj" class="hide">
 
-    <div class="sectiontitle">Decision engine — what discount clears the stock and recovers the most cash?</div>
+    <div class="sectiontitle">Discount decision — what do we recover, and what surcharge do we escape?</div>
 
-    <div class="panel" style="margin-bottom:16px">
+    <!-- ONE control row. Discount is typed, not picked from a list. -->
+    <div class="panel" style="margin-bottom:14px">
       <div class="filters">
         <label class="chip">Parent&nbsp;<select id="simParent"><option value="">All parents</option></select></label>
         <label class="chip">Size&nbsp;<select id="simSize"><option value="">All sizes</option></select></label>
-        <label class="chip" title="Flat = every SKU in scope gets the same % off. Per-SKU optimal = each SKU gets its OWN best discount (the ★ Best % column) — the plan you would actually execute.">Plan&nbsp;
-          <select id="simMode">
-            <option value="flat" selected>Flat % — same discount for all</option>
-            <option value="opt">★ Per-SKU optimal — each at its own best %</option>
-          </select>
+        <label class="chip" style="border-left:2px solid var(--accent);padding-left:9px">Discount %&nbsp;
+          <input type="number" id="simDisc" value="30" min="0" max="95" step="1"
+                 style="width:70px;font-size:15px;font-weight:700;color:var(--accent)" />
+          <button class="ghost" id="simUseCeil" title="Set the discount to the ceiling — the deepest cut that still returns 100% of product cost">→ ceiling</button>
+          <button class="ghost" id="simUseFloor" title="Set the discount to the floor — where your payout hits exactly zero">→ floor</button>
+          <button class="ghost" id="simUseBest" title="Set the discount that recovers the most cash for this selection">→ best</button>
         </label>
-        <label class="chip" id="simDiscWrap">Discount %&nbsp;
-          <input type="number" id="simDisc" value="30" min="0" max="95" step="1" style="width:64px" />
-          <button class="ghost" id="simUseCeil" title="Set the discount to this scope's weighted full-COGS ceiling — the deepest discount that still returns 100% of product cost" style="padding:4px 9px;font-size:11.5px">→ ceiling</button>
-          <button class="ghost" id="simUseFloor" title="Set the discount to this scope's weighted out-of-pocket floor" style="padding:4px 9px;font-size:11.5px">→ floor</button>
-        </label>
-        <label class="chip" title="How strongly your customers react to a price cut. It converts a discount into a sales-speed multiplier: multiplier = (1 / (1 - discount)) ^ E. Non-linear on purpose — a small cut barely moves velocity, a deep cut moves it a lot.">How fast discounts sell&nbsp;
-          <select id="simElast">
-            <option value="0">Ignore — discount doesn't move sales</option>
-            <option value="75">Sluggish — barely reacts (E 0.75)</option>
-            <option value="100">Modest (E 1.0)</option>
-            <option value="150" selected>Typical clearance (E 1.5)</option>
-            <option value="200">Responsive (E 2.0)</option>
-            <option value="250">Very responsive (E 2.5)</option>
-          </select>
-        </label>
-        <label class="chip">Referral %&nbsp;<input type="number" id="engRef" value="15" min="0" max="100" step="0.5" style="width:58px" /></label>
-        <label class="chip">Horizon (mo)&nbsp;<input type="number" id="simHorizon" value="12" min="3" max="24" step="1" style="width:56px" /></label>
+        <label class="chip">Referral %&nbsp;<input type="number" id="engRef" value="15" min="0" max="100" step="0.5" style="width:56px" /></label>
         <span class="spacer"></span>
         <span class="chip" id="simScopeChip"></span>
       </div>
-      <div id="simElastNote" style="margin:8px 0 0;padding:8px 12px;border-radius:9px;font-size:11.5px;line-height:1.6;
-           background:rgba(204,136,41,.07);border:1px solid rgba(204,136,41,.22);color:#cdc6b8"></div>
-      <div id="simHint" class="hide" style="margin:6px 0 0;padding:9px 12px;border-radius:9px;font-size:12px;line-height:1.55;
-           background:rgba(245,213,71,.09);border:1px solid rgba(245,213,71,.32);color:#f5d547"></div>
-      <div class="footnote">
-        <b>The model, in one line:</b> a discount lowers the price you collect but lifts sell velocity, so the aged stock clears sooner and stops accruing the surcharge. Net recovery counts <b>only the cash from units you actually sell inside the horizon</b>, minus the surcharge you actually pay — units still sitting at the end are neither credited nor written off (they're shown as <i>Left</i>).<br/>
-        <b>Guard-rails per SKU:</b> <span class="badge v-run">Ceiling</span> is the deepest discount that still returns <b>100% of product cost</b> — its price is the <b>COGS-recovery price</b> = (COGS + FBA) ÷ (1 − referral). <span class="badge v-cost">Floor</span> is where the cash payout hits zero; past it you pay Amazon to take the unit. <b>★ Best</b> scans every discount from 0–90% and picks the one with the highest net recovery for the scope.<br/>
-        <b>Velocity is measured, not guessed:</b> units/day comes from each SKU’s real daily sales history (the KPI tracker’s 26-day per-SKU series), falling back to the workbook’s L30 velocity where a SKU has no history — the <b>Src</b> column shows which. The response to a discount uses a <b>constant-elasticity curve</b> (multiplier = (1 ÷ (1 − discount))^E), so a 10% cut moves velocity only slightly while a deep cut moves it a lot. The <b>Target velocity</b> view shows, per SKU, the pace required to clear the cohort inside the horizon, the gap from today, and the discount that would close it.
-      </div>
+      <div id="simPlain" style="margin-top:9px;padding:10px 13px;border-radius:9px;font-size:12.5px;line-height:1.65;
+           background:rgba(204,136,41,.08);border:1px solid rgba(204,136,41,.28);color:var(--txt)"></div>
     </div>
 
     <div class="kpis" id="simKpis"></div>
 
-    <div class="grid2" style="margin-bottom:16px">
-      <div class="panel">
-        <h3>📅 Surcharge by month — hold vs discount (FIFO roll-forward)</h3>
-        <div id="simChart"></div>
-        <div class="legend" style="display:flex;gap:16px;margin-top:10px;font-size:12px;color:var(--muted)">
-          <span><span class="dot" style="background:#7a6f5e"></span> Hold (current velocity)</span>
-          <span><span class="dot" style="background:#cc8829"></span> Discount (uplifted velocity)</span>
-        </div>
-      </div>
-      <div class="panel">
-        <h3>📈 Net recovery vs discount — where's the sweet spot?</h3>
-        <div id="simCurve"></div>
-        <div class="footnote" style="margin-top:8px">Net recovery for this scope at every discount level, using the velocity response above. The peak (★) is the discount that puts the most cash in your pocket; the dashed line marks the discount you've selected.</div>
-      </div>
-    </div>
-
-    <div class="panel" style="margin-bottom:16px">
-      <div class="filters">
-        <h3 style="margin:0">🧮 Month-by-month clearance (discount scenario)</h3>
-        <span class="spacer"></span>
-        <span class="chip" id="simMonthChip"></span>
-      </div>
-      <div class="tablewrap" style="max-height:330px;margin-top:8px">
-        <table><thead><tr>
-          <th data-tip="Projection month. Month 1 is the cycle Amazon is about to bill.">Month <span class="hint">?</span></th>
-          <th class="num" data-tip="Aged units on hand at the start of the month (last month's closing, each unit one bracket older).">Opening <span class="hint">?</span></th>
-          <th class="num" data-tip="Units sold during the month at the uplifted velocity. FIFO — the oldest age bracket empties first.">Sold <span class="hint">?</span></th>
-          <th class="num" data-tip="Units still on hand at month end. These are what the surcharge is charged on.">Closing <span class="hint">?</span></th>
-          <th class="num" data-tip="Cash collected that month = units sold × net payout per unit at the deal price.">Cash in <span class="hint">?</span></th>
-          <th class="num" data-tip="Surcharge for the month if you HOLD and sell at today's velocity.">AIS hold <span class="hint">?</span></th>
-          <th class="num" data-tip="Surcharge for the month if you DISCOUNT and sell at the uplifted velocity.">AIS disc <span class="hint">?</span></th>
-          <th class="num" data-tip="Surcharge avoided that month by clearing faster = AIS hold − AIS disc.">Saved <span class="hint">?</span></th>
-          <th data-tip="Expand to see that month's closing inventory split by age bracket.">Detail <span class="hint">?</span></th>
-        </tr></thead><tbody id="simMonthBody"></tbody></table>
-      </div>
-    </div>
-
-    <!-- mirrored controls: same levers, repeated here so you can tune without scrolling back up -->
-    <div class="panel" style="margin-bottom:12px;padding:11px 14px">
-      <div class="filters" style="margin:0">
-        <span class="chip" style="color:var(--accent);font-weight:700">⚙ Scenario</span>
-        <label class="chip">Parent&nbsp;<select id="simParent2"><option value="">All parents</option></select></label>
-        <label class="chip">Size&nbsp;<select id="simSize2"><option value="">All sizes</option></select></label>
-        <label class="chip">Plan&nbsp;
-          <select id="simMode2">
-            <option value="flat" selected>Flat %</option>
-            <option value="opt">★ Per-SKU optimal</option>
-          </select>
-        </label>
-        <label class="chip">Discount %&nbsp;
-          <input type="number" id="simDisc2" value="30" min="0" max="95" step="1" style="width:64px" />
-          <button class="ghost" id="simUseCeil2" style="padding:4px 9px;font-size:11.5px">→ ceiling</button>
-        </label>
-        <label class="chip">Elasticity&nbsp;
-          <select id="simElast2">
-            <option value="0">0</option><option value="75">0.75</option><option value="100">1.0</option>
-            <option value="150" selected>1.5</option><option value="200">2.0</option><option value="250">2.5</option>
-          </select>
-        </label>
-        <label class="chip">Horizon&nbsp;<input type="number" id="simHorizon2" value="12" min="3" max="24" step="1" style="width:52px" /></label>
-        <span class="spacer"></span>
-        <span class="chip" id="simScopeChip2"></span>
-      </div>
-    </div>
-
+    <!-- the one table -->
     <div class="panel" style="margin-bottom:20px">
       <div class="filters">
-        <h3 style="margin:0">Per-SKU decision table</h3>
-        <label class="chip">Show&nbsp;
-          <select id="simView">
-            <option value="decision" selected>Decision — the essentials</option>
-            <option value="target">Target velocity — where we must get to</option>
-            <option value="pricing">Pricing &amp; guard-rails</option>
-            <option value="clearance">Velocity &amp; clearance</option>
-            <option value="charges">Charges &amp; 3PL</option>
-            <option value="all">Everything</option>
-          </select>
-        </label>
+        <h3 style="margin:0">Per-SKU detail</h3>
         <input type="search" id="simSearch" placeholder="Search SKU…" />
         <select id="simVerdict">
-          <option value="">All verdicts</option>
-          <option value="disc">🏷️ Discount wins</option>
-          <option value="hold">⏳ Hold wins</option>
+          <option value="">All SKUs</option>
+          <option value="disc">🏷️ Discount recovers more</option>
+          <option value="hold">⏳ Hold recovers more</option>
         </select>
         <select id="simZone">
-          <option value="">All discount zones</option>
-          <option value="safe">🟢 Within full-COGS ceiling</option>
-          <option value="thin">🟡 Below ceiling, above floor</option>
-          <option value="oop">🔴 Out of pocket (past floor)</option>
+          <option value="">Any discount depth</option>
+          <option value="safe">🟢 At/below ceiling — full COGS back</option>
+          <option value="thin">🟡 Between ceiling and floor</option>
+          <option value="oop">🔴 Past floor — paying out of pocket</option>
         </select>
         <span class="spacer"></span>
-        <span class="chip" id="simSummary"></span>
         <button class="ghost" id="exportSim">⤓ Export (CSV)</button>
       </div>
-      <div class="tablewrap" style="max-height:64vh;margin-top:8px">
+
+      <!-- subtotals: follows the filter, sits above the frozen header -->
+      <div class="subtotals" id="simSubtotals" style="margin-top:10px"></div>
+
+      <div class="tablewrap" style="max-height:70vh;border-top-left-radius:0;border-top-right-radius:0">
         <table><thead><tr id="simGroupHead"></tr><tr id="simHead"></tr></thead><tbody id="simBody"></tbody></table>
       </div>
       <div class="footnote">
-        Every column is explained on hover. <b>Net rec hold</b> vs <b>Net rec disc</b> is the decision: both count only the cash from units sold inside the horizon minus the surcharge paid, so a SKU that barely moves at full price no longer gets credit for inventory it never sells. <b>★ Best %</b> is the discount that maximises that SKU's own net recovery — use it to see how deep you'd have to go on the slow movers.
+        Every column header explains itself on hover. <b>Ceiling</b> = the deepest discount that still returns 100% of product cost. <b>Floor</b> = the point where your payout is exactly zero; past it you pay Amazon out of pocket to move the unit.
+        <b>Payout/unit</b> = deal price − Amazon referral − FBA fee (product cost is already spent, so it is not deducted twice). <b>Target SV</b> = the monthly pace needed to clear this SKU's aged stock within a year.
+        <b>To clear</b> figures run the surcharge all the way until the stock is gone — the honest number for SKUs that need more than a year, and the reason holding usually loses.
       </div>
     </div>
   </div><!-- /viewProj -->
@@ -2111,23 +2081,21 @@ function renderSkuTable(){
 }
 function renderLtsfOverview(){ renderLtsfKpis(); renderBandBreakdown(); renderParents(); renderSkuTable(); }
 
-/* ============================ DECISION ENGINE (consolidated) ============================
-   Replays the workbook's 1-Year Projections tab, with three corrections that make the
-   verdict reflect reality:
-     1. Net recovery credits ONLY the cash from units actually sold inside the horizon.
-        (Crediting every aged unit at full price is what made "hold" always win — a SKU
-        selling 2/mo with 434 units would bank 434 units of margin while paying just
-        12 months of surcharge.)
-     2. Discount drives velocity through an explicit response assumption, so "target SV"
-        is achieved BY discounting rather than set independently.
-     3. A per-SKU optimiser scans 0-90% off and reports the discount that maximises net
-        recovery, so slow movers show how deep you must go to beat the surcharge.
-   Validated: FIFO roll-forward reproduces the sheet's live formulas to 0.000%.        */
+/* ============================ DECISION ENGINE (minimal) ============================
+   Only the parameters that were actually asked for:
+     ceiling % / floor %  ·  payout per unit + total payout  ·  current SV / already sold
+     target SV  ·  AIS saved  ·  discount given  ·  net recovery (discount vs hold)
+   Two horizons are always shown side by side — 1 year AND all the way to full clearance.
+   The clearance figure is the honest one: many SKUs need years to sell through at today's
+   pace, and stopping the clock at 12 months is what made "hold" look good.
+   No elasticity assumption: the app states the Target SV the discount has to achieve, and
+   prices the outcome of achieving it. FIFO roll validated against the workbook to 0.000%. */
 const BUCKET_LABELS=['91–180','181–210','211–240','241–270','271–300','301–330','331–365','366–455','456+'];
 const moneyS=v=>(v<0?'−$':'$')+Math.abs(Math.round(v)).toLocaleString('en-US');
 const fmtN1=v=>(v==null||!isFinite(v))?'—':v.toLocaleString('en-US',{maximumFractionDigits:1});
+const HOR1=12;        // the 1-year view
+const HORMAX=36;      // "to full clearance", capped at 3 years — stock that hasn't moved by then never will
 let _simR8=null;
-/* $/cu-ft per band: median of Amazon's own per-band estimates, workbook Rate Card as fallback */
 function simRate8(){
   if(_simR8) return _simR8;
   const card=Object.values(LT.rateCard||{}).map(Number);
@@ -2140,142 +2108,54 @@ function simRate8(){
   return (_simR8=r8);
 }
 function skuSeed9(x){ return [x.a91_180||0, ...x.aisQ.map(v=>v||0)]; }
-/* SINGLE source of truth for a SKU's current monthly velocity — measured daily sales
-   first, workbook columns only as fallback. Both the table and the sweet-spot curve
-   must use this; when they diverged the curve reported a different optimum. */
-function skuVelBase(x){
-  return x.svMonthly>0 ? x.svMonthly
-       : (x.origMonthly>0 ? x.origMonthly
-       : (x.svDay>0 ? x.svDay*30 : 0));
-}
 function skuRates9(x){
   const r8=simRate8(), r=new Array(9).fill(0);
   for(let b=0;b<8;b++){const q=x.aisQ[b],e=x.aisB[b]; r[b+1]=(q>0&&e>0)?e/q:(r8[b]*(x.volume||0));}
   return r;
 }
-/* FIFO roll-forward. Month 1 charges Amazon's own current estimate (ties to the Overview
-   total); later months charge closing inventory at the band rate. Oldest bracket sells first. */
-function rollMonthlyFIFO(seed,rate,vel,horizon,m1Charge){
-  const chargeOf=b=>{let c=0;for(let i=1;i<b.length;i++)c+=b[i]*rate[i];return c;};
-  const sellFrom=(b,v)=>{let s=v;for(let i=b.length-1;i>=0&&s>1e-9;i--){const t=Math.min(b[i],s);b[i]-=t;s-=t;}return v-s;};
-  const ageUp=b=>{const nb=new Array(b.length).fill(0);for(let i=1;i<b.length-1;i++)nb[i]=b[i-1];nb[b.length-1]=b[b.length-2]+b[b.length-1];return nb;};
-  let b=seed.slice(); const months=[]; let total=0, soldTot=0;
-  for(let m=1;m<=horizon;m++){
-    if(m>1) b=ageUp(b);
-    const open=b.reduce((s,v)=>s+v,0);
-    let charge,sold,bandCh;
-    if(m===1){
-      bandCh=b.map((u,i)=>i===0?0:u*rate[i]);
-      const derived=bandCh.reduce((s,v)=>s+v,0);
-      if(m1Charge!=null){ charge=m1Charge; const k=derived>0?m1Charge/derived:0; bandCh=bandCh.map(v=>v*k); }
-      else charge=derived;
-      sold=sellFrom(b,vel);
-    } else {
-      sold=sellFrom(b,vel);
-      bandCh=b.map((u,i)=>i===0?0:u*rate[i]);
-      charge=bandCh.reduce((s,v)=>s+v,0);
-    }
-    total+=charge; soldTot+=sold;
-    months.push({open,sold,close:open-sold,charge,bands:b.slice(),bandCharges:bandCh});
-  }
-  return {months,total,sold:soldTot,left:b.reduce((s,v)=>s+v,0)};
+function skuVelBase(x){
+  return x.svMonthly>0 ? x.svMonthly : (x.origMonthly>0 ? x.origMonthly : (x.svDay>0 ? x.svDay*30 : 0));
 }
-/* Totals-only twin of the roll above — identical arithmetic, but it allocates nothing
-   per month (no month objects, no per-band arrays) and reuses two scratch buffers.
-   The optimiser and the sweet-spot curve run tens of thousands of rolls per render and
-   only ever read .total/.sold, so building month detail for them was the whole cost. */
-const _rbA=new Float64Array(9), _rbB=new Float64Array(9);
-const _raA=new Float64Array(9), _raB=new Float64Array(9);
-function rollTotalsFIFO(seed,rate,vel,horizon,m1Charge){
+/* FIFO roll. Oldest age bracket sells first; survivors age one bracket a month; month 1 is
+   charged Amazon's own current estimate so the tab ties to the Overview total.
+   Returns totals at 12 months AND at full clearance, in one pass. */
+const _rA=new Float64Array(9), _rB=new Float64Array(9);
+function rollFIFO(seed,rate,vel,m1Charge){
   const n=seed.length;
-  let cur=_rbA, nxt=_rbB;
+  let cur=_rA, nxt=_rB;
   for(let i=0;i<n;i++) cur[i]=seed[i];
-  let total=0, soldTot=0;
-  for(let m=1;m<=horizon;m++){
-    if(m>1){                                    // age one bracket up, top accumulates
-      nxt[0]=0;
-      for(let i=1;i<n-1;i++) nxt[i]=cur[i-1];
-      nxt[n-1]=cur[n-2]+cur[n-1];
-      const t=cur; cur=nxt; nxt=t;
-    }
-    if(m===1){
-      if(m1Charge!=null) total+=m1Charge;
-      else { let c=0; for(let i=1;i<n;i++) c+=cur[i]*rate[i]; total+=c; }
-      let s=vel; for(let i=n-1;i>=0&&s>1e-9;i--){ const t=cur[i]<s?cur[i]:s; cur[i]-=t; s-=t; } soldTot+=vel-s;
-    } else {
-      let s=vel; for(let i=n-1;i>=0&&s>1e-9;i--){ const t=cur[i]<s?cur[i]:s; cur[i]-=t; s-=t; } soldTot+=vel-s;
-      let c=0; for(let i=1;i<n;i++) c+=cur[i]*rate[i]; total+=c;
-    }
-  }
-  let left=0; for(let i=0;i<n;i++) left+=cur[i];
-  return {total,sold:soldTot,left};
-}
-/* Velocity response to a discount — constant-elasticity demand curve:
-      multiplier = (1 / (1 − disc)) ^ E
-   Deliberately NON-linear: a 10% cut barely moves the needle while a deep cut moves
-   a lot, which is how clearance actually behaves. E=1.5 gives 10%→1.17x, 30%→1.70x,
-   50%→2.83x, 70%→6.1x. Capped at 12x so extreme discounts can't produce fantasy sales. */
-/* Third variant: rolls the cohort AND adds straight into the scope's monthly
-   accumulators. computeSim previously built 12 month objects (each with two 9-element
-   arrays) per SKU per scenario — ~25k throwaway arrays per render. This writes into the
-   preallocated agg buffers instead, so a render allocates essentially nothing. */
-function rollAccumFIFO(seed,rate,vel,horizon,m1Charge,agg,isScen,payPerUnit){
-  const n=seed.length;
-  let cur=_raA, nxt=_raB;
-  for(let i=0;i<n;i++) cur[i]=seed[i];
-  let total=0, soldTot=0;
-  for(let m=1;m<=horizon;m++){
+  let tot1=0, totL=0, sold1=0, soldL=0, left1=0, monthsToClear=Infinity;
+  for(let m=1;m<=HORMAX;m++){
     if(m>1){
       nxt[0]=0;
       for(let i=1;i<n-1;i++) nxt[i]=cur[i-1];
       nxt[n-1]=cur[n-2]+cur[n-1];
       const t=cur; cur=nxt; nxt=t;
     }
-    let open=0; for(let i=0;i<n;i++) open+=cur[i];
     let charge=0, sold=0;
     if(m===1){
-      let derived=0; for(let i=1;i<n;i++) derived+=cur[i]*rate[i];
-      charge = (m1Charge!=null) ? m1Charge : derived;
-      const k = (m1Charge!=null && derived>0) ? m1Charge/derived : (m1Charge!=null?0:1);
-      let s=vel; for(let i=n-1;i>=0&&s>1e-9;i--){ const t=cur[i]<s?cur[i]:s; cur[i]-=t; s-=t; }
-      sold=vel-s;
-      if(isScen){ for(let i=1;i<n;i++) agg.mBandCh[m-1][i]+=cur[i]*rate[i]*k; }
+      if(m1Charge!=null) charge=m1Charge;
+      else { for(let i=1;i<n;i++) charge+=cur[i]*rate[i]; }
+      let s=vel; for(let i=n-1;i>=0&&s>1e-9;i--){ const t=cur[i]<s?cur[i]:s; cur[i]-=t; s-=t; } sold=vel-s;
     } else {
-      let s=vel; for(let i=n-1;i>=0&&s>1e-9;i--){ const t=cur[i]<s?cur[i]:s; cur[i]-=t; s-=t; }
-      sold=vel-s;
+      let s=vel; for(let i=n-1;i>=0&&s>1e-9;i--){ const t=cur[i]<s?cur[i]:s; cur[i]-=t; s-=t; } sold=vel-s;
       for(let i=1;i<n;i++) charge+=cur[i]*rate[i];
-      if(isScen){ for(let i=1;i<n;i++) agg.mBandCh[m-1][i]+=cur[i]*rate[i]; }
     }
-    total+=charge; soldTot+=sold;
-    if(isScen){
-      agg.mDisc[m-1]+=charge; agg.mOpen[m-1]+=open; agg.mSold[m-1]+=sold;
-      agg.mClose[m-1]+=open-sold; agg.mCash[m-1]+=sold*payPerUnit;
-      for(let i=0;i<n;i++) agg.mBands[m-1][i]+=cur[i];
-    } else {
-      agg.mHold[m-1]+=charge;
-    }
+    totL+=charge; soldL+=sold;
+    if(m<=HOR1){ tot1+=charge; sold1+=sold; }
+    let rem=0; for(let i=0;i<n;i++) rem+=cur[i];
+    if(m===HOR1) left1=rem;
+    if(rem<=1e-6){ if(!isFinite(monthsToClear)) monthsToClear=m; break; }
   }
-  let left=0; for(let i=0;i<n;i++) left+=cur[i];
-  return {total,sold:soldTot,left};
-}
-function velMultFor(disc,E){
-  if(!(E>0)) return 1;
-  const d=Math.min(0.95,Math.max(0,disc));
-  return Math.min(12, Math.pow(1/(1-d), E));
-}
-/* inverse: the discount needed to reach a target velocity multiplier */
-function discForMult(mult,E){
-  if(!(E>0)||!(mult>1)) return 0;
-  return Math.min(0.95, 1-Math.pow(mult,-1/E));
+  let leftL=0; for(let i=0;i<n;i++) leftL+=cur[i];
+  if(HOR1>=HORMAX) left1=leftL;
+  return {tot1,totL,sold1,soldL,left1,leftL,monthsToClear};
 }
 function simParams(){
   return {
     parent:document.getElementById('simParent').value,
     size:document.getElementById('simSize').value,
-    mode:(document.getElementById('simMode')||{value:'flat'}).value,
     disc:clamp((num(document.getElementById('simDisc').value)||0)/100,0,0.95),
-    elast:(num(document.getElementById('simElast').value)||0)/100,
-    hor:clamp(Math.round(num(document.getElementById('simHorizon').value)||12),3,24),
     ref:(num(document.getElementById('engRef').value)||15)/100,
   };
 }
@@ -2283,383 +2163,223 @@ function simScopeSkus(p){
   return DATA.filter(x=>(!p.parent||x.tag===p.parent)&&(!p.size||x.size===p.size))
              .filter(x=>skuSeed9(x).reduce((s,v)=>s+v,0)>0);
 }
-/* net recovery for one SKU at a given discount — cash from units SOLD, less surcharge PAID */
-function skuNet(x,seed,rate,velBase,m1,disc,elast,hor,ref,wantMonths){
-  const vel=velBase*velMultFor(disc,elast);
-  const r=wantMonths ? rollMonthlyFIFO(seed,rate,vel,hor,m1)
-                     : rollTotalsFIFO(seed,rate,vel,hor,m1);
+/* net recovery at a given discount, assuming the Target SV is achieved.
+   cash from units actually sold − surcharge actually paid, over both horizons. */
+function skuAt(x,seed,rate,velHold,velTarget,m1,disc,ref){
   const pay=x.price*(1-disc)*(1-ref)-x.fba;
-  return {net:pay*r.sold-r.total, roll:r, pay, vel};
+  const r=rollFIFO(seed,rate,disc>0?velTarget:velHold,m1);
+  return {pay, r, net1:pay*r.sold1-r.tot1, netL:pay*r.soldL-r.totL};
 }
-/* optimiser cache — only depends on elasticity / horizon / referral, not the chosen discount */
+/* best discount per SKU, judged on the full-clearance number (cached) */
 let _optKey='', _optMap={};
-function simOptimum(x,seed,rate,velBase,m1,p){
-  const key=p.elast+'|'+p.hor+'|'+p.ref;
+function simOptimum(x,seed,rate,velHold,velTarget,m1,ref){
+  const key=ref+'';
   if(key!==_optKey){ _optKey=key; _optMap={}; }
-  if(_optMap[x.sku]) return _optMap[x.sku];
-  let best={disc:0,net:-Infinity};
-  for(let d=0;d<=90;d+=2){
+  if(_optMap[x.sku]!==undefined) return _optMap[x.sku];
+  let best={disc:0,netL:-Infinity};
+  for(let d=0;d<=90;d+=5){
     const dd=d/100;
-    const n=skuNet(x,seed,rate,velBase,m1,dd,p.elast,p.hor,p.ref).net;
-    if(n>best.net) best={disc:dd,net:n};
+    const a=skuAt(x,seed,rate,velHold,velTarget,m1,dd,ref);
+    if(a.netL>best.netL) best={disc:dd,netL:a.netL};
   }
   return (_optMap[x.sku]=best);
 }
 function computeSim(){
-  const p=simParams(), hor=p.hor;
+  const p=simParams();
   const rows=[];
-  const agg={units:0,skus:0,aisBase:0,aisScen:0,discGiven:0,nrNo:0,nrD:0,bestNet:0,
-    payoutW:0,cogsW:0,ceilW:0,floorW:0,gwUnits:0,adjW:0,bestDiscW:0,appliedW:0,
-    soldScen:0,soldBase:0,leftScen:0,cashScen:0,
-    mHold:new Array(hor).fill(0),mDisc:new Array(hor).fill(0),
-    mOpen:new Array(hor).fill(0),mSold:new Array(hor).fill(0),mClose:new Array(hor).fill(0),mCash:new Array(hor).fill(0),
-    mBands:Array.from({length:hor},()=>new Array(9).fill(0)),
-    mBandCh:Array.from({length:hor},()=>new Array(9).fill(0))};
+  const agg={units:0,skus:0,sold:0,
+    ais1Hold:0,ais1Disc:0,aisLHold:0,aisLDisc:0,
+    payout:0,payoutW:0,cogsW:0,ceilW:0,floorW:0,gw:0,
+    discGiven:0,net1Hold:0,net1Disc:0,netLHold:0,netLDisc:0,bestNetL:0,
+    cleared1:0,clearedL:0,left1:0,svNow:0,svTarget:0};
   simScopeSkus(p).forEach(x=>{
     const seed=skuSeed9(x), units=seed.reduce((s,v)=>s+v,0);
     const rate=skuRates9(x);
-    /* velocity from real daily sales (KPI tracker 26d) → workbook L30 SV as fallback */
-    const velBase=skuVelBase(x);
+    const velHold=skuVelBase(x);
+    const velTarget=Math.max(velHold, units/HOR1);      // pace needed to clear within a year
     const m1=x.ais>0?x.ais:null;
     const price=x.price;
-    // hold = no discount, current velocity
-    const holdRoll=rollAccumFIFO(seed,rate,velBase,hor,m1,agg,false,0);
-    const payHold=x.price*(1-p.ref)-x.fba;
-    const hold={net:payHold*holdRoll.sold-holdRoll.total, roll:holdRoll, pay:payHold, vel:velBase};
-    const opt=simOptimum(x,seed,rate,velBase,m1,p);
-    /* the discount actually APPLIED to this SKU under the chosen plan:
-       flat plan -> the Discount % box · per-SKU optimal -> this SKU's own best % */
-    const dApp = p.mode==='opt' ? opt.disc : p.disc;
-    // scenario = applied discount, with the velocity that discount implies
-    const velScen=velBase*velMultFor(dApp,p.elast);
-    const payScen=x.price*(1-dApp)*(1-p.ref)-x.fba;
-    const scenRoll=rollAccumFIFO(seed,rate,velScen,hor,m1,agg,true,payScen);
-    const scen={net:payScen*scenRoll.sold-scenRoll.total, roll:scenRoll, pay:payScen, vel:velScen};
-    const adjP=price*(1-dApp);
     const ceiling=price>0?1-(x.cogs+x.fba)/((1-p.ref)*price):0;
     const floor=price>0?1-x.fba/((1-p.ref)*price):0;
-    const ceilPrice=(1-p.ref)>0?(x.cogs+x.fba)/(1-p.ref):0;   // 100% COGS-recovery price (= break-even)
+    const ceilPrice=(1-p.ref)>0?(x.cogs+x.fba)/(1-p.ref):0;
     const floorPrice=(1-p.ref)>0?x.fba/(1-p.ref):0;
-    /* ---- target velocity: where we are vs where we must get to ---- */
-    const svTarget = hor>0 ? units/hor : 0;                 // monthly SV that clears the cohort in the horizon
-    const needMult = velBase>0 ? svTarget/velBase : Infinity;
-    const discForTarget = isFinite(needMult) ? discForMult(needMult,p.elast) : null;
-    const svAtCeil = velBase*velMultFor(ceiling,p.elast);   // SV the full-COGS ceiling would deliver
-    const svAtBest = velBase*velMultFor(opt.disc,p.elast);
-    const reachable = discForTarget!=null && discForTarget<=Math.min(0.90,Math.max(floor,0));
-    const r={sku:x.sku,tag:x.tag,size:x.size,units,price,cogs:x.cogs,fba:x.fba,
-      avgDaily:x.avgDaily,svSource:x.svSource,svDays:x.svDays,svWindow:x.svWindow,
-      svTarget,svGapAbs:svTarget-velBase,svGapPct:velBase>0?svTarget/velBase-1:Infinity,
-      svUpliftPct:velBase>0?scen.vel/velBase-1:0,
-      discForTarget,svAtCeil,svAtBest,reachable,
+
+    const hold=skuAt(x,seed,rate,velHold,velTarget,m1,0,p.ref);
+    const disc=skuAt(x,seed,rate,velHold,velTarget,m1,p.disc,p.ref);
+    const opt=simOptimum(x,seed,rate,velHold,velTarget,m1,p.ref);
+
+    const dealP=price*(1-p.disc);
+    const totalPayout=disc.pay*disc.r.soldL;            // cash in hand over the clearance
+    const amazonFee=(dealP*p.ref+x.fba)*disc.r.soldL;   // what Amazon takes on those units
+    const r={
+      sku:x.sku,tag:x.tag,size:x.size,units,alreadySold:x.totalSold||0,
+      price,cogs:x.cogs,fba:x.fba,
       ceiling,floor,ceilPrice,floorPrice,
-      discPct:dApp,adjP,payout:scen.pay,
-      recovery:(x.cogs>0&&price>0)?scen.pay/x.cogs:null,
-      zone:price<=0?'na':(dApp<=ceiling?'safe':(dApp<=floor?'thin':'oop')),
-      velBase,velScen:scen.vel,svGain:scen.vel-velBase,
-      moClear:scen.vel>0?Math.ceil(units/scen.vel):Infinity,
-      soldScen:scen.roll.sold,leftScen:scen.roll.left,soldBase:hold.roll.sold,
-      cashScen:scen.pay*scen.roll.sold,
-      aisBase:hold.roll.total,aisScen:scen.roll.total,saved:hold.roll.total-scen.roll.total,
-      discGiven:(price-adjP)*scen.roll.sold,appliedPct:dApp,
-      nrNo:hold.net,nrD:scen.net,delta:scen.net-hold.net,
-      bestDisc:opt.disc,bestNet:opt.net,bestGain:opt.net-hold.net,
-      total3pl:x.total3pl,totalAmz:x.totalAmz,variance3pl:x.variance3pl,
-      remove:(x.removalStatus||'').trim().toLowerCase()==='removal',
-      verdict:(scen.net>hold.net)?'disc':'hold'};
+      discPct:p.disc,dealP,payout:disc.pay,totalPayout,amazonFee,
+      recovery:(x.cogs>0&&price>0)?disc.pay/x.cogs:null,
+      zone:price<=0?'na':(p.disc<=ceiling?'safe':(p.disc<=floor?'thin':'oop')),
+      svNow:velHold,svTarget:velTarget,svUplift:velTarget-velHold,
+      svUpliftPct:velHold>0?velTarget/velHold-1:Infinity,
+      moClearHold:hold.r.monthsToClear,moClearDisc:disc.r.monthsToClear,
+      ais1Hold:hold.r.tot1,ais1Disc:disc.r.tot1,aisLHold:hold.r.totL,aisLDisc:disc.r.totL,
+      ais1Saved:hold.r.tot1-disc.r.tot1,aisLSaved:hold.r.totL-disc.r.totL,
+      cleared1:disc.r.sold1,clearedL:disc.r.soldL,left1:disc.r.left1,
+      discGiven:(price-dealP)*disc.r.soldL,
+      net1Hold:hold.net1,net1Disc:disc.net1,netLHold:hold.netL,netLDisc:disc.netL,
+      delta1:disc.net1-hold.net1,deltaL:disc.netL-hold.netL,
+      bestDisc:opt.disc,bestNetL:opt.netL,bestGain:opt.netL-hold.netL,
+      verdict:(disc.netL>hold.netL)?'disc':'hold',
+    };
     rows.push(r);
-    agg.units+=units; agg.skus++;
-    agg.aisBase+=r.aisBase; agg.aisScen+=r.aisScen;
-    agg.discGiven+=r.discGiven; agg.nrNo+=r.nrNo; agg.nrD+=r.nrD; agg.bestNet+=r.bestNet;
-    agg.soldScen+=r.soldScen; agg.soldBase+=r.soldBase; agg.leftScen+=r.leftScen; agg.cashScen+=r.cashScen;
-    agg.payoutW+=r.payout*units; agg.cogsW+=x.cogs*units; agg.adjW+=adjP*units;
-    if(price>0){ agg.ceilW+=ceiling*units; agg.floorW+=floor*units; agg.bestDiscW+=opt.disc*units;
-      agg.appliedW+=dApp*units; agg.gwUnits+=units; }
+    agg.units+=units; agg.skus++; agg.sold+=r.alreadySold;
+    agg.ais1Hold+=r.ais1Hold; agg.ais1Disc+=r.ais1Disc;
+    agg.aisLHold+=r.aisLHold; agg.aisLDisc+=r.aisLDisc;
+    agg.payout+=r.totalPayout; agg.payoutW+=r.payout*units; agg.cogsW+=x.cogs*units;
+    agg.discGiven+=r.discGiven;
+    agg.net1Hold+=r.net1Hold; agg.net1Disc+=r.net1Disc;
+    agg.netLHold+=r.netLHold; agg.netLDisc+=r.netLDisc; agg.bestNetL+=r.bestNetL;
+    agg.cleared1+=r.cleared1; agg.clearedL+=r.clearedL; agg.left1+=r.left1;
+    agg.svNow+=r.svNow; agg.svTarget+=r.svTarget;
+    if(price>0){ agg.ceilW+=ceiling*units; agg.floorW+=floor*units; agg.gw+=units; }
   });
   return {p,rows,agg};
 }
-/* net-recovery-vs-discount curve for the whole scope (drives the sweet-spot chart) */
-let _curveKey='', _curveVal=null;
-function simCurve(S){
-  const {p}=S;
-  /* the curve is a function of scope + elasticity + horizon + referral only — NOT of the
-     chosen discount, so changing the discount box must not recompute 10k rolls. */
-  const key=[p.parent,p.size,p.elast,p.hor,p.ref].join('|');
-  if(key===_curveKey && _curveVal) return _curveVal;
-  const pts=[];
-  const scope=simScopeSkus(p).map(x=>{
-    const seed=skuSeed9(x);
-    return {x,seed,rate:skuRates9(x),
-      velBase:skuVelBase(x),
-      m1:x.ais>0?x.ais:null};
-  });
-  for(let d=0;d<=90;d+=5){
-    const dd=d/100; let net=0;
-    scope.forEach(s=>{ net+=skuNet(s.x,s.seed,s.rate,s.velBase,s.m1,dd,p.elast,p.hor,p.ref).net; });
-    pts.push({disc:dd,net});
-  }
-  let best=pts[0]; pts.forEach(q=>{ if(q.net>best.net) best=q; });
-  _curveKey=key; _curveVal={pts,best};
-  return _curveVal;
-}
-function simMonthNames(hor){
-  const N=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  let mi=6, yr=26;
-  const sd=(typeof TRK!=='undefined'&&TRK&&TRK.startDate)||''; const m=/^(\d{4})-(\d{2})/.exec(sd);
-  if(m){ mi=parseInt(m[2],10)-1; yr=parseInt(m[1],10)%100; }
-  return Array.from({length:hor},(_,k)=>{const j=(mi+k)%12; const y=yr+Math.floor((mi+k)/12); return N[j]+" '"+y;});
-}
+/* ---------- KPI cards: only the numbers that were asked for ---------- */
 function renderSimKpis(S){
-  const {p,agg}=S;
-  const u=agg.units||1, gu=agg.gwUnits||u;
-  const wCeil=agg.ceilW/gu, wFloor=agg.floorW/gu, wBest=agg.bestDiscW/gu;
-  const wPay=agg.payoutW/u, rec=agg.cogsW>0?agg.payoutW/agg.cogsW:null;
-  const saved=agg.aisBase-agg.aisScen, delta=agg.nrD-agg.nrNo;
-  const discWins=S.rows.filter(r=>r.bestDisc>0.001).length;   // SKUs whose own optimum is a discount
-  const zone=p.disc<=wCeil?['good','recovers 100% of COGS']:(p.disc<=wFloor?['warn','partial COGS recovery']:['alert','OUT OF POCKET — past floor']);
+  const {p,agg}=S, gw=agg.gw||agg.units||1, u=agg.units||1;
+  const wCeil=agg.ceilW/gw, wFloor=agg.floorW/gw;
+  const rec=agg.cogsW>0?agg.payoutW/agg.cogsW:null;
+  const dL=agg.netLDisc-agg.netLHold, d1=agg.net1Disc-agg.net1Hold;
+  const zone=p.disc<=wCeil?['good','full product cost comes back']
+            :(p.disc<=wFloor?['warn','part of product cost comes back']
+            :['alert','you pay Amazon out of pocket']);
   const cards=[
-    {label:'Scope',val:fmt(agg.units),sub:agg.skus+' SKUs · aged cohort units'},
-    (p.mode==='opt'
-      ? {label:'Plan · per-SKU optimal',val:pct0(agg.appliedW/gu),cls:'good',
-         sub:'units-weighted applied discount · each SKU at its own best %'}
-      : {label:'Plan · flat discount',val:pct0(p.disc),cls:zone[0],
-         sub:zone[1]+' · ceiling '+pct1(wCeil)+' · floor '+pct1(wFloor)}),
-    {label:'★ Best discount (per-SKU avg)',val:pct0(wBest),cls:'good',sub:'units-weighted average of each SKU’s own optimum'},
-    {label:'% COGS recovery',val:rec==null?'—':pct0(rec),cls:rec==null?'':(rec>=1?'good':(rec>=.5?'warn':'alert')),sub:'payout '+money2(wPay)+'/unit ÷ COGS'},
-    {label:'Units cleared / '+p.hor+'mo',val:fmt(Math.round(agg.soldScen)),cls:'good',
-      sub:'vs '+fmt(Math.round(agg.soldBase))+' if held · '+fmt(Math.round(agg.leftScen))+' left over'},
-    {label:'Cash collected',val:money(agg.cashScen),cls:'good',sub:'on units actually sold at the deal price'},
-    {label:'AIS — hold',val:money(agg.aisBase),cls:'alert',sub:'surcharge if nothing changes'},
-    {label:'AIS — discount',val:money(agg.aisScen),cls:'warn',sub:'cleared faster, fewer months charged'},
-    {label:'AIS avoided',val:money(saved),cls:saved>0?'good':'',sub:pct0(agg.aisBase?saved/agg.aisBase:0)+' of the surcharge eliminated'},
-    {label:'Discount given',val:money(agg.discGiven),cls:'warn',sub:'(base − deal) × units sold'},
-    {label:p.mode==='opt'?'Net recovery Δ — this plan':'Net recovery Δ — at this flat %',
-      val:(delta>=0?'+$':'−$')+Math.abs(Math.round(delta)).toLocaleString('en-US'),
-      cls:delta>=0?'good hero':'alert',
-      sub:'hold '+moneyS(agg.nrNo)+' → '+(p.mode==='opt'?'per-SKU':'flat '+pct0(p.disc))+' '+moneyS(agg.nrD)+
-          (delta>=0?' · ✅ discount wins':' · ⛔ one flat % is too blunt')},
-    {label:'★ Per-SKU optimal ceiling',val:'+$'+Math.abs(Math.round(agg.bestNet-agg.nrNo)).toLocaleString('en-US'),
-      cls:'good',sub:fmt(discWins)+' of '+agg.skus+' SKUs want a discount · the most this scope can recover'},
+    {label:'AIS SKUs in view',val:fmt(agg.skus),sub:fmt(agg.units)+' aged units · '+fmt(agg.sold)+' already sold'},
+    {label:'Your discount',val:pct0(p.disc),cls:zone[0],sub:zone[1]},
+    {label:'Ceiling % (recover COGS)',val:pct1(wCeil),cls:'good',sub:'deepest cut that returns 100% of cost'},
+    {label:'Floor % (zero payout)',val:pct1(wFloor),cls:'warn',sub:'past this you pay out of pocket'},
+    {label:'Payout / unit',val:money2(agg.payoutW/u),cls:'good',sub:'after referral + FBA'},
+    {label:'Total payout',val:money(agg.payout),cls:'good',sub:'cash in hand across units sold'},
+    {label:'% of COGS recovered',val:rec==null?'—':pct0(rec),cls:rec==null?'':(rec>=1?'good':'warn'),sub:'payout ÷ product cost'},
+    {label:'Current SV',val:fmtN1(agg.svNow)+'/mo',sub:'measured from daily sales'},
+    {label:'Target SV',val:fmtN1(agg.svTarget)+'/mo',cls:'warn',sub:'pace needed to clear within a year'},
+    {label:'AIS saved — 1 year',val:money(agg.ais1Hold-agg.ais1Disc),cls:'good',
+      sub:'hold '+money(agg.ais1Hold)+' → '+money(agg.ais1Disc)},
+    {label:'AIS saved — to clear',val:money(agg.aisLHold-agg.aisLDisc),cls:'good',
+      sub:'hold '+money(agg.aisLHold)+' → '+money(agg.aisLDisc)},
+    {label:'Discount given',val:money(agg.discGiven),cls:'warn',sub:'(price − deal) × units sold'},
+    {label:'Net if we HOLD',val:moneyS(agg.netLHold),cls:agg.netLHold<0?'alert':'',
+      sub:'cash from full-price sales − all surcharge until the stock is gone'},
+    {label:'Net if we DISCOUNT',val:moneyS(agg.netLDisc),cls:agg.netLDisc<0?'warn':'good',
+      sub:'hitting Target SV clears it inside the year, so 1-year and to-clear match'},
+    {label:dL>=0?'✅ Discounting recovers MORE':'⛔ Holding recovers more',
+      val:(dL>=0?'+':'−')+money(Math.abs(dL)),cls:dL>=0?'good hero':'alert hero',
+      sub:'difference between the two · 1-year view: '+(d1>=0?'+':'−')+money(Math.abs(d1))},
   ];
   document.getElementById('simKpis').innerHTML=cards.map(c=>
     `<div class="kpi ${c.cls||''}"><div class="label">${c.label}</div><div class="val">${c.val}</div>${c.sub?`<div class="sub">${c.sub}</div>`:''}</div>`).join('');
 }
-function simDualChart(S){
-  const {agg,p}=S, names=simMonthNames(p.hor);
-  const max=Math.max(1,...agg.mHold,...agg.mDisc);
-  const H=190;
-  let html=`<div style="display:flex;align-items:flex-end;gap:6px;overflow-x:auto;padding:24px 2px 0" id="simChartInner">`;
-  for(let m=0;m<p.hor;m++){
-    const hh=Math.max(2,agg.mHold[m]/max*H), hd=Math.max(2,agg.mDisc[m]/max*H);
-    const sv=agg.mHold[m]-agg.mDisc[m];
-    html+=`<div class="ah-col" style="flex:1 0 46px" data-tip="${names[m]}\nhold ${money(agg.mHold[m])}\ndiscount ${money(agg.mDisc[m])}\nsaved ${money(sv)}">
-      <div style="display:flex;align-items:flex-end;gap:3px;height:${H+22}px;justify-content:center">
-        <div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end">
-          <div style="width:17px;height:${hh}px;background:#7a6f5e;border-radius:5px 5px 2px 2px;opacity:.85"></div></div>
-        <div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end">
-          <div class="ah-val" style="margin-bottom:3px">${moneyK(agg.mDisc[m])}</div>
-          <div style="width:17px;height:${hd}px;background:#cc8829;border-radius:5px 5px 2px 2px"></div></div>
-      </div>
-      <div class="ah-lbl" style="margin-top:6px;text-align:center">${names[m]}</div>
-    </div>`;
-  }
-  document.getElementById('simChart').innerHTML=html+'</div>';
+/* ---------- one plain-English sentence, so nobody has to interpret the table ---------- */
+function renderSimPlain(S){
+  const el=document.getElementById('simPlain'); if(!el) return;
+  const {p,agg}=S, gw=agg.gw||agg.units||1;
+  const wCeil=agg.ceilW/gw, wFloor=agg.floorW/gw;
+  const dL=agg.netLDisc-agg.netLHold;
+  const savedL=agg.aisLHold-agg.aisLDisc;
+  const wins=S.rows.filter(r=>r.verdict==='disc').length;
+  const slow=S.rows.filter(r=>!isFinite(r.moClearHold)||r.moClearHold>12).length;
+  el.innerHTML=
+    `At <b>${pct0(p.disc)} off</b> these ${fmt(agg.skus)} SKUs (${fmt(agg.units)} aged units): you collect `+
+    `<b>${money2(agg.payoutW/(agg.units||1))} per unit</b> after Amazon's referral and FBA, `+
+    `<b>${money(agg.payout)} in total</b>, and give up <b>${money(agg.discGiven)}</b> in discount. `+
+    `To clear this stock inside a year you must sell <b>${fmtN1(agg.svTarget)}/month</b> versus <b>${fmtN1(agg.svNow)}/month</b> today. `+
+    `Doing that avoids <b>${money(agg.ais1Hold-agg.ais1Disc)}</b> of surcharge in year one and <b>${money(savedL)}</b> by the time the stock is gone. `+
+    `<b>${dL>=0?'Net, discounting recovers '+moneyS(Math.abs(dL))+' more than holding':'Net, holding recovers '+moneyS(Math.abs(dL))+' more than discounting'}</b> `+
+    `— it wins on <b>${fmt(wins)} of ${fmt(agg.skus)}</b> SKUs. `+
+    (p.disc<=wCeil?`This discount is at or below the ceiling (${pct1(wCeil)}), so every unit still returns its full product cost.`
+     :(p.disc<=wFloor?`This is past the ceiling (${pct1(wCeil)}) but above the floor (${pct1(wFloor)}), so you recover part of the product cost, never less than zero.`
+     :`⚠ This is past the floor (${pct1(wFloor)}) — you would be paying Amazon out of your own pocket on every sale.`))+
+    (slow?` <b>${fmt(slow)}</b> of these SKUs cannot clear within a year at today's pace, which is why the "to clear" column matters more than the 1-year one.`:'');
 }
-/* net-recovery curve: bars across discount levels, peak starred, chosen level dashed */
-function simCurveChart(S){
-  const C=simCurve(S), p=S.p;
-  const vals=C.pts.map(q=>q.net);
-  const lo=Math.min(...vals), hi=Math.max(...vals), span=(hi-lo)||1, H=180;
-  const selPct=Math.round(p.disc*100);
-  /* Bars are scaled across the observed range (not from zero) so the shape of the
-     curve is visible even when every value is negative — which is normal for a
-     deeply-aged cohort. Only the peak and the selected level are labelled, so the
-     numbers never collide. */
-  let html=`<div style="position:relative;display:flex;align-items:flex-end;gap:4px;overflow-x:auto;padding:22px 2px 0" id="simCurveInner">`;
-  C.pts.forEach(q=>{
-    const isBest=Math.abs(q.disc-C.best.disc)<1e-9;
-    const isSel=Math.abs(q.disc*100-selPct)<2.5;
-    const h=18+((q.net-lo)/span)*H;          // floor of 18px so every level stays visible
-    const safeCol=isBest?'linear-gradient(180deg,#4fd894,#2ea86a)'
-             :isSel?'#cc8829'
-             :'linear-gradient(180deg,#948b7c,#4a3d28)';
-    const label=(isBest||isSel)?`<div class="ah-val" style="font-size:10px;margin-bottom:3px;white-space:nowrap;${isBest?'color:#4fd894;font-weight:800':'color:#e0b062'}">${isBest?'★ ':''}${moneyK(q.net)}</div>`:'';
-    html+=`<div class="ah-col" style="flex:1 0 28px" data-tip="${(q.disc*100).toFixed(0)}% off\nnet recovery ${moneyS(q.net)}${isBest?'\n★ best for this scope':''}${isSel&&!isBest?'\n(your selected discount)':''}">
-      <div style="height:${H+30}px;width:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center">
-        ${label}
-        <div style="width:20px;height:${h.toFixed(1)}px;background:${safeCol};border-radius:5px 5px 2px 2px;${isBest?'box-shadow:0 0 14px rgba(46,168,106,.55)':''}"></div>
-      </div>
-      <div class="ah-lbl" style="margin-top:5px;text-align:center;${isBest?'color:#4fd894;font-weight:800':(isSel?'color:var(--accent);font-weight:800':'')}">${(q.disc*100).toFixed(0)}%</div>
-    </div>`;
-  });
-  html+='</div>';
-  html+=`<div class="footnote" style="margin-top:6px">Bars are scaled across the range ${moneyS(lo)} → ${moneyS(hi)} so the curve's shape is readable; <b style="color:#4fd894">★ ${(C.best.disc*100).toFixed(0)}%</b> is the best flat discount for this scope${hi<0?' — every level is negative here, so the goal is to lose the least':''}.</div>`;
-  document.getElementById('simCurve').innerHTML=html;
-  window._simBest=C.best;
-}
-function renderSimMonthly(S){
-  const {agg,p}=S, names=simMonthNames(p.hor);
-  let cum=0; const rows=[];
-  for(let m=0;m<p.hor;m++){
-    const sv=agg.mHold[m]-agg.mDisc[m]; cum+=sv;
-    rows.push(`<tr>
-      <td>${names[m]}</td>
-      <td class="num">${fmt(Math.round(agg.mOpen[m]))}</td>
-      <td class="num">${fmt(Math.round(agg.mSold[m]))}</td>
-      <td class="num">${fmt(Math.round(agg.mClose[m]))}</td>
-      <td class="num"><span class="pos">${money2(agg.mCash[m])}</span></td>
-      <td class="num muted">${money2(agg.mHold[m])}</td>
-      <td class="num"><b>${money2(agg.mDisc[m])}</b></td>
-      <td class="num"><span class="${sv>=0?'pos':'neg'}">${money2(sv)}</span></td>
-      <td><span class="link band-toggle" data-m="${m}" style="color:var(--accent);cursor:pointer;font-size:11px;font-weight:600">bands ▸</span></td>
-    </tr>`);
-  }
-  rows.push(`<tr style="border-top:2px solid var(--line);font-weight:700">
-    <td>Σ ${p.hor} mo</td><td class="num"></td><td class="num">${fmt(Math.round(agg.soldScen))}</td>
-    <td class="num">${fmt(Math.round(agg.leftScen))}</td>
-    <td class="num"><span class="pos">${money2(agg.cashScen)}</span></td>
-    <td class="num muted">${money2(agg.aisBase)}</td><td class="num">${money2(agg.aisScen)}</td>
-    <td class="num"><span class="pos">${money2(cum)}</span></td><td></td></tr>`);
-  const tb=document.getElementById('simMonthBody');
-  tb.innerHTML=rows.join('');
-  document.getElementById('simMonthChip').innerHTML=
-    `${fmt(Math.round(agg.soldScen))} units cleared · ${money(agg.cashScen)} cash in · ${money(agg.aisBase-agg.aisScen)} surcharge avoided`;
-  tb.querySelectorAll('.band-toggle').forEach(el=>el.onclick=()=>{
-    const m=+el.dataset.m, tr=el.closest('tr');
-    if(tr.nextElementSibling&&tr.nextElementSibling.classList.contains('band-detail')){ tr.nextElementSibling.remove(); el.textContent='bands ▸'; return; }
-    const det=document.createElement('tr'); det.className='band-detail';
-    const cells=BUCKET_LABELS.map((L,i)=>{
-      const un=agg.mBands[m][i], ch=agg.mBandCh[m][i];
-      if(un<0.5&&ch<0.005) return '';
-      return `<div style="display:inline-block;margin:3px 10px 3px 0;padding:5px 9px;border:1px solid var(--glass-line);border-radius:8px;background:rgba(255,255,255,.03)">
-        <div style="font-size:10px;color:var(--muted)">${L}d${i===0?' (free)':''}</div>
-        <div style="font-weight:700">${fmt(Math.round(un))} u</div>
-        <div style="font-size:10.5px;color:${i===0?'var(--muted)':'#f5d547'}">${i===0?'no charge':money2(ch)}</div></div>`;
-    }).join('');
-    det.innerHTML=`<td colspan="9" style="background:rgba(204,136,41,.04);white-space:normal">
-      <div style="font-size:11px;color:var(--muted);margin-bottom:2px">Closing inventory by age bracket — ${names[m]} (discount scenario, FIFO)</div>${cells||'<span class=muted>cohort cleared</span>'}</td>`;
-    tr.after(det); el.textContent='bands ▾';
-  });
-}
-/* ---- consolidated column set: grp drives which columns each view shows ---- */
+/* ---------- the single table ---------- */
 const SIM_COLS=[
-  {k:'sku',t:'SKU',cls:'',grp:'id',tip:'Child SKU (one variation).'},
-  {k:'tag',t:'Parent',cls:'',grp:'id',tip:'Parent product tag — every size/colour of one product rolls up here.'},
-  {k:'size',t:'Size',cls:'',grp:'id',tip:'Variation size. Siblings usually share the same base price and FBA fee.'},
-  {k:'units',t:'Aged units',cls:'num',grp:'id',tip:'Aged cohort carried into the projection — stock already 181+ days plus 91–180d about to cross over.'},
-  {k:'price',t:'Base $',cls:'num',grp:'price',tip:'Current Amazon selling price, before any discount.'},
-  {k:'cogs',t:'COGS',cls:'num',grp:'price2',tip:'Product cost per unit paid to the supplier. Already spent, so treated as sunk.'},
-  {k:'fba',t:'FBA',cls:'num',grp:'price2',tip:'Amazon fulfilment fee per unit (pick, pack and ship).'},
-  {k:'ceiling',t:'Ceiling %',cls:'num',grp:'price',tip:'Full-COGS ceiling: the deepest discount that still returns 100% of your product cost.'},
-  {k:'ceilPrice',t:'COGS-rec $',cls:'num',grp:'price',tip:'The 100% COGS-recovery price = (COGS + FBA) ÷ (1 − referral). Sell at or above this and you get your entire product cost back. This is also the break-even price.'},
-  {k:'floor',t:'Floor %',cls:'num',grp:'price2',tip:'Out-of-pocket floor: past this discount your cash payout turns negative — you would be paying Amazon to take the unit.'},
-  {k:'floorPrice',t:'Cash-floor $',cls:'num',grp:'price2',tip:'Price at which the cash payout hits exactly zero = FBA ÷ (1 − referral). Below this every sale costs you cash.'},
-  {k:'appliedPct',t:'Applied %',cls:'num',grp:'deal',tip:'The discount actually applied to THIS SKU under the current plan. Flat plan = the same % everywhere; per-SKU optimal = this SKU’s own best %.'},
-  {k:'adjP',t:'Deal $',cls:'num',grp:'deal',tip:'Deal price at the applied discount = base price × (1 − applied %).'},
-  {k:'payout',t:'Payout/u',cls:'num',grp:'deal',tip:'Net cash you collect per unit at the deal price = deal price − referral − FBA. Product COGS is excluded because it is already spent.'},
-  {k:'recovery',t:'% Rec',cls:'num',grp:'deal',tip:'Share of product COGS recovered by that cash payout. 100% = the full product cost comes back.'},
-  {k:'avgDaily',t:'Units/day',cls:'num',grp:'vel',tip:'Average units sold PER DAY, measured from the daily sales history. Source is shown in the Src column — the KPI tracker’s 26-day per-SKU history where available, otherwise the workbook’s L30 velocity.'},
-  {k:'svSource',t:'Src',cls:'',grp:'vel',tip:'Where the daily velocity came from: 📊 tracker = real per-SKU daily sales history · 📅 window = the workbook’s tracking window · 📄 sheet = the workbook’s L30 SV fallback.'},
-  {k:'velBase',t:'Current SV',cls:'num',grp:'sv',tip:'WHERE WE ARE NOW — measured sell velocity in units per MONTH (units/day × 30) from this SKU’s real daily sales history.'},
-  {k:'velScen',t:'Target SV',cls:'num',grp:'sv',tip:'WHERE WE NEED TO GET TO if we run the discount you selected — the monthly pace that discount is expected to deliver (Current SV × the elasticity multiplier). This is the number to hold the team to once the deal goes live.'},
-  {k:'svGain',t:'SV uplift',cls:'num',grp:'sv',tip:'Extra units per month the discount must unlock = Target SV − Current SV.'},
-  {k:'svUpliftPct',t:'Uplift %',cls:'num',grp:'sv',tip:'Target SV as a % increase over Current SV — the lift the discount is assumed to produce.'},
-  {k:'moClear',t:'Mo→clear',cls:'num',grp:'sv',tip:'Months to clear the whole aged cohort once the Target SV is being achieved.'},
-  {k:'svTarget',t:'SV to clear',cls:'num',grp:'tgt',tip:'The monthly pace needed to empty this SKU’s ENTIRE aged cohort inside the horizon = aged units ÷ horizon months. Compare it with Target SV: if Target SV is lower, the chosen discount will not fully clear the stock in time.'},
-  {k:'svGapAbs',t:'Gap to clear',cls:'num',grp:'tgt',tip:'Extra units per month needed to fully clear in the horizon = SV to clear − Current SV.'},
-  {k:'svGapPct',t:'Lift to clear',cls:'num',grp:'tgt',tip:'The gap as a % increase over today’s pace. +300% means you must sell 4× as fast to empty the cohort within the horizon.'},
-  {k:'discForTarget',t:'% off to hit',cls:'num',grp:'tgt',tip:'The discount that would deliver the target velocity, per the elasticity setting. If it exceeds the cash floor the target is not reachable by discounting alone — you would be paying Amazon to move the stock.'},
-  {k:'reachable',t:'Reachable?',cls:'',grp:'tgt',tip:'✅ = the discount needed to hit the target velocity still sits above the out-of-pocket floor. ⛔ = discounting alone cannot clear this cohort in the horizon; consider removal/liquidation instead.'},
-  {k:'svAtCeil',t:'SV @ ceiling',cls:'num',grp:'tgt',tip:'The velocity you would get at the full-COGS ceiling discount — i.e. the fastest clearance available while still recovering 100% of product cost.'},
-  {k:'soldScen',t:'Sold',cls:'num',grp:'clr',tip:'Units actually sold inside the horizon at the uplifted velocity. Only these earn cash in net recovery.'},
-  {k:'leftScen',t:'Left',cls:'num',grp:'clr',tip:'Units still sitting at the end of the horizon — they keep accruing surcharge beyond it.'},
-  {k:'cashScen',t:'Cash in',cls:'num',grp:'clr',tip:'Cash collected = payout per unit × units sold inside the horizon.'},
-  {k:'aisBase',t:'AIS hold',cls:'num',grp:'chg',tip:'Total surcharge over the horizon if you HOLD and keep selling at today’s velocity.'},
-  {k:'aisScen',t:'AIS disc',cls:'num',grp:'chg',tip:'Total surcharge over the horizon if you DISCOUNT — stock clears sooner so fewer months get charged.'},
-  {k:'saved',t:'AIS saved',cls:'num',grp:'dec',tip:'Surcharge eliminated by clearing faster = AIS hold − AIS disc.'},
-  {k:'discGiven',t:'Disc given',cls:'num',grp:'dec',tip:'Revenue given up to run the discount = (base − deal price) × units sold.'},
-  {k:'nrNo',t:'Net rec hold',cls:'num',grp:'dec',tip:'Net recovery if you HOLD: cash from units sold at full price inside the horizon, minus the surcharge paid. Unsold stock earns nothing.'},
-  {k:'nrD',t:'Net rec disc',cls:'num',grp:'dec',tip:'Net recovery if you DISCOUNT: cash from the (larger) number of units sold at the deal price, minus the (smaller) surcharge.'},
-  {k:'delta',t:'Δ Net rec',cls:'num',grp:'dec',tip:'Net recovery with the discount minus without. POSITIVE means discounting leaves more cash in your pocket even after the margin given up.'},
-  {k:'verdict',t:'Verdict',cls:'',grp:'dec',tip:'DISCOUNT when Δ net recovery is positive; HOLD when keeping full price nets more.'},
-  {k:'bestDisc',t:'★ Best %',cls:'num',grp:'opt',tip:'The discount that maximises THIS SKU’s net recovery, found by scanning 0–90% off.'},
-  {k:'bestNet',t:'Net @ best',cls:'num',grp:'opt',tip:'Net recovery achieved at that best discount.'},
-  {k:'bestGain',t:'Gain @ best',cls:'num',grp:'opt',tip:'How much better the best discount is than holding = net @ best − net rec hold.'},
-  {k:'remove',t:'3PL',cls:'',grp:'tpl',tip:'Whether pulling this stock to a third-party warehouse beats leaving it at Amazon for a year.'},
-  {k:'variance3pl',t:'3PL variance',cls:'num',grp:'tpl',tip:'(Amazon base storage + 1-yr surcharge) − total 3PL cost. Positive means removing the stock saves money.'},
+  {k:'sku',t:'SKU',cls:'',grp:'id',tip:'The aged (AIS) SKU. Only SKUs currently carrying long-term-storage stock appear here.'},
+  {k:'tag',t:'Parent',cls:'',grp:'id',tip:'Parent product — every size and colour of one product rolls up under this tag.'},
+  {k:'size',t:'Size',cls:'',grp:'id',tip:'Variation size.'},
+  {k:'units',t:'AIS units',cls:'num',grp:'id',tip:'Units currently in long-term storage that the surcharge applies to.'},
+  {k:'alreadySold',t:'Already sold',cls:'num',grp:'id',tip:'Units sold so far during the tracking window — progress against clearing this stock.'},
+
+  {k:'price',t:'Price',cls:'num',grp:'gr',tip:'Current selling price on Amazon.'},
+  {k:'ceiling',t:'Ceiling %',cls:'num',grp:'gr',tip:'THE CEILING: the deepest discount you can give and still get 100% of your product cost back. Discount more than this and you stop recovering full COGS.'},
+  {k:'ceilPrice',t:'Ceiling $',cls:'num',grp:'gr',tip:'The price at the ceiling = (COGS + FBA) ÷ (1 − referral). Sell at or above this and your entire product cost comes back.'},
+  {k:'floor',t:'Floor %',cls:'num',grp:'gr',tip:'THE FLOOR: the discount at which your payout is exactly zero — you neither gain nor pay. Go past it and you are paying Amazon out of your own pocket.'},
+  {k:'floorPrice',t:'Floor $',cls:'num',grp:'gr',tip:'The price at the floor = FBA ÷ (1 − referral). Below this every sale costs you cash.'},
+
+  {k:'discPct',t:'Disc %',cls:'num',grp:'pay',tip:'The discount you set above, applied to this SKU.'},
+  {k:'dealP',t:'Deal $',cls:'num',grp:'pay',tip:'Selling price after your discount = price × (1 − discount).'},
+  {k:'amazonFee',t:'Amazon takes',cls:'num',grp:'pay',tip:'Total paid to Amazon on the units sold — referral fee on the deal price plus the FBA fulfilment fee.'},
+  {k:'payout',t:'Payout / unit',cls:'num',grp:'pay',tip:'NET IN YOUR HAND per unit = deal price − referral − FBA. Product cost is not deducted because it is already spent.'},
+  {k:'totalPayout',t:'Total payout',cls:'num',grp:'pay',tip:'Payout per unit × units sold — the total cash this SKU puts back in your hand.'},
+  {k:'recovery',t:'% COGS back',cls:'num',grp:'pay',tip:'Share of the product cost the payout returns. 100% means you get the whole product cost back.'},
+
+  {k:'svNow',t:'Current SV',cls:'num',grp:'sv',tip:'WHERE WE ARE: units sold per month today, measured from real daily sales history.'},
+  {k:'svTarget',t:'Target SV',cls:'num',grp:'sv',tip:'WHERE WE MUST GET TO: the monthly pace that clears this SKU’s aged stock inside a year.'},
+  {k:'svUpliftPct',t:'Uplift needed',cls:'num',grp:'sv',tip:'How much faster you must sell to hit the target, as a % over today’s pace.'},
+  {k:'moClearHold',t:'Mo to clear now',cls:'num',grp:'sv',tip:'Months to sell through the aged stock at today’s pace. ∞ or a number above 12 means this SKU keeps paying the surcharge for more than a year.'},
+
+  {k:'ais1Hold',t:'AIS 1yr hold',cls:'num',grp:'ais',tip:'Surcharge over the next 12 months if you change nothing.'},
+  {k:'ais1Disc',t:'AIS 1yr disc',cls:'num',grp:'ais',tip:'Surcharge over the next 12 months if you discount and hit the target pace.'},
+  {k:'ais1Saved',t:'Saved 1yr',cls:'num',grp:'ais',tip:'Surcharge avoided in year one = AIS 1yr hold − AIS 1yr disc.'},
+  {k:'aisLHold',t:'AIS to clear · hold',cls:'num',grp:'ais',tip:'Surcharge paid ALL THE WAY until the stock is gone at today’s pace. For slow SKUs this is far bigger than the 1-year figure — it is the real cost of holding.'},
+  {k:'aisLDisc',t:'AIS to clear · disc',cls:'num',grp:'ais',tip:'Surcharge paid until the stock is gone if you discount and hit the target pace.'},
+  {k:'aisLSaved',t:'Saved to clear',cls:'num',grp:'ais',tip:'Total surcharge escaped by clearing faster, over the whole life of this stock.'},
+
+  {k:'discGiven',t:'Discount given',cls:'num',grp:'dec',tip:'Revenue given up = (price − deal price) × units sold.'},
+  {k:'netLHold',t:'Net if we hold',cls:'num',grp:'dec',tip:'Cash from units sold at full price, minus all the surcharge paid until the stock is gone.'},
+  {k:'netLDisc',t:'Net if we discount',cls:'num',grp:'dec',tip:'Cash from units sold at the deal price, minus the smaller surcharge, until the stock is gone.'},
+  {k:'deltaL',t:'Difference',cls:'num',grp:'dec',tip:'Net if we discount − net if we hold. Positive means discounting leaves more cash in your pocket even after the margin given up.'},
+  {k:'verdict',t:'Decision',cls:'',grp:'dec',tip:'Which option recovers more cash by the time the stock is gone.'},
+  {k:'bestDisc',t:'Best %',cls:'num',grp:'dec',tip:'The discount that recovers the most cash for THIS SKU, found by testing 0–90% off.'},
 ];
-const SIM_VIEWS={
-  decision:['id','price','deal','sv','dec','opt'],
-  target:  ['id','vel','sv','tgt','deal','opt'],
-  pricing: ['id','price','price2','deal'],
-  clearance:['id','vel','sv','clr','deal'],
-  charges: ['id','chg','dec','tpl'],
-  all:     ['id','price','price2','deal','vel','sv','tgt','clr','chg','dec','opt','tpl'],
-};
-const SIM_GROUP_LABEL={id:'SKU',price:'Pricing & COGS-recovery',price2:'Cost & cash floor',deal:'Your discount',sv:'Velocity — current vs target',tgt:'Full clearance in horizon',
-  vel:'Measured daily sales',clr:'Clearance',chg:'Surcharge',dec:'Decision',opt:'Optimiser',tpl:'3PL'};
-function simActiveCols(){
-  const v=document.getElementById('simView').value||'decision';
-  const groups=SIM_VIEWS[v]||SIM_VIEWS.decision;
-  return SIM_COLS.filter(c=>groups.includes(c.grp));
-}
-let simSortKey='delta', simSortDir=-1, simView=[];
+const SIM_GROUPS={id:'SKU · aged stock',gr:'Ceiling & floor',pay:'Payout',sv:'Sales velocity',ais:'Surcharge (AIS)',dec:'Decision'};
+let simSortKey='aisLHold', simSortDir=-1, simView=[];
 function simCell(r,k){
   switch(k){
     case 'sku': return `<span class="sku">${r.sku}</span>`;
-    case 'tag': return `<span class="tagchip" title="${TAG_LABELS[r.tag]||''}">${r.tag}</span>`;
+    case 'tag': return `<span class="tagchip">${r.tag}</span>`;
     case 'size': return r.size||dash;
     case 'units': return `<b>${fmt(r.units)}</b>`;
+    case 'alreadySold': return r.alreadySold>0?`<span class="pos">${fmt(r.alreadySold)}</span>`:'<span class=muted>0</span>';
     case 'price': return r.price?money2(r.price):dash;
-    case 'cogs': return r.cogs?money2(r.cogs):dash;
-    case 'fba': return r.fba?money2(r.fba):dash;
-    case 'ceiling': return r.price?pct1(r.ceiling):dash;
-    case 'ceilPrice': return r.ceilPrice?`<span class="pos">${money2(r.ceilPrice)}</span>`:dash;
-    case 'floor': return r.price?pct1(r.floor):dash;
+    case 'ceiling': return r.price?`<b class="pos">${pct1(r.ceiling)}</b>`:dash;
+    case 'ceilPrice': return r.ceilPrice?money2(r.ceilPrice):dash;
+    case 'floor': return r.price?`<b style="color:var(--amber)">${pct1(r.floor)}</b>`:dash;
     case 'floorPrice': return r.floorPrice?money2(r.floorPrice):dash;
-    case 'appliedPct': return r.appliedPct>0.001?`<b>${pct0(r.appliedPct)}</b>`:'<span class=muted>0%</span>';
-    case 'adjP': { const zc=r.zone==='safe'?'pos':(r.zone==='thin'?'':'neg'); return r.price?`<span class="${zc}">${money2(r.adjP)}</span>`:dash; }
-    case 'payout': return `<span class="${r.payout<0?'neg':'pos'}">${m2(r.payout)}</span>`;
+    case 'discPct': return `<b style="color:var(--accent)">${pct0(r.discPct)}</b>`;
+    case 'dealP': { const zc=r.zone==='safe'?'pos':(r.zone==='oop'?'neg':''); return r.price?`<span class="${zc}">${money2(r.dealP)}</span>`:dash; }
+    case 'amazonFee': return money2(r.amazonFee);
+    case 'payout': return `<b class="${r.payout<0?'neg':'pos'}">${m2(r.payout)}</b>`;
+    case 'totalPayout': return `<b class="${r.totalPayout<0?'neg':'pos'}">${m2(r.totalPayout)}</b>`;
     case 'recovery': return r.recovery==null?dash:`<span class="${r.recovery<0?'neg':(r.recovery>=1?'pos':'')}">${pct0(r.recovery)}</span>`;
-    case 'avgDaily': return r.avgDaily>0?`<b>${fmtN1(r.avgDaily)}</b>`:'<span class=muted>0</span>';
-    case 'svSource': { const M={tracker:['📊','26-day per-SKU sales history'],window:['📅','workbook tracking window'],sheet:['📄','workbook L30 SV fallback'],none:['—','no sales data']};
-      const [ic,lbl]=M[r.svSource]||M.none; return `<span title="${lbl}${r.svWindow?' · '+r.svWindow:''}">${ic}</span>`; }
-    case 'velBase': return fmtN1(r.velBase);
-    case 'svTarget': return `<b>${fmtN1(r.svTarget)}</b>`;
-    case 'svGapAbs': return r.svGapAbs>0.05?`<span class="neg">+${fmtN1(r.svGapAbs)}</span>`:'<span class="pos">on pace</span>';
-    case 'svGapPct': return !isFinite(r.svGapPct)?'<span class="flag" title="no sales — any target is an infinite uplift">∞</span>'
-                       :(r.svGapPct<=0?'<span class="pos">0%</span>':`<span class="${r.svGapPct>3?'neg':''}">+${(r.svGapPct*100).toFixed(0)}%</span>`);
-    case 'discForTarget': return r.discForTarget==null?'<span class="flag">∞</span>'
-                       :`<span class="${r.discForTarget>r.floor?'neg':(r.discForTarget<=r.ceiling?'pos':'')}">${pct0(r.discForTarget)}</span>`;
-    case 'reachable': return r.discForTarget==null?'<span class="badge v-skip">⛔ no sales</span>'
-                       :(r.reachable?'<span class="badge v-run">✅ yes</span>':'<span class="badge v-skip">⛔ past floor</span>');
-    case 'svAtCeil': return fmtN1(r.svAtCeil);
-    case 'velScen': return `<b style="color:#f5d547">${fmtN1(r.velScen)}</b>`;
-    case 'svUpliftPct': return (!isFinite(r.svUpliftPct)||r.svUpliftPct<=0.001)?'<span class=muted>—</span>'
-                       :`<span class="pos">+${(r.svUpliftPct*100).toFixed(0)}%</span>`;
-    case 'svGain': return r.svGain>0.05?`<span class="pos">+${fmtN1(r.svGain)}</span>`:'<span class=muted>—</span>';
-    case 'moClear': return isFinite(r.moClear)?fmt(r.moClear):'<span class="flag" title="zero velocity — never clears">∞</span>';
-    case 'soldScen': return `<span class="pos">${fmt(Math.round(r.soldScen))}</span>`;
-    case 'leftScen': return r.leftScen>0.5?`<span class="neg">${fmt(Math.round(r.leftScen))}</span>`:'<span class=muted>0</span>';
-    case 'cashScen': return money2(r.cashScen);
-    case 'aisBase': return money2(r.aisBase);
-    case 'aisScen': return money2(r.aisScen);
-    case 'saved': return `<span class="${r.saved>=0?'pos':'neg'}">${m2(r.saved)}</span>`;
+    case 'svNow': return fmtN1(r.svNow);
+    case 'svTarget': return `<b style="color:var(--amber)">${fmtN1(r.svTarget)}</b>`;
+    case 'svUpliftPct': return !isFinite(r.svUpliftPct)?'<span class="flag">∞</span>'
+      :(r.svUpliftPct<=0.001?'<span class="pos">on pace</span>':`<span class="${r.svUpliftPct>3?'neg':''}">+${(r.svUpliftPct*100).toFixed(0)}%</span>`);
+    case 'moClearHold': return !isFinite(r.moClearHold)?'<span class="flag" title="never clears at today’s pace">∞</span>'
+      :`<span class="${r.moClearHold>12?'neg':'pos'}">${fmt(r.moClearHold)}</span>`;
+    case 'ais1Hold': case 'ais1Disc': case 'aisLDisc': return money2(r[k]);
+    case 'aisLHold': return `<b class="neg">${money2(r.aisLHold)}</b>`;
+    case 'ais1Saved': case 'aisLSaved': return `<span class="${r[k]>=0?'pos':'neg'}">${m2(r[k])}</span>`;
     case 'discGiven': return money2(r.discGiven);
-    case 'nrNo': return `<span class="${r.nrNo>=0?'pos':'neg'}">${m2(r.nrNo)}</span>`;
-    case 'nrD': return `<span class="${r.nrD>=0?'pos':'neg'}">${m2(r.nrD)}</span>`;
-    case 'delta': return `<span class="${r.delta>=0?'pos':'neg'}"><b>${m2(r.delta)}</b></span>`;
+    case 'netLHold': return `<span class="${r.netLHold>=0?'':'neg'}">${m2(r.netLHold)}</span>`;
+    case 'netLDisc': return `<span class="${r.netLDisc>=0?'pos':'neg'}">${m2(r.netLDisc)}</span>`;
+    case 'deltaL': return `<b class="${r.deltaL>=0?'pos':'neg'}">${m2(r.deltaL)}</b>`;
     case 'verdict': return r.verdict==='disc'?'<span class="badge v-run">🏷️ DISCOUNT</span>':'<span class="badge v-na">⏳ HOLD</span>';
-    case 'bestDisc': return `<b style="color:#4fd894">${pct0(r.bestDisc)}</b>`;
-    case 'bestNet': return `<span class="${r.bestNet>=0?'pos':'neg'}">${m2(r.bestNet)}</span>`;
-    case 'bestGain': return `<span class="${r.bestGain>=0?'pos':'neg'}">${m2(r.bestGain)}</span>`;
-    case 'remove': return r.remove?'<span class="badge v-cost">🚚 remove</span>':'<span class="badge v-na">🏬 hold</span>';
-    case 'variance3pl': return r.variance3pl?`<span class="${r.variance3pl>0?'pos':'neg'}">${m2(r.variance3pl)}</span>`:dash;
+    case 'bestDisc': return `<b class="pos">${pct0(r.bestDisc)}</b>`;
   }
   return '';
 }
-function renderSimTable(S){
-  const cols=simActiveCols();
+function simFiltered(S){
   const q=(document.getElementById('simSearch').value||'').toLowerCase().trim();
   const vf=document.getElementById('simVerdict').value, zf=document.getElementById('simZone').value;
   let rows=S.rows.filter(r=>{
@@ -2668,109 +2388,67 @@ function renderSimTable(S){
     if(q&&!(r.sku.toLowerCase().includes(q)||(r.tag||'').toLowerCase().includes(q))) return false;
     return true;
   });
-  if(!cols.some(c=>c.k===simSortKey)) simSortKey=cols.some(c=>c.k==='delta')?'delta':cols[cols.length-1].k;
   rows.sort((a,b)=>{ let A=a[simSortKey],B=b[simSortKey];
     if(typeof A==='string'){A=A.toLowerCase();B=String(B||'').toLowerCase();return A<B?-simSortDir:A>B?simSortDir:0;}
     A=isFinite(A)?A:1e12; B=isFinite(B)?B:1e12; return ((A||0)-(B||0))*simSortDir; });
-  simView=rows;
-  /* grouped header band so related columns read together */
+  return rows;
+}
+/* subtotal strip — recomputes on every filter, sits frozen above the header */
+function renderSubtotals(rows){
+  const t=(f)=>rows.reduce((s,r)=>s+(f(r)||0),0);
+  const units=t(r=>r.units), sold=t(r=>r.clearedL);
+  const payout=t(r=>r.totalPayout), disc=t(r=>r.discGiven);
+  const s1=t(r=>r.ais1Saved), sL=t(r=>r.aisLSaved);
+  const nH=t(r=>r.netLHold), nD=t(r=>r.netLDisc), d=nD-nH;
+  const wins=rows.filter(r=>r.verdict==='disc').length;
+  const cells=[
+    ['SKUs shown',fmt(rows.length),''],
+    ['AIS units',fmt(units),''],
+    ['Total payout',money(payout),'pos'],
+    ['Discount given',money(disc),''],
+    ['AIS saved · 1yr',money(s1),'pos'],
+    ['AIS saved · to clear',money(sL),'pos'],
+    ['Net if hold',moneyS(nH),nH<0?'neg':''],
+    ['Net if discount',moneyS(nD),nD<0?'neg':'pos'],
+    ['Difference',(d>=0?'+':'−')+money(Math.abs(d)),d>=0?'pos':'neg'],
+    ['Discount wins',fmt(wins)+' of '+fmt(rows.length),'pos'],
+  ];
+  document.getElementById('simSubtotals').innerHTML=cells.map(([k,v,c])=>
+    `<div class="st"><div class="k">${k}</div><div class="v ${c}">${v}</div></div>`).join('');
+}
+function renderSimTable(S){
+  const rows=simView=simFiltered(S);
+  renderSubtotals(rows);
   let g='',run=null,span=0;
-  cols.forEach(c=>{ if(c.grp!==run){ if(run) g+=`<th colspan="${span}" style="text-align:center;font-size:10px;letter-spacing:.6px;color:var(--accent);background:rgba(204,136,41,.06);border-bottom:1px solid var(--glass-line)">${SIM_GROUP_LABEL[run]||''}</th>`; run=c.grp; span=0; } span++; });
-  if(run) g+=`<th colspan="${span}" style="text-align:center;font-size:10px;letter-spacing:.6px;color:var(--accent);background:rgba(204,136,41,.06);border-bottom:1px solid var(--glass-line)">${SIM_GROUP_LABEL[run]||''}</th>`;
+  SIM_COLS.forEach(c=>{ if(c.grp!==run){ if(run) g+=`<th colspan="${span}" class="grp">${SIM_GROUPS[run]||''}</th>`; run=c.grp; span=0; } span++; });
+  if(run) g+=`<th colspan="${span}" class="grp">${SIM_GROUPS[run]||''}</th>`;
   document.getElementById('simGroupHead').innerHTML=g;
-  document.getElementById('simHead').innerHTML=cols.map(c=>{
+  document.getElementById('simHead').innerHTML=SIM_COLS.map(c=>{
     const arr=simSortKey===c.k?`<span class="sortarrow">${simSortDir<0?'▼':'▲'}</span>`:'';
     return `<th class="${c.cls.includes('num')?'num':''}" data-k="${c.k}"${c.tip?` data-tip="${c.tip.replace(/"/g,'&quot;')}"`:''}>${c.t} ${arr}${c.tip?' <span class="hint">?</span>':''}</th>`;
   }).join('');
   document.querySelectorAll('#simHead th').forEach(th=>th.onclick=()=>{
     const k=th.dataset.k; if(simSortKey===k) simSortDir*=-1; else {simSortKey=k; simSortDir=(k==='sku'||k==='tag'||k==='size'||k==='verdict')?1:-1;}
     renderSimTable(_lastSim);});
-  document.getElementById('simBody').innerHTML=rows.map(r=>'<tr>'+cols.map(c=>`<td class="${c.cls.includes('num')?'num':''}">${simCell(r,c.k)}</td>`).join('')+'</tr>').join('')
-    ||`<tr><td colspan="${cols.length}" class="muted" style="padding:24px;text-align:center">No SKUs match.</td></tr>`;
-  const w=rows.filter(r=>r.verdict==='disc').length;
-  document.getElementById('simSummary').innerHTML=
-    `<b>${rows.length}</b> SKUs · discount wins on <b style="color:#4fd894">${w}</b> · holds on ${rows.length-w}`;
-}
-const SIM_PAIRS=[['simParent','simParent2'],['simSize','simSize2'],['simDisc','simDisc2'],
-                 ['simElast','simElast2'],['simHorizon','simHorizon2'],['simMode','simMode2']];
-function syncSimMirror(){
-  SIM_PAIRS.forEach(([a,b])=>{
-    const A=document.getElementById(a), B=document.getElementById(b);
-    if(!A||!B) return;
-    if(A.tagName==='SELECT'&&A.id!=='simElast'&&B.innerHTML!==A.innerHTML) B.innerHTML=A.innerHTML;
-    if(B.value!==A.value) B.value=A.value;
-  });
-}
-/* When one flat discount is the wrong lever (mixed fast/slow movers), saying "best = 0%"
-   is technically true but useless. Explain it and point at the per-SKU optimum. */
-/* Spell out, live, what the elasticity setting actually DOES: turn each discount level
-   into a sales-speed multiplier, and show the one currently in play. */
-function renderElastNote(S){
-  const el=document.getElementById('simElastNote'); if(!el) return;
-  const E=S.p.elast, gu=S.agg.gwUnits||S.agg.units||1;
-  const applied=S.p.mode==='opt'?(S.agg.appliedW/gu):S.p.disc;
-  if(!(E>0)){
-    el.innerHTML='<b>Discount → sales speed: OFF.</b> Velocity stays at today’s pace no matter how deep the discount, '+
-      'so the model only ever shows the margin you give up. Pick a setting above to let discounts move stock faster.';
-    return;
-  }
-  const steps=[0.10,0.25,0.40,0.60,0.75];
-  const scale=steps.map(dv=>{
-    const m=velMultFor(dv,E), on=Math.abs(dv-applied)<0.055;
-    return `<span style="display:inline-block;margin-right:14px;${on?'color:#f5d547;font-weight:800':''}">`+
-           `${(dv*100).toFixed(0)}% off → <b>${m.toFixed(2)}×</b></span>`;
-  }).join('');
-  const mNow=velMultFor(applied,E);
-  el.innerHTML=
-    `<b>What this setting does:</b> it turns a discount into a sales-speed multiplier — `+
-    `<code>multiplier = (1 ÷ (1 − discount))<sup>${E.toFixed(2)}</sup></code>. On this setting: ${scale}<br/>`+
-    `Your ${S.p.mode==='opt'?'plan averages':'discount of'} <b>${pct0(applied)}</b>, so the model assumes stock sells `+
-    `<b>${mNow.toFixed(2)}× faster</b> (${mNow>1?'+'+((mNow-1)*100).toFixed(0)+'%':'no change'}) — that is how <b>Target SV</b> is derived from <b>Current SV</b>. `+
-    `Raise it if your past deals moved more units than this; lower it if they moved fewer. It is the one assumption in the model, so it is yours to set.`;
-}
-function flashSimHint(forceShow){
-  const el=document.getElementById('simHint'); if(!el) return;
-  const S=_lastSim, b=window._simBest;
-  if(!S||!b){ el.classList.add('hide'); return; }
-  const need=S.rows.filter(r=>r.bestDisc>0.001);
-  const gainPerSku=S.agg.bestNet-S.agg.nrNo;
-  const gainFlat=b.net-S.agg.nrNo;
-  const gu=S.agg.gwUnits||S.agg.units||1;
-  let msg='';
-  if(S.p.mode==='opt'){
-    msg=`<b>Per-SKU optimal plan.</b> Each SKU is set to its own best discount (units-weighted average `+
-        `<b>${pct0(S.agg.appliedW/gu)}</b>): ${fmt(need.length)} of ${S.agg.skus} SKUs get a discount, the rest stay at full price. `+
-        `Everything below — charts, monthly clearance, totals — reflects that plan. The <b>Applied %</b> column shows each SKU's number.`;
-  } else if(b.disc<=0.001 && need.length){
-    msg=`A single flat discount cannot help this scope — the best flat % is <b>0%</b>, because blanket-cutting `+
-        `${S.agg.skus} SKUs sacrifices the fast movers for nothing. `+
-        `<b>${fmt(need.length)} SKUs do need a discount</b>, worth <b>${moneyS(gainPerSku)}</b>: switch <b>Plan</b> to `+
-        `<b>★ Per-SKU optimal</b> to apply and price it.`;
-  } else if(gainPerSku>gainFlat*1.25){
-    msg=`Flat <b>${pct0(S.p.disc)}</b> is worth ${moneyS(gainFlat)} vs holding, but <b>★ Per-SKU optimal</b> is worth `+
-        `<b>${moneyS(gainPerSku)}</b> — about ${(gainPerSku/Math.max(1,gainFlat)).toFixed(1)}× more. Switch <b>Plan</b> to compare.`;
-  }
-  if(msg){ el.innerHTML=msg; el.classList.remove('hide'); }
-  else el.classList.add('hide');
+  document.getElementById('simBody').innerHTML=rows.map(r=>'<tr>'+SIM_COLS.map(c=>`<td class="${c.cls.includes('num')?'num':''}">${simCell(r,c.k)}</td>`).join('')+'</tr>').join('')
+    ||`<tr><td colspan="${SIM_COLS.length}" class="muted" style="padding:24px;text-align:center">No SKUs match.</td></tr>`;
 }
 let _lastSim=null, _simRaf=0;
-/* Selects fire change AND our input listener; typing fires input per keystroke. Coalesce
-   into one render per frame so a burst of events costs one recompute, not three. */
-function renderSimSoon(){
-  if(_simRaf) return;
-  _simRaf=requestAnimationFrame(()=>{ _simRaf=0; renderSim(); });
-}
+function renderSimSoon(){ if(_simRaf) return; _simRaf=requestAnimationFrame(()=>{ _simRaf=0; renderSim(); }); }
 function renderSim(){
   const S=_lastSim=computeSim();
   window._simState=S;
-  renderSimKpis(S); simDualChart(S); simCurveChart(S); renderSimMonthly(S); renderSimTable(S);
+  renderSimKpis(S); renderSimPlain(S); renderSimTable(S);
   const {p,agg}=S;
-  const scope=(p.parent?`<b>${p.parent}</b>`:'all parents')+(p.size?' · '+p.size:'')+' — '+fmt(agg.units)+' aged units';
-  document.getElementById('simScopeChip').innerHTML=scope;
-  const c2=document.getElementById('simScopeChip2'); if(c2) c2.innerHTML=scope;
-  syncSimMirror();
-  renderElastNote(S);
-  flashSimHint(false);
+  document.getElementById('simScopeChip').innerHTML=
+    (p.parent?`<b>${p.parent}</b>`:'all parents')+(p.size?' · '+p.size:'')+' — '+fmt(agg.units)+' aged units';
+  /* Pin the second header row under the first. Reading offsetHeight forces a synchronous
+     layout of the whole table, so measure once on the next frame instead of every render. */
+  if(!window._grpMeasured){
+    window._grpMeasured=1;
+    requestAnimationFrame(()=>{ const gh=document.getElementById('simGroupHead');
+      if(gh&&gh.offsetHeight) document.documentElement.style.setProperty('--grpH',gh.offsetHeight+'px'); });
+  }
 }
 function populateSimSizes(){
   const parent=document.getElementById('simParent').value;
@@ -2791,25 +2469,15 @@ function populateSimFilters(){
 }
 function exportSimCSV(){
   if(!simView.length){ alert('Nothing to export yet.'); return; }
-  const {p}=_lastSim;
-  const cols=SIM_COLS;   // always export the full set
-  const head=['SKU','Parent','Size','Aged units','Base price','COGS','FBA','Ceiling %','COGS-recovery price',
-    'Floor %','Cash-floor price','Discount %','Deal price','Payout/unit','% COGS recovery',
-    'Units/day (measured)','Velocity source','Current SV /mo','Target SV /mo','SV uplift','Uplift %','SV to clear /mo','Gap to clear','Lift to clear %','% off to hit target','Reachable','Months to clear','Units sold','Units left','Cash in',
-    'AIS hold','AIS discount','AIS saved','Discount given','Net recovery hold','Net recovery discount',
-    'Delta net recovery','Verdict','Best discount %','Net at best','Gain at best','3PL action','3PL variance'];
-  const lines=[head.join(',')].concat(simView.map(r=>[
-    r.sku,r.tag,r.size,r.units,r.price.toFixed(2),r.cogs.toFixed(2),r.fba.toFixed(2),
-    (r.ceiling*100).toFixed(1),r.ceilPrice.toFixed(2),(r.floor*100).toFixed(1),r.floorPrice.toFixed(2),
-    (p.disc*100).toFixed(0),r.adjP.toFixed(2),r.payout.toFixed(2),r.recovery==null?'':(r.recovery*100).toFixed(1),
-    r.avgDaily.toFixed(3),r.svSource,r.velBase.toFixed(2),r.velScen.toFixed(2),r.svGain.toFixed(2),    isFinite(r.svUpliftPct)?(r.svUpliftPct*100).toFixed(0):'',    r.svTarget.toFixed(2),r.svGapAbs.toFixed(2),isFinite(r.svGapPct)?(r.svGapPct*100).toFixed(0):'',    r.discForTarget==null?'':(r.discForTarget*100).toFixed(0),r.reachable?'yes':'no',    isFinite(r.moClear)?r.moClear:'never',
-    Math.round(r.soldScen),Math.round(r.leftScen),r.cashScen.toFixed(2),
-    r.aisBase.toFixed(2),r.aisScen.toFixed(2),r.saved.toFixed(2),r.discGiven.toFixed(2),
-    r.nrNo.toFixed(2),r.nrD.toFixed(2),r.delta.toFixed(2),r.verdict==='disc'?'DISCOUNT':'HOLD',
-    (r.bestDisc*100).toFixed(0),r.bestNet.toFixed(2),r.bestGain.toFixed(2),
-    r.remove?'remove to 3PL':'hold at Amazon',r.variance3pl.toFixed(2)
-  ].map(esc).join(',')));
-  dl(lines.join('\n'),'ltsf-decision-'+(p.parent||'all')+'-'+(p.disc*100).toFixed(0)+'pct.csv');
+  const head=SIM_COLS.map(c=>c.t);
+  const val=r=>SIM_COLS.map(c=>{
+    const v=r[c.k];
+    if(c.k==='verdict') return r.verdict==='disc'?'DISCOUNT':'HOLD';
+    if(typeof v==='number') return isFinite(v)?(Math.abs(v)<1&&v!==0?v.toFixed(4):v.toFixed(2)):'';
+    return v==null?'':v;
+  });
+  const lines=[head.join(',')].concat(simView.map(r=>val(r).map(esc).join(',')));
+  dl(lines.join('\n'),'ltsf-decision.csv');
 }
 
 /* ============================ drill-down modal (reuses #bandModal) ============================ */
@@ -3125,45 +2793,22 @@ document.getElementById('povSearch').addEventListener('input',renderParents);
 document.getElementById('exportParents').onclick=exportParentsCSV;
 document.getElementById('exportSkus').onclick=exportSkusCSV;
 
-/* ---- decision engine wireup ---- */
+/* ---- decision engine wireup (one control row, no duplicates) ---- */
 document.getElementById('simParent').addEventListener('change',()=>{ populateSimSizes(); renderSimSoon(); });
-['simSize','simDisc','simElast','simHorizon','engRef','simView','simSearch','simVerdict','simZone','simMode']
-  .forEach(id=>{ const el=document.getElementById(id); if(!el) return;
-    el.addEventListener('input',renderSimSoon); el.addEventListener('change',renderSimSoon); });
+['simSize','simDisc','engRef','simSearch','simVerdict','simZone'].forEach(id=>{
+  const el=document.getElementById(id); if(!el) return;
+  el.addEventListener('input',renderSimSoon); el.addEventListener('change',renderSimSoon);
+});
 const setDisc=v=>{ document.getElementById('simDisc').value=Math.max(0,Math.min(95,Math.round(v))); renderSim(); };
-document.getElementById('simUseCeil').onclick=()=>{ const S=_lastSim; if(!S||!S.agg.units) return;
-  setDisc(Math.floor(S.agg.ceilW/(S.agg.gwUnits||S.agg.units)*100)); };
-document.getElementById('simUseFloor').onclick=()=>{ const S=_lastSim; if(!S||!S.agg.units) return;
-  setDisc(Math.floor(S.agg.floorW/(S.agg.gwUnits||S.agg.units)*100)); };
-/* Plan mode: 'flat' uses the Discount % box for every SKU; 'opt' gives each SKU its own
-   best %. In 'opt' mode the flat controls are irrelevant, so they're disabled. */
-function syncSimMode(){
-  const m=(document.getElementById('simMode')||{value:'flat'}).value;
-  const opt=m==='opt';
-  ['simDisc','simUseCeil','simUseFloor','simDisc2','simUseCeil2'].forEach(id=>{
-    const el=document.getElementById(id); if(el) el.disabled=opt;
-  });
-  const wrap=document.getElementById('simDiscWrap');
-  if(wrap) wrap.style.opacity=opt?'.45':'1';
-}
+document.getElementById('simUseCeil').onclick=()=>{ const S=_lastSim; if(!S||!S.agg.gw) return;
+  setDisc(S.agg.ceilW/S.agg.gw*100); };
+document.getElementById('simUseFloor').onclick=()=>{ const S=_lastSim; if(!S||!S.agg.gw) return;
+  setDisc(S.agg.floorW/S.agg.gw*100); };
+document.getElementById('simUseBest').onclick=()=>{ const S=_lastSim; if(!S||!S.rows.length) return;
+  // units-weighted average of each SKU's own best discount
+  let w=0,u=0; S.rows.forEach(r=>{ if(r.price>0){ w+=r.bestDisc*r.units; u+=r.units; } });
+  setDisc(u>0?(w/u*100):0); };
 document.getElementById('exportSim').onclick=exportSimCSV;
-
-/* mirrored control bar (above the per-SKU table) drives the primary controls */
-SIM_PAIRS.forEach(([a,b])=>{
-  const A=document.getElementById(a), B=document.getElementById(b);
-  if(!A||!B) return;
-  const push=()=>{ A.value=B.value;
-    if(a==='simParent'){ populateSimSizes(); }        // parent change rebuilds the size list
-    if(a==='simMode') syncSimMode();
-    renderSimSoon(); };
-  B.addEventListener('input',push); B.addEventListener('change',push);
-});
-['simUseCeil'].forEach(id=>{
-  const m=document.getElementById(id+'2');
-  if(m) m.onclick=()=>document.getElementById(id).click();
-});
-document.getElementById('simMode').addEventListener('change',()=>{ syncSimMode(); renderSimSoon(); });
-syncSimMode();
 
 /* ---- tracking wireup ---- */
 ['trkSearch','trkStatus','trkMode','trkCoverage','trkBasis','trkPct'].forEach(id=>document.getElementById(id).addEventListener('input',renderTracking));

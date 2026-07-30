@@ -547,11 +547,16 @@
       <div class="filters">
         <label class="chip">Parent&nbsp;<select id="simParent"><option value="">All parents</option></select></label>
         <label class="chip">Size&nbsp;<select id="simSize"><option value="">All sizes</option></select></label>
-        <label class="chip">Discount %&nbsp;
+        <label class="chip" title="Flat = every SKU in scope gets the same % off. Per-SKU optimal = each SKU gets its OWN best discount (the ★ Best % column) — the plan you would actually execute.">Plan&nbsp;
+          <select id="simMode">
+            <option value="flat" selected>Flat % — same discount for all</option>
+            <option value="opt">★ Per-SKU optimal — each at its own best %</option>
+          </select>
+        </label>
+        <label class="chip" id="simDiscWrap">Discount %&nbsp;
           <input type="number" id="simDisc" value="30" min="0" max="95" step="1" style="width:64px" />
           <button class="ghost" id="simUseCeil" title="Set the discount to this scope's weighted full-COGS ceiling — the deepest discount that still returns 100% of product cost" style="padding:4px 9px;font-size:11.5px">→ ceiling</button>
           <button class="ghost" id="simUseFloor" title="Set the discount to this scope's weighted out-of-pocket floor" style="padding:4px 9px;font-size:11.5px">→ floor</button>
-          <button class="ghost" id="simUseBest" title="Set the box to the best SINGLE flat discount for the whole selected scope. Note: one flat % across a mixed group of fast and slow movers is often worse than doing nothing — the actionable number is each SKU's own ★ Best % column." style="padding:4px 9px;font-size:11.5px;border-color:rgba(52,211,153,.5);color:#5ff0b8">★ best flat</button>
         </label>
         <label class="chip" title="Price elasticity of demand: multiplier = (1/(1-discount))^E. Deliberately non-linear — a 10% cut barely moves velocity, a deep cut moves it a lot.">Elasticity (E)&nbsp;
           <select id="simElast">
@@ -622,10 +627,15 @@
         <span class="chip" style="color:var(--accent);font-weight:700">⚙ Scenario</span>
         <label class="chip">Parent&nbsp;<select id="simParent2"><option value="">All parents</option></select></label>
         <label class="chip">Size&nbsp;<select id="simSize2"><option value="">All sizes</option></select></label>
+        <label class="chip">Plan&nbsp;
+          <select id="simMode2">
+            <option value="flat" selected>Flat %</option>
+            <option value="opt">★ Per-SKU optimal</option>
+          </select>
+        </label>
         <label class="chip">Discount %&nbsp;
           <input type="number" id="simDisc2" value="30" min="0" max="95" step="1" style="width:64px" />
           <button class="ghost" id="simUseCeil2" style="padding:4px 9px;font-size:11.5px">→ ceiling</button>
-          <button class="ghost" id="simUseBest2" style="padding:4px 9px;font-size:11.5px;border-color:rgba(52,211,153,.5);color:#5ff0b8">★ best flat</button>
         </label>
         <label class="chip">Elasticity&nbsp;
           <select id="simElast2">
@@ -2140,6 +2150,7 @@ function simParams(){
   return {
     parent:document.getElementById('simParent').value,
     size:document.getElementById('simSize').value,
+    mode:(document.getElementById('simMode')||{value:'flat'}).value,
     disc:clamp((num(document.getElementById('simDisc').value)||0)/100,0,0.95),
     elast:(num(document.getElementById('simElast').value)||0)/100,
     hor:clamp(Math.round(num(document.getElementById('simHorizon').value)||12),3,24),
@@ -2175,7 +2186,7 @@ function computeSim(){
   const p=simParams(), hor=p.hor;
   const rows=[];
   const agg={units:0,skus:0,aisBase:0,aisScen:0,discGiven:0,nrNo:0,nrD:0,bestNet:0,
-    payoutW:0,cogsW:0,ceilW:0,floorW:0,gwUnits:0,adjW:0,bestDiscW:0,
+    payoutW:0,cogsW:0,ceilW:0,floorW:0,gwUnits:0,adjW:0,bestDiscW:0,appliedW:0,
     soldScen:0,soldBase:0,leftScen:0,cashScen:0,
     mHold:new Array(hor).fill(0),mDisc:new Array(hor).fill(0),
     mOpen:new Array(hor).fill(0),mSold:new Array(hor).fill(0),mClose:new Array(hor).fill(0),mCash:new Array(hor).fill(0),
@@ -2190,10 +2201,13 @@ function computeSim(){
     const price=x.price;
     // hold = no discount, current velocity
     const hold=skuNet(x,seed,rate,velBase,m1,0,p.elast,hor,p.ref);
-    // scenario = chosen discount, uplifted velocity
-    const scen=skuNet(x,seed,rate,velBase,m1,p.disc,p.elast,hor,p.ref);
     const opt=simOptimum(x,seed,rate,velBase,m1,p);
-    const adjP=price*(1-p.disc);
+    /* the discount actually APPLIED to this SKU under the chosen plan:
+       flat plan -> the Discount % box · per-SKU optimal -> this SKU's own best % */
+    const dApp = p.mode==='opt' ? opt.disc : p.disc;
+    // scenario = applied discount, with the velocity that discount implies
+    const scen=skuNet(x,seed,rate,velBase,m1,dApp,p.elast,hor,p.ref);
+    const adjP=price*(1-dApp);
     const ceiling=price>0?1-(x.cogs+x.fba)/((1-p.ref)*price):0;
     const floor=price>0?1-x.fba/((1-p.ref)*price):0;
     const ceilPrice=(1-p.ref)>0?(x.cogs+x.fba)/(1-p.ref):0;   // 100% COGS-recovery price (= break-even)
@@ -2211,15 +2225,15 @@ function computeSim(){
       svUpliftPct:velBase>0?scen.vel/velBase-1:0,
       discForTarget,svAtCeil,svAtBest,reachable,
       ceiling,floor,ceilPrice,floorPrice,
-      discPct:p.disc,adjP,payout:scen.pay,
+      discPct:dApp,adjP,payout:scen.pay,
       recovery:(x.cogs>0&&price>0)?scen.pay/x.cogs:null,
-      zone:price<=0?'na':(p.disc<=ceiling?'safe':(p.disc<=floor?'thin':'oop')),
+      zone:price<=0?'na':(dApp<=ceiling?'safe':(dApp<=floor?'thin':'oop')),
       velBase,velScen:scen.vel,svGain:scen.vel-velBase,
       moClear:scen.vel>0?Math.ceil(units/scen.vel):Infinity,
       soldScen:scen.roll.sold,leftScen:scen.roll.left,soldBase:hold.roll.sold,
       cashScen:scen.pay*scen.roll.sold,
       aisBase:hold.roll.total,aisScen:scen.roll.total,saved:hold.roll.total-scen.roll.total,
-      discGiven:(price-adjP)*scen.roll.sold,
+      discGiven:(price-adjP)*scen.roll.sold,appliedPct:dApp,
       nrNo:hold.net,nrD:scen.net,delta:scen.net-hold.net,
       bestDisc:opt.disc,bestNet:opt.net,bestGain:opt.net-hold.net,
       total3pl:x.total3pl,totalAmz:x.totalAmz,variance3pl:x.variance3pl,
@@ -2231,7 +2245,8 @@ function computeSim(){
     agg.discGiven+=r.discGiven; agg.nrNo+=r.nrNo; agg.nrD+=r.nrD; agg.bestNet+=r.bestNet;
     agg.soldScen+=r.soldScen; agg.soldBase+=r.soldBase; agg.leftScen+=r.leftScen; agg.cashScen+=r.cashScen;
     agg.payoutW+=r.payout*units; agg.cogsW+=x.cogs*units; agg.adjW+=adjP*units;
-    if(price>0){ agg.ceilW+=ceiling*units; agg.floorW+=floor*units; agg.bestDiscW+=opt.disc*units; agg.gwUnits+=units; }
+    if(price>0){ agg.ceilW+=ceiling*units; agg.floorW+=floor*units; agg.bestDiscW+=opt.disc*units;
+      agg.appliedW+=dApp*units; agg.gwUnits+=units; }
     for(let m=0;m<hor;m++){
       const H=hold.roll.months[m], D=scen.roll.months[m];
       agg.mHold[m]+=H.charge; agg.mDisc[m]+=D.charge;
@@ -2275,7 +2290,11 @@ function renderSimKpis(S){
   const zone=p.disc<=wCeil?['good','recovers 100% of COGS']:(p.disc<=wFloor?['warn','partial COGS recovery']:['alert','OUT OF POCKET — past floor']);
   const cards=[
     {label:'Scope',val:fmt(agg.units),sub:agg.skus+' SKUs · aged cohort units'},
-    {label:'Your discount',val:pct0(p.disc),cls:zone[0],sub:zone[1]+' · ceiling '+pct1(wCeil)+' · floor '+pct1(wFloor)},
+    (p.mode==='opt'
+      ? {label:'Plan · per-SKU optimal',val:pct0(agg.appliedW/gu),cls:'good',
+         sub:'units-weighted applied discount · each SKU at its own best %'}
+      : {label:'Plan · flat discount',val:pct0(p.disc),cls:zone[0],
+         sub:zone[1]+' · ceiling '+pct1(wCeil)+' · floor '+pct1(wFloor)}),
     {label:'★ Best discount (per-SKU avg)',val:pct0(wBest),cls:'good',sub:'units-weighted average of each SKU’s own optimum'},
     {label:'% COGS recovery',val:rec==null?'—':pct0(rec),cls:rec==null?'':(rec>=1?'good':(rec>=.5?'warn':'alert')),sub:'payout '+money2(wPay)+'/unit ÷ COGS'},
     {label:'Units cleared / '+p.hor+'mo',val:fmt(Math.round(agg.soldScen)),cls:'good',
@@ -2285,11 +2304,13 @@ function renderSimKpis(S){
     {label:'AIS — discount',val:money(agg.aisScen),cls:'warn',sub:'cleared faster, fewer months charged'},
     {label:'AIS avoided',val:money(saved),cls:saved>0?'good':'',sub:pct0(agg.aisBase?saved/agg.aisBase:0)+' of the surcharge eliminated'},
     {label:'Discount given',val:money(agg.discGiven),cls:'warn',sub:'(base − deal) × units sold'},
-    {label:'Net recovery Δ — at this flat %',val:(delta>=0?'+$':'−$')+Math.abs(Math.round(delta)).toLocaleString('en-US'),
-      cls:delta>=0?'good':'alert',
-      sub:'hold '+moneyS(agg.nrNo)+' → flat '+pct0(p.disc)+' '+moneyS(agg.nrD)+(delta>=0?' · discount wins':' · one flat % is too blunt')},
-    {label:'★ Per-SKU optimal',val:'+$'+Math.abs(Math.round(agg.bestNet-agg.nrNo)).toLocaleString('en-US'),
-      cls:'good hero',sub:fmt(discWins)+' of '+agg.skus+' SKUs should be discounted · net '+moneyS(agg.bestNet)+' vs '+moneyS(agg.nrNo)+' holding'},
+    {label:p.mode==='opt'?'Net recovery Δ — this plan':'Net recovery Δ — at this flat %',
+      val:(delta>=0?'+$':'−$')+Math.abs(Math.round(delta)).toLocaleString('en-US'),
+      cls:delta>=0?'good hero':'alert',
+      sub:'hold '+moneyS(agg.nrNo)+' → '+(p.mode==='opt'?'per-SKU':'flat '+pct0(p.disc))+' '+moneyS(agg.nrD)+
+          (delta>=0?' · ✅ discount wins':' · ⛔ one flat % is too blunt')},
+    {label:'★ Per-SKU optimal ceiling',val:'+$'+Math.abs(Math.round(agg.bestNet-agg.nrNo)).toLocaleString('en-US'),
+      cls:'good',sub:fmt(discWins)+' of '+agg.skus+' SKUs want a discount · the most this scope can recover'},
   ];
   document.getElementById('simKpis').innerHTML=cards.map(c=>
     `<div class="kpi ${c.cls||''}"><div class="label">${c.label}</div><div class="val">${c.val}</div>${c.sub?`<div class="sub">${c.sub}</div>`:''}</div>`).join('');
@@ -2404,7 +2425,8 @@ const SIM_COLS=[
   {k:'ceilPrice',t:'COGS-rec $',cls:'num',grp:'price',tip:'The 100% COGS-recovery price = (COGS + FBA) ÷ (1 − referral). Sell at or above this and you get your entire product cost back. This is also the break-even price.'},
   {k:'floor',t:'Floor %',cls:'num',grp:'price2',tip:'Out-of-pocket floor: past this discount your cash payout turns negative — you would be paying Amazon to take the unit.'},
   {k:'floorPrice',t:'Cash-floor $',cls:'num',grp:'price2',tip:'Price at which the cash payout hits exactly zero = FBA ÷ (1 − referral). Below this every sale costs you cash.'},
-  {k:'adjP',t:'Deal $',cls:'num',grp:'deal',tip:'Deal price at your chosen discount = base price × (1 − discount %).'},
+  {k:'appliedPct',t:'Applied %',cls:'num',grp:'deal',tip:'The discount actually applied to THIS SKU under the current plan. Flat plan = the same % everywhere; per-SKU optimal = this SKU’s own best %.'},
+  {k:'adjP',t:'Deal $',cls:'num',grp:'deal',tip:'Deal price at the applied discount = base price × (1 − applied %).'},
   {k:'payout',t:'Payout/u',cls:'num',grp:'deal',tip:'Net cash you collect per unit at the deal price = deal price − referral − FBA. Product COGS is excluded because it is already spent.'},
   {k:'recovery',t:'% Rec',cls:'num',grp:'deal',tip:'Share of product COGS recovered by that cash payout. 100% = the full product cost comes back.'},
   {k:'avgDaily',t:'Units/day',cls:'num',grp:'vel',tip:'Average units sold PER DAY, measured from the daily sales history. Source is shown in the Src column — the KPI tracker’s 26-day per-SKU history where available, otherwise the workbook’s L30 velocity.'},
@@ -2466,6 +2488,7 @@ function simCell(r,k){
     case 'ceilPrice': return r.ceilPrice?`<span class="pos">${money2(r.ceilPrice)}</span>`:dash;
     case 'floor': return r.price?pct1(r.floor):dash;
     case 'floorPrice': return r.floorPrice?money2(r.floorPrice):dash;
+    case 'appliedPct': return r.appliedPct>0.001?`<b>${pct0(r.appliedPct)}</b>`:'<span class=muted>0%</span>';
     case 'adjP': { const zc=r.zone==='safe'?'pos':(r.zone==='thin'?'':'neg'); return r.price?`<span class="${zc}">${money2(r.adjP)}</span>`:dash; }
     case 'payout': return `<span class="${r.payout<0?'neg':'pos'}">${m2(r.payout)}</span>`;
     case 'recovery': return r.recovery==null?dash:`<span class="${r.recovery<0?'neg':(r.recovery>=1?'pos':'')}">${pct0(r.recovery)}</span>`;
@@ -2540,7 +2563,7 @@ function renderSimTable(S){
     `<b>${rows.length}</b> SKUs · discount wins on <b style="color:#5ff0b8">${w}</b> · holds on ${rows.length-w}`;
 }
 const SIM_PAIRS=[['simParent','simParent2'],['simSize','simSize2'],['simDisc','simDisc2'],
-                 ['simElast','simElast2'],['simHorizon','simHorizon2']];
+                 ['simElast','simElast2'],['simHorizon','simHorizon2'],['simMode','simMode2']];
 function syncSimMirror(){
   SIM_PAIRS.forEach(([a,b])=>{
     const A=document.getElementById(a), B=document.getElementById(b);
@@ -2559,19 +2582,19 @@ function flashSimHint(forceShow){
   const gainPerSku=S.agg.bestNet-S.agg.nrNo;
   const gainFlat=b.net-S.agg.nrNo;
   const gu=S.agg.gwUnits||S.agg.units||1;
-  const wBest=S.agg.bestDiscW/gu;
   let msg='';
-  if(b.disc<=0.001){
-    msg=`<b>Best single flat discount for this scope is 0%</b> — across ${S.agg.skus} SKUs a blanket cut gives up more margin than it saves, `+
-        `because the fast movers would be discounted for no reason.`+
-        (need.length?` But <b>${fmt(need.length)} of ${S.agg.skus} SKUs still need their own discount</b>, worth <b>${moneyS(gainPerSku)}</b> — `+
-         `sort by <b>★ Best %</b> or <b>Gain @ best</b> to see them, or pick a single parent to find a flat % that works there.`:'');
+  if(S.p.mode==='opt'){
+    msg=`<b>Per-SKU optimal plan.</b> Each SKU is set to its own best discount (units-weighted average `+
+        `<b>${pct0(S.agg.appliedW/gu)}</b>): ${fmt(need.length)} of ${S.agg.skus} SKUs get a discount, the rest stay at full price. `+
+        `Everything below — charts, monthly clearance, totals — reflects that plan. The <b>Applied %</b> column shows each SKU's number.`;
+  } else if(b.disc<=0.001 && need.length){
+    msg=`A single flat discount cannot help this scope — the best flat % is <b>0%</b>, because blanket-cutting `+
+        `${S.agg.skus} SKUs sacrifices the fast movers for nothing. `+
+        `<b>${fmt(need.length)} SKUs do need a discount</b>, worth <b>${moneyS(gainPerSku)}</b>: switch <b>Plan</b> to `+
+        `<b>★ Per-SKU optimal</b> to apply and price it.`;
   } else if(gainPerSku>gainFlat*1.25){
-    msg=`Best flat discount here is <b>${pct0(b.disc)}</b> (${moneyS(gainFlat)} vs holding). `+
-        `Going per-SKU instead — each at its own optimum, averaging <b>${pct0(wBest)}</b> — is worth <b>${moneyS(gainPerSku)}</b>, `+
-        `about ${(gainPerSku/Math.max(1,gainFlat)).toFixed(1)}× more. Use the <b>★ Best %</b> column per SKU.`;
-  } else if(forceShow){
-    msg=`Set to <b>${pct0(b.disc)}</b> — the best single flat discount for this scope, worth <b>${moneyS(gainFlat)}</b> vs holding.`;
+    msg=`Flat <b>${pct0(S.p.disc)}</b> is worth ${moneyS(gainFlat)} vs holding, but <b>★ Per-SKU optimal</b> is worth `+
+        `<b>${moneyS(gainPerSku)}</b> — about ${(gainPerSku/Math.max(1,gainFlat)).toFixed(1)}× more. Switch <b>Plan</b> to compare.`;
   }
   if(msg){ el.innerHTML=msg; el.classList.remove('hide'); }
   else el.classList.add('hide');
@@ -2943,7 +2966,7 @@ document.getElementById('exportSkus').onclick=exportSkusCSV;
 
 /* ---- decision engine wireup ---- */
 document.getElementById('simParent').addEventListener('change',()=>{ populateSimSizes(); renderSim(); });
-['simSize','simDisc','simElast','simHorizon','engRef','simView','simSearch','simVerdict','simZone']
+['simSize','simDisc','simElast','simHorizon','engRef','simView','simSearch','simVerdict','simZone','simMode']
   .forEach(id=>{ const el=document.getElementById(id); if(!el) return;
     el.addEventListener('input',renderSim); el.addEventListener('change',renderSim); });
 const setDisc=v=>{ document.getElementById('simDisc').value=Math.max(0,Math.min(95,Math.round(v))); renderSim(); };
@@ -2951,11 +2974,17 @@ document.getElementById('simUseCeil').onclick=()=>{ const S=_lastSim; if(!S||!S.
   setDisc(Math.floor(S.agg.ceilW/(S.agg.gwUnits||S.agg.units)*100)); };
 document.getElementById('simUseFloor').onclick=()=>{ const S=_lastSim; if(!S||!S.agg.units) return;
   setDisc(Math.floor(S.agg.floorW/(S.agg.gwUnits||S.agg.units)*100)); };
-document.getElementById('simUseBest').onclick=()=>{
-  const b=window._simBest; if(!b) return;
-  setDisc(b.disc*100);
-  flashSimHint(true);        // explain the result, especially when it lands on 0%
-};
+/* Plan mode: 'flat' uses the Discount % box for every SKU; 'opt' gives each SKU its own
+   best %. In 'opt' mode the flat controls are irrelevant, so they're disabled. */
+function syncSimMode(){
+  const m=(document.getElementById('simMode')||{value:'flat'}).value;
+  const opt=m==='opt';
+  ['simDisc','simUseCeil','simUseFloor','simDisc2','simUseCeil2'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.disabled=opt;
+  });
+  const wrap=document.getElementById('simDiscWrap');
+  if(wrap) wrap.style.opacity=opt?'.45':'1';
+}
 document.getElementById('exportSim').onclick=exportSimCSV;
 
 /* mirrored control bar (above the per-SKU table) drives the primary controls */
@@ -2964,13 +2993,16 @@ SIM_PAIRS.forEach(([a,b])=>{
   if(!A||!B) return;
   const push=()=>{ A.value=B.value;
     if(a==='simParent'){ populateSimSizes(); }        // parent change rebuilds the size list
+    if(a==='simMode') syncSimMode();
     renderSim(); };
   B.addEventListener('input',push); B.addEventListener('change',push);
 });
-['simUseCeil','simUseBest'].forEach(id=>{
+['simUseCeil'].forEach(id=>{
   const m=document.getElementById(id+'2');
   if(m) m.onclick=()=>document.getElementById(id).click();
 });
+document.getElementById('simMode').addEventListener('change',()=>{ syncSimMode(); renderSim(); });
+syncSimMode();
 
 /* ---- tracking wireup ---- */
 ['trkSearch','trkStatus','trkMode','trkCoverage','trkBasis','trkPct'].forEach(id=>document.getElementById(id).addEventListener('input',renderTracking));

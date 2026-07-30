@@ -2198,6 +2198,7 @@ function computeSim(){
     const r={sku:x.sku,tag:x.tag,size:x.size,units,price,cogs:x.cogs,fba:x.fba,
       avgDaily:x.avgDaily,svSource:x.svSource,svDays:x.svDays,svWindow:x.svWindow,
       svTarget,svGapAbs:svTarget-velBase,svGapPct:velBase>0?svTarget/velBase-1:Infinity,
+      svUpliftPct:velBase>0?scen.vel/velBase-1:0,
       discForTarget,svAtCeil,svAtBest,reachable,
       ceiling,floor,ceilPrice,floorPrice,
       discPct:p.disc,adjP,payout:scen.pay,
@@ -2398,16 +2399,17 @@ const SIM_COLS=[
   {k:'recovery',t:'% Rec',cls:'num',grp:'deal',tip:'Share of product COGS recovered by that cash payout. 100% = the full product cost comes back.'},
   {k:'avgDaily',t:'Units/day',cls:'num',grp:'vel',tip:'Average units sold PER DAY, measured from the daily sales history. Source is shown in the Src column — the KPI tracker’s 26-day per-SKU history where available, otherwise the workbook’s L30 velocity.'},
   {k:'svSource',t:'Src',cls:'',grp:'vel',tip:'Where the daily velocity came from: 📊 tracker = real per-SKU daily sales history · 📅 window = the workbook’s tracking window · 📄 sheet = the workbook’s L30 SV fallback.'},
-  {k:'velBase',t:'SV now',cls:'num',grp:'vel',tip:'Current sell velocity in units per MONTH (units/day × 30), from the measured daily history.'},
-  {k:'svTarget',t:'SV target',cls:'num',grp:'tgt',tip:'The monthly velocity you MUST reach to clear this SKU’s whole aged cohort inside the horizon = aged units ÷ horizon months. This is the goal line.'},
-  {k:'svGapAbs',t:'SV gap',cls:'num',grp:'tgt',tip:'Extra units per month needed to hit the target = SV target − SV now. This is the absolute distance to the goal.'},
-  {k:'svGapPct',t:'Uplift needed',cls:'num',grp:'tgt',tip:'That same gap as a % increase over today’s pace. A 300% figure means you must sell 4× as fast to clear the cohort in the horizon.'},
+  {k:'velBase',t:'Current SV',cls:'num',grp:'sv',tip:'WHERE WE ARE NOW — measured sell velocity in units per MONTH (units/day × 30) from this SKU’s real daily sales history.'},
+  {k:'velScen',t:'Target SV',cls:'num',grp:'sv',tip:'WHERE WE NEED TO GET TO if we run the discount you selected — the monthly pace that discount is expected to deliver (Current SV × the elasticity multiplier). This is the number to hold the team to once the deal goes live.'},
+  {k:'svGain',t:'SV uplift',cls:'num',grp:'sv',tip:'Extra units per month the discount must unlock = Target SV − Current SV.'},
+  {k:'svUpliftPct',t:'Uplift %',cls:'num',grp:'sv',tip:'Target SV as a % increase over Current SV — the lift the discount is assumed to produce.'},
+  {k:'moClear',t:'Mo→clear',cls:'num',grp:'sv',tip:'Months to clear the whole aged cohort once the Target SV is being achieved.'},
+  {k:'svTarget',t:'SV to clear',cls:'num',grp:'tgt',tip:'The monthly pace needed to empty this SKU’s ENTIRE aged cohort inside the horizon = aged units ÷ horizon months. Compare it with Target SV: if Target SV is lower, the chosen discount will not fully clear the stock in time.'},
+  {k:'svGapAbs',t:'Gap to clear',cls:'num',grp:'tgt',tip:'Extra units per month needed to fully clear in the horizon = SV to clear − Current SV.'},
+  {k:'svGapPct',t:'Lift to clear',cls:'num',grp:'tgt',tip:'The gap as a % increase over today’s pace. +300% means you must sell 4× as fast to empty the cohort within the horizon.'},
   {k:'discForTarget',t:'% off to hit',cls:'num',grp:'tgt',tip:'The discount that would deliver the target velocity, per the elasticity setting. If it exceeds the cash floor the target is not reachable by discounting alone — you would be paying Amazon to move the stock.'},
   {k:'reachable',t:'Reachable?',cls:'',grp:'tgt',tip:'✅ = the discount needed to hit the target velocity still sits above the out-of-pocket floor. ⛔ = discounting alone cannot clear this cohort in the horizon; consider removal/liquidation instead.'},
   {k:'svAtCeil',t:'SV @ ceiling',cls:'num',grp:'tgt',tip:'The velocity you would get at the full-COGS ceiling discount — i.e. the fastest clearance available while still recovering 100% of product cost.'},
-  {k:'velScen',t:'SV @ disc',cls:'num',grp:'vel',tip:'Sell velocity implied at your chosen discount, using the elasticity response above.'},
-  {k:'svGain',t:'SV gain',cls:'num',grp:'vel',tip:'Extra units per month the discount is assumed to unlock = SV @ disc − SV now.'},
-  {k:'moClear',t:'Mo→clear',cls:'num',grp:'vel',tip:'Months to clear the whole aged cohort at the uplifted velocity.'},
   {k:'soldScen',t:'Sold',cls:'num',grp:'clr',tip:'Units actually sold inside the horizon at the uplifted velocity. Only these earn cash in net recovery.'},
   {k:'leftScen',t:'Left',cls:'num',grp:'clr',tip:'Units still sitting at the end of the horizon — they keep accruing surcharge beyond it.'},
   {k:'cashScen',t:'Cash in',cls:'num',grp:'clr',tip:'Cash collected = payout per unit × units sold inside the horizon.'},
@@ -2426,15 +2428,15 @@ const SIM_COLS=[
   {k:'variance3pl',t:'3PL variance',cls:'num',grp:'tpl',tip:'(Amazon base storage + 1-yr surcharge) − total 3PL cost. Positive means removing the stock saves money.'},
 ];
 const SIM_VIEWS={
-  decision:['id','price','deal','dec','opt'],
-  target:  ['id','vel','tgt','deal','opt'],
+  decision:['id','price','deal','sv','dec','opt'],
+  target:  ['id','vel','sv','tgt','deal','opt'],
   pricing: ['id','price','price2','deal'],
-  clearance:['id','vel','clr','deal'],
+  clearance:['id','vel','sv','clr','deal'],
   charges: ['id','chg','dec','tpl'],
-  all:     ['id','price','price2','deal','vel','tgt','clr','chg','dec','opt','tpl'],
+  all:     ['id','price','price2','deal','vel','sv','tgt','clr','chg','dec','opt','tpl'],
 };
-const SIM_GROUP_LABEL={id:'SKU',price:'Pricing & COGS-recovery',price2:'Cost & cash floor',deal:'Your discount',tgt:'Target velocity — where we must get to',
-  vel:'Velocity',clr:'Clearance',chg:'Surcharge',dec:'Decision',opt:'Optimiser',tpl:'3PL'};
+const SIM_GROUP_LABEL={id:'SKU',price:'Pricing & COGS-recovery',price2:'Cost & cash floor',deal:'Your discount',sv:'Velocity — current vs target',tgt:'Full clearance in horizon',
+  vel:'Measured daily sales',clr:'Clearance',chg:'Surcharge',dec:'Decision',opt:'Optimiser',tpl:'3PL'};
 function simActiveCols(){
   const v=document.getElementById('simView').value||'decision';
   const groups=SIM_VIEWS[v]||SIM_VIEWS.decision;
@@ -2461,7 +2463,7 @@ function simCell(r,k){
     case 'svSource': { const M={tracker:['📊','26-day per-SKU sales history'],window:['📅','workbook tracking window'],sheet:['📄','workbook L30 SV fallback'],none:['—','no sales data']};
       const [ic,lbl]=M[r.svSource]||M.none; return `<span title="${lbl}${r.svWindow?' · '+r.svWindow:''}">${ic}</span>`; }
     case 'velBase': return fmtN1(r.velBase);
-    case 'svTarget': return `<b style="color:#ffd45e">${fmtN1(r.svTarget)}</b>`;
+    case 'svTarget': return `<b>${fmtN1(r.svTarget)}</b>`;
     case 'svGapAbs': return r.svGapAbs>0.05?`<span class="neg">+${fmtN1(r.svGapAbs)}</span>`:'<span class="pos">on pace</span>';
     case 'svGapPct': return !isFinite(r.svGapPct)?'<span class="flag" title="no sales — any target is an infinite uplift">∞</span>'
                        :(r.svGapPct<=0?'<span class="pos">0%</span>':`<span class="${r.svGapPct>3?'neg':''}">+${(r.svGapPct*100).toFixed(0)}%</span>`);
@@ -2470,7 +2472,9 @@ function simCell(r,k){
     case 'reachable': return r.discForTarget==null?'<span class="badge v-skip">⛔ no sales</span>'
                        :(r.reachable?'<span class="badge v-run">✅ yes</span>':'<span class="badge v-skip">⛔ past floor</span>');
     case 'svAtCeil': return fmtN1(r.svAtCeil);
-    case 'velScen': return `<b>${fmtN1(r.velScen)}</b>`;
+    case 'velScen': return `<b style="color:#ffd45e">${fmtN1(r.velScen)}</b>`;
+    case 'svUpliftPct': return (!isFinite(r.svUpliftPct)||r.svUpliftPct<=0.001)?'<span class=muted>—</span>'
+                       :`<span class="pos">+${(r.svUpliftPct*100).toFixed(0)}%</span>`;
     case 'svGain': return r.svGain>0.05?`<span class="pos">+${fmtN1(r.svGain)}</span>`:'<span class=muted>—</span>';
     case 'moClear': return isFinite(r.moClear)?fmt(r.moClear):'<span class="flag" title="zero velocity — never clears">∞</span>';
     case 'soldScen': return `<span class="pos">${fmt(Math.round(r.soldScen))}</span>`;
@@ -2569,14 +2573,14 @@ function exportSimCSV(){
   const cols=SIM_COLS;   // always export the full set
   const head=['SKU','Parent','Size','Aged units','Base price','COGS','FBA','Ceiling %','COGS-recovery price',
     'Floor %','Cash-floor price','Discount %','Deal price','Payout/unit','% COGS recovery',
-    'SV now /mo','SV at discount /mo','SV gain','Months to clear','Units sold','Units left','Cash in',
+    'Units/day (measured)','Velocity source','Current SV /mo','Target SV /mo','SV uplift','Uplift %','SV to clear /mo','Gap to clear','Lift to clear %','% off to hit target','Reachable','Months to clear','Units sold','Units left','Cash in',
     'AIS hold','AIS discount','AIS saved','Discount given','Net recovery hold','Net recovery discount',
     'Delta net recovery','Verdict','Best discount %','Net at best','Gain at best','3PL action','3PL variance'];
   const lines=[head.join(',')].concat(simView.map(r=>[
     r.sku,r.tag,r.size,r.units,r.price.toFixed(2),r.cogs.toFixed(2),r.fba.toFixed(2),
     (r.ceiling*100).toFixed(1),r.ceilPrice.toFixed(2),(r.floor*100).toFixed(1),r.floorPrice.toFixed(2),
     (p.disc*100).toFixed(0),r.adjP.toFixed(2),r.payout.toFixed(2),r.recovery==null?'':(r.recovery*100).toFixed(1),
-    r.velBase.toFixed(2),r.velScen.toFixed(2),r.svGain.toFixed(2),isFinite(r.moClear)?r.moClear:'never',
+    r.avgDaily.toFixed(3),r.svSource,r.velBase.toFixed(2),r.velScen.toFixed(2),r.svGain.toFixed(2),    isFinite(r.svUpliftPct)?(r.svUpliftPct*100).toFixed(0):'',    r.svTarget.toFixed(2),r.svGapAbs.toFixed(2),isFinite(r.svGapPct)?(r.svGapPct*100).toFixed(0):'',    r.discForTarget==null?'':(r.discForTarget*100).toFixed(0),r.reachable?'yes':'no',    isFinite(r.moClear)?r.moClear:'never',
     Math.round(r.soldScen),Math.round(r.leftScen),r.cashScen.toFixed(2),
     r.aisBase.toFixed(2),r.aisScen.toFixed(2),r.saved.toFixed(2),r.discGiven.toFixed(2),
     r.nrNo.toFixed(2),r.nrD.toFixed(2),r.delta.toFixed(2),r.verdict==='disc'?'DISCOUNT':'HOLD',

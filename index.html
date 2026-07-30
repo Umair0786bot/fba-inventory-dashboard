@@ -5,21 +5,47 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>LTSF / Aged-Inventory Surcharge Dashboard</title>
 <style>
+  /* ============================================================
+     EMBER — warm amber on toasted charcoal.
+     Built in OKLCH and validated, not eyeballed: every categorical
+     slot sits inside the dark-mode lightness band (L .48–.67) with
+     chroma >= .10, the slot order is the permutation with the widest
+     worst-pair colourblind separation (adjacent CVD dE 14.9, normal
+     16.5), and every mark clears 3:1 on --panel. The severity ramp is
+     validated separately as an ordinal scale.
+     ============================================================ */
   :root{
-    --bg:#0a0d14; --bg2:#0d121c;
-    --panel:#121826; --panel2:#182135; --line:#273246;
-    --txt:#eef2f9; --muted:#95a3ba; --accent:#6aa3ff; --accent2:#a678ff; --accent3:#2dd4bf;
-    --green:#34d399; --amber:#fbbf24; --red:#fb7185; --blue:#60a5fa; --grey:#6e7681;
+    --bg:#100d0a; --bg2:#16120d;
+    --panel:#1a1610; --panel2:#241e16; --line:#38301f;
+    --txt:#ffffff; --muted:#948b7c; --txt2:#cdc6b8;
+    --accent:#cc8829; --accent2:#a86f1d; --accent3:#27a2a2;
+
+    /* Status is reserved — never reused as a series colour, and always
+       shipped with an icon or a text label, never colour alone.
+       --amber is pushed to a bright yellow so a warning never reads as
+       accent chrome; the app has no "serious" tier, so there isn't one. */
+    --green:#2ea86a; --amber:#f5d547; --red:#e2564f; --blue:#1d7fe9; --grey:#7a6f5e;
+
+    /* Categorical series, in assignment order. Green is absent by design:
+       status owns green, and at dE 6.7 a series green would impersonate it. */
+    --ser1:#cd4290; --ser2:#1d7fe9; --ser3:#27a2a2; --ser4:#ad721c; --ser5:#9b5ad9;
+
+    /* Ordinal severity ramp — one hue, monotone lightness, older = brighter.
+       Shared by the AIS band chart and the age histogram so both read as
+       one scale. Light end clears 2:1 on --panel. */
+    --ramp1:#7c350f; --ramp2:#994416; --ramp3:#b7531c; --ramp4:#d66223;
+    --ramp5:#f6722b; --ramp6:#f8986c; --ramp7:#faba9d; --ramp8:#fcd9c9;
+
     --glass:rgba(255,255,255,.045); --glass-line:rgba(255,255,255,.08);
-    --grad:linear-gradient(135deg,#6aa3ff,#a678ff);
-    --grad-hero:linear-gradient(135deg,#fb7185,#a678ff 55%,#6aa3ff);
+    --grad:linear-gradient(135deg,#cc8829,#a86f1d);
+    --grad-hero:linear-gradient(135deg,#e2564f,#cc8829 60%,#a86f1d);
     --radius:14px;
   }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     background:var(--bg);color:var(--txt);font-size:14px}
-  header{padding:18px 24px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:linear-gradient(180deg,#141b22,#0f1419)}
+  header{padding:18px 24px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:linear-gradient(180deg,#211c14,#100d0a)}
   header h1{font-size:18px;margin:0;font-weight:650;letter-spacing:.2px}
   header .sub{color:var(--muted);font-size:12px}
   .spacer{flex:1}
@@ -37,7 +63,7 @@
   .kpi.alert .val{color:var(--red)}
   .kpi.warn .val{color:var(--amber)}
   .kpi.good .val{color:var(--green)}
-  .kpi.hero{border-color:rgba(229,83,75,.5);background:linear-gradient(180deg,#221a1c,var(--panel))}
+  .kpi.hero{border-color:rgba(226,86,79,.5);background:linear-gradient(180deg,#241a12,var(--panel))}
 
   /* layout panels */
   /* minmax(0,…) so wide children (charts/tables) can't blow the grid past the viewport */
@@ -50,7 +76,10 @@
   .bar-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;font-size:12px}
   .bar-row .name{width:150px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}
   .bar-track{flex:1;background:var(--panel2);border-radius:6px;height:18px;overflow:hidden}
-  .bar-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,#e3833b,var(--red))}
+  /* display:block is load-bearing — .bar-fill is a <span>, and width/height/
+     transform are all ignored on a non-replaced inline box, so without it the
+     track renders empty. */
+  .bar-fill{display:block;height:100%;border-radius:6px;background:var(--accent)}
   .bar-row .num{width:90px;text-align:right;color:var(--txt);flex-shrink:0;font-variant-numeric:tabular-nums}
 
   /* legend / stacked */
@@ -80,12 +109,12 @@
   .asin a{color:var(--accent);text-decoration:none}
   .asin a:hover{text-decoration:underline}
   .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
-  .b-Healthy{background:rgba(46,160,67,.16);color:#56d364}
-  .b-Lowstock{background:rgba(210,153,34,.16);color:#e3b341}
-  .b-Outofstock{background:rgba(229,83,75,.18);color:#ff7b72}
-  .b-Excess{background:rgba(124,92,255,.16);color:#a98bff}
+  .b-Healthy{background:rgba(46,168,106,.16);color:#4fd894}
+  .b-Lowstock{background:rgba(245,213,71,.16);color:#f5d547}
+  .b-Outofstock{background:rgba(226,86,79,.18);color:#f08078}
+  .b-Excess{background:rgba(155,90,217,.16);color:#b98ae6}
   .b-none{background:var(--panel2);color:var(--muted)}
-  .tagchip{display:inline-block;padding:2px 7px;border-radius:6px;font-size:10.5px;font-weight:700;background:rgba(79,157,255,.15);color:#79c0ff;white-space:nowrap}
+  .tagchip{display:inline-block;padding:2px 7px;border-radius:6px;font-size:10.5px;font-weight:700;background:rgba(204,136,41,.15);color:#d9a44a;white-space:nowrap}
   .flag{color:var(--red);font-weight:700}
   .muted{color:var(--muted)}
   .sortarrow{font-size:9px;opacity:.7}
@@ -121,19 +150,19 @@
   .tab.active{color:var(--txt);border-bottom-color:var(--accent)}
 
   /* verdict badges + value coloring */
-  .v-run{background:rgba(46,160,67,.18);color:#56d364}
-  .v-skip{background:rgba(229,83,75,.20);color:#ff7b72}
+  .v-run{background:rgba(46,168,106,.18);color:#4fd894}
+  .v-skip{background:rgba(226,86,79,.20);color:#f08078}
   .v-na{background:var(--panel2);color:var(--muted)}
-  .v-cost{background:rgba(210,153,34,.18);color:#e3b341}
-  .pos{color:#56d364}.neg{color:#ff7b72}
+  .v-cost{background:rgba(245,213,71,.18);color:#f5d547}
+  .pos{color:#4fd894}.neg{color:#f08078}
 
   /* ============ INVENTORY-AGE HISTOGRAM ============ */
   #ageChart{--plotH:206px}
   .agehist{display:flex;align-items:flex-end;gap:5px;position:relative;padding:2px 0 0}
   .ah-col{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;
     border-radius:10px;padding:2px 1px 5px;position:relative;transition:background .15s ease}
-  .ah-col.charged{background:linear-gradient(180deg,rgba(229,83,75,.11),rgba(229,83,75,.02))}
-  .ah-col.soon{background:linear-gradient(180deg,rgba(210,153,34,.12),rgba(210,153,34,.02))}
+  .ah-col.charged{background:linear-gradient(180deg,rgba(226,86,79,.11),rgba(226,86,79,.02))}
+  .ah-col.soon{background:linear-gradient(180deg,rgba(245,213,71,.12),rgba(245,213,71,.02))}
   .ah-col:hover{background:var(--panel2)}
   .ah-plot{height:var(--plotH);width:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}
   .ah-val{font-size:11px;font-weight:700;color:var(--txt);font-variant-numeric:tabular-nums;
@@ -147,13 +176,13 @@
   @keyframes growY{from{transform:scaleY(0)}to{transform:scaleY(1)}}
   /* the 181-day surcharge cliff */
   .ah-div{flex:0 0 auto;align-self:stretch;width:0;margin:0 7px 30px;position:relative}
-  .ah-div::before{content:"";position:absolute;top:16px;bottom:0;left:0;border-left:2px dashed rgba(229,83,75,.5)}
+  .ah-div::before{content:"";position:absolute;top:16px;bottom:0;left:0;border-left:2px dashed rgba(226,86,79,.5)}
   .ah-flag{position:absolute;top:-3px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:9px;font-weight:800;
-    letter-spacing:.3px;color:#ff9b93;background:rgba(229,83,75,.16);border:1px solid rgba(229,83,75,.42);
-    padding:2px 7px;border-radius:20px;box-shadow:0 2px 10px rgba(229,83,75,.25)}
+    letter-spacing:.3px;color:#f2a09a;background:rgba(226,86,79,.16);border:1px solid rgba(226,86,79,.42);
+    padding:2px 7px;border-radius:20px;box-shadow:0 2px 10px rgba(226,86,79,.25)}
   /* per-bar tooltip */
   .ah-col::after{content:attr(data-tip);position:absolute;left:50%;bottom:calc(100% - 26px);transform:translate(-50%,6px);
-    opacity:0;pointer-events:none;background:#0b0f14;border:1px solid var(--line);color:var(--txt);font-size:11px;
+    opacity:0;pointer-events:none;background:#14100b;border:1px solid var(--line);color:var(--txt);font-size:11px;
     line-height:1.55;padding:7px 10px;border-radius:9px;white-space:pre;box-shadow:0 12px 30px rgba(0,0,0,.55);
     z-index:6;transition:opacity .16s ease,transform .16s ease}
   .ah-col:hover::after{opacity:1;transform:translate(-50%,0)}
@@ -166,16 +195,16 @@
   @keyframes growX{from{transform:scaleX(0)}to{transform:scaleX(1)}}
   @keyframes popIn{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
   @keyframes sheen{0%{background-position:-160% 0}60%,100%{background-position:260% 0}}
-  @keyframes pulseRing{0%{box-shadow:0 0 0 0 rgba(229,83,75,.30)}70%{box-shadow:0 0 0 8px rgba(229,83,75,0)}100%{box-shadow:0 0 0 0 rgba(229,83,75,0)}}
+  @keyframes pulseRing{0%{box-shadow:0 0 0 0 rgba(226,86,79,.30)}70%{box-shadow:0 0 0 8px rgba(226,86,79,0)}100%{box-shadow:0 0 0 0 rgba(226,86,79,0)}}
   @keyframes spin{to{transform:rotate(360deg)}}
 
   /* ---- ambient colour glows + vignette (fixed & composited, no blur/animation → smooth scroll) ---- */
   body{position:relative;isolation:isolate}
   body::before{content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;
     background:
-      radial-gradient(60% 45% at 12% -5%, rgba(106,163,255,.12), transparent 60%),
-      radial-gradient(55% 45% at 100% 0%, rgba(166,120,255,.12), transparent 60%),
-      radial-gradient(50% 40% at 85% 105%, rgba(45,212,191,.07), transparent 60%)}
+      radial-gradient(60% 45% at 12% -5%, rgba(204,136,41,.12), transparent 60%),
+      radial-gradient(55% 45% at 100% 0%, rgba(168,111,29,.12), transparent 60%),
+      radial-gradient(50% 40% at 85% 105%, rgba(39,162,162,.07), transparent 60%)}
   body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     background:radial-gradient(130% 100% at 50% 35%, transparent 52%, rgba(0,0,0,.5) 100%)}
 
@@ -187,7 +216,7 @@
   /* section titles get a glowing accent underline that breathes */
   .sectiontitle{position:relative;padding-left:12px}
   .sectiontitle::before{content:"";position:absolute;left:0;top:8px;bottom:6px;width:3px;border-radius:3px;
-    background:linear-gradient(180deg,var(--accent),var(--accent2));box-shadow:0 0 12px rgba(79,157,255,.6);
+    background:linear-gradient(180deg,var(--accent),var(--accent2));box-shadow:0 0 12px rgba(204,136,41,.6);
     animation:breathe 3.4s ease-in-out infinite}
   @keyframes breathe{0%,100%{opacity:.55;transform:scaleY(.8)}50%{opacity:1;transform:scaleY(1)}}
 
@@ -197,7 +226,7 @@
 
   /* hero card: rotating gradient ring behind the existing sweep */
   .kpi.hero::before{content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1.4px;z-index:0;
-    background:conic-gradient(from 0deg,transparent 0deg,rgba(229,83,75,.75) 60deg,transparent 150deg,transparent 360deg);
+    background:conic-gradient(from 0deg,transparent 0deg,rgba(226,86,79,.75) 60deg,transparent 150deg,transparent 360deg);
     -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;
     mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;
     animation:spin 6s linear infinite;opacity:.8}
@@ -247,10 +276,10 @@
 
   /* clickable rows: clear blue hover highlight + left accent bar (signals "clickable") */
   .band-row-click{transition:background .13s ease,box-shadow .13s ease}
-  .band-row-click:hover{background:rgba(79,157,255,.14)}
+  .band-row-click:hover{background:rgba(204,136,41,.14)}
   .band-row-click:hover td{color:var(--txt)}
   .band-row-click:hover td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
-  .band-row-click:hover .muted{color:#a9c7ff}
+  .band-row-click:hover .muted{color:#e0c48a}
 
   /* ============ PREMIUM CLICK FEEDBACK ============ */
   /* cursor-origin ripple (JS injects .ripple) */
@@ -266,12 +295,12 @@
 
   /* primary buttons: glossy, and physically "push in" when held */
   button:not(.ghost):not(.tab){
-    background:linear-gradient(180deg,#5aa6ff,#4f9dff);
-    box-shadow:0 2px 9px rgba(79,157,255,.35),inset 0 1px 0 rgba(255,255,255,.28)}
+    background:linear-gradient(180deg,#d99a3d,#cc8829);
+    box-shadow:0 2px 9px rgba(204,136,41,.35),inset 0 1px 0 rgba(255,255,255,.28)}
   button:not(.ghost):not(.tab):hover{filter:none;transform:translateY(-1px);
-    box-shadow:0 6px 16px rgba(79,157,255,.45),inset 0 1px 0 rgba(255,255,255,.32)}
+    box-shadow:0 6px 16px rgba(204,136,41,.45),inset 0 1px 0 rgba(255,255,255,.32)}
   button:not(.ghost):not(.tab):active{transform:translateY(1px) scale(.97);
-    box-shadow:0 1px 4px rgba(79,157,255,.4),inset 0 2px 7px rgba(0,0,0,.28)}
+    box-shadow:0 1px 4px rgba(204,136,41,.4),inset 0 2px 7px rgba(0,0,0,.28)}
 
   /* ghost buttons: subtle depress + accent ring flash */
   button.ghost:hover,.modal-head .x:hover{transform:translateY(-1px);border-color:var(--accent);box-shadow:0 4px 12px rgba(0,0,0,.28)}
@@ -280,9 +309,9 @@
   /* tabs / cards / sort headers: tactile squeeze */
   .tab:active{transform:scale(.94)}
   .kpi:active{transform:translateY(-1px) scale(.985)}
-  thead th:hover{background:rgba(79,157,255,.10)}
-  thead th:active{background:rgba(79,157,255,.18);transform:scale(.99)}
-  .band-row-click:active{background:rgba(79,157,255,.22)}
+  thead th:hover{background:rgba(204,136,41,.10)}
+  thead th:active{background:rgba(204,136,41,.18);transform:scale(.99)}
+  .band-row-click:active{background:rgba(204,136,41,.22)}
   .band-row-click:active td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
 
   @media (prefers-reduced-motion: reduce){
@@ -294,15 +323,15 @@
      contrast, glass, and buttery scrolling)
      ============================================================ */
   /* slim, tasteful scrollbars everywhere */
-  *{scrollbar-width:thin;scrollbar-color:#3a4763 transparent}
+  *{scrollbar-width:thin;scrollbar-color:#4a3d28 transparent}
   *::-webkit-scrollbar{width:10px;height:10px}
   *::-webkit-scrollbar-track{background:transparent}
-  *::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#3a4763,#2b3549);border-radius:20px;border:2px solid transparent;background-clip:padding-box}
-  *::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,#4a5b80,#37425c);background-clip:padding-box}
+  *::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#4a3d28,#38301f);border-radius:20px;border:2px solid transparent;background-clip:padding-box}
+  *::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,#63512f,#4a3d28);background-clip:padding-box}
   .tablewrap,.modal-body{overscroll-behavior:contain}
 
   /* header — glass bar with gradient hairline */
-  header{background:linear-gradient(180deg,rgba(20,26,38,.92),rgba(10,13,20,.75));
+  header{background:linear-gradient(180deg,rgba(33,28,20,.92),rgba(16,13,10,.75));
     backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
     border-bottom:1px solid var(--glass-line);box-shadow:0 1px 0 rgba(255,255,255,.03)}
   header h1{background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-weight:750}
@@ -312,61 +341,67 @@
     border:1px solid var(--glass-line);box-shadow:0 1px 0 rgba(255,255,255,.03),0 12px 30px -18px rgba(0,0,0,.6)}
   .kpi{background:linear-gradient(180deg,var(--glass),transparent),var(--panel);border:1px solid var(--glass-line);
     box-shadow:0 12px 26px -20px rgba(0,0,0,.7)}
+  /* The rail states the card's condition, so on a card that already carries a
+     status it takes that status colour rather than the brand accent — otherwise
+     an amber accent sits beside a status value and the two compete. */
   .kpi::after{content:"";position:absolute;left:0;right:0;top:0;height:2px;border-radius:2px 2px 0 0;
-    background:var(--grad);opacity:.55}
-  .kpi:hover{border-color:rgba(106,163,255,.55);box-shadow:0 18px 40px -22px rgba(106,163,255,.5)}
-  .kpi .val{background:linear-gradient(180deg,#fff,#c7d3e6);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-  .kpi.good .val{background:linear-gradient(180deg,#5ff0b8,#22c58a);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-  .kpi.warn .val{background:linear-gradient(180deg,#ffd45e,#e59a12);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-  .kpi.alert .val,.kpi.hero .val{background:linear-gradient(180deg,#ff9db0,#f43f6a);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-  .kpi.hero{background:linear-gradient(180deg,rgba(251,113,133,.14),rgba(166,120,255,.05)),var(--panel);border-color:rgba(251,113,133,.4)}
+    background:var(--accent);opacity:.42}
+  .kpi.good::after{background:var(--green);opacity:.75}
+  .kpi.warn::after{background:var(--amber);opacity:.75}
+  .kpi.alert::after{background:var(--red);opacity:.85}
+  .kpi:hover{border-color:rgba(204,136,41,.55);box-shadow:0 18px 40px -22px rgba(204,136,41,.5)}
+  .kpi .val{background:linear-gradient(180deg,#fff,#cdc6b8);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .kpi.good .val{background:linear-gradient(180deg,#4fd894,#2ea86a);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .kpi.warn .val{background:linear-gradient(180deg,#f5d547,#d9a91f);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .kpi.alert .val,.kpi.hero .val{background:linear-gradient(180deg,#f08078,#e2564f);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .kpi.hero{background:linear-gradient(180deg,rgba(226,86,79,.14),rgba(168,111,29,.05)),var(--panel);border-color:rgba(226,86,79,.4)}
   .kpi.hero::after{background:var(--grad-hero);opacity:.9;height:3px}
   .kpi .label{letter-spacing:.7px}
 
   /* section titles — gradient bar + subtle gradient text */
-  .sectiontitle::before{background:var(--grad);box-shadow:0 0 14px rgba(139,120,255,.55)}
-  .sectiontitle{color:#c9d5ea}
+  .sectiontitle::before{background:var(--grad);box-shadow:0 0 14px rgba(168,111,29,.55)}
+  .sectiontitle{color:#cdc6b8}
 
   /* tabs — pill nav with gradient active state */
   .tabs{gap:4px;border-bottom:1px solid var(--glass-line)}
   .tab{border-radius:10px 10px 0 0;padding:11px 18px;position:relative}
   .tab.active{color:#fff;border-bottom-color:transparent}
-  .tab.active::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:3px;border-radius:3px;background:var(--grad);box-shadow:0 0 12px rgba(106,163,255,.6)}
+  .tab.active::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:3px;border-radius:3px;background:var(--grad);box-shadow:0 0 12px rgba(204,136,41,.6)}
   .tab:hover{background:rgba(255,255,255,.04)}
 
   /* primary buttons — gradient, glossy */
   button:not(.ghost):not(.tab){background:var(--grad);border:none;
-    box-shadow:0 6px 18px -8px rgba(106,163,255,.7),inset 0 1px 0 rgba(255,255,255,.28);font-weight:600}
-  button:not(.ghost):not(.tab):hover{filter:brightness(1.07);box-shadow:0 10px 24px -8px rgba(139,120,255,.7),inset 0 1px 0 rgba(255,255,255,.32)}
+    box-shadow:0 6px 18px -8px rgba(204,136,41,.7),inset 0 1px 0 rgba(255,255,255,.28);font-weight:600}
+  button:not(.ghost):not(.tab):hover{filter:brightness(1.07);box-shadow:0 10px 24px -8px rgba(168,111,29,.7),inset 0 1px 0 rgba(255,255,255,.32)}
   button.ghost{background:var(--glass);border:1px solid var(--glass-line);backdrop-filter:blur(6px)}
-  button.ghost:hover{border-color:var(--accent);background:rgba(106,163,255,.10)}
+  button.ghost:hover{border-color:var(--accent);background:rgba(204,136,41,.10)}
 
   /* inputs/selects — cohesive, glassy focus glow */
   .filters input,.filters select{background:rgba(255,255,255,.03);border:1px solid var(--glass-line)}
-  .filters input:focus,.filters select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(106,163,255,.18)}
+  .filters input:focus,.filters select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(204,136,41,.18)}
 
   /* tables — sticky header with gradient underline, smoother rows */
   .tablewrap{background:linear-gradient(180deg,var(--glass),transparent),var(--panel);border:1px solid var(--glass-line)}
-  thead th{background:linear-gradient(180deg,#1b2438,#151c2a);
+  thead th{background:linear-gradient(180deg,#241e16,#1a1610);
     box-shadow:inset 0 -1px 0 var(--glass-line);backdrop-filter:blur(4px)}
-  thead th:hover{background:rgba(106,163,255,.12)}
-  tbody tr:hover{background:rgba(106,163,255,.06)}
-  .band-row-click:hover{background:rgba(106,163,255,.10)}
-  .sku{color:#dbe6f7}
-  .tagchip{background:linear-gradient(180deg,rgba(106,163,255,.20),rgba(106,163,255,.10));color:#a9c9ff;border:1px solid rgba(106,163,255,.18)}
+  thead th:hover{background:rgba(204,136,41,.12)}
+  tbody tr:hover{background:rgba(204,136,41,.06)}
+  .band-row-click:hover{background:rgba(204,136,41,.10)}
+  .sku{color:#ede8dd}
+  .tagchip{background:linear-gradient(180deg,rgba(204,136,41,.20),rgba(204,136,41,.10));color:#e0c48a;border:1px solid rgba(204,136,41,.18)}
 
   /* semantic badges refreshed */
-  .badge.v-run,.b-Healthy{background:rgba(52,211,153,.16);color:#5ff0b8}
-  .badge.v-skip,.b-Outofstock{background:rgba(251,113,133,.16);color:#ff9db0}
-  .badge.v-cost,.b-Lowstock{background:rgba(251,191,36,.16);color:#ffd45e}
-  .pos{color:#5ff0b8}.neg{color:#ff9db0}
+  .badge.v-run,.b-Healthy{background:rgba(46,168,106,.16);color:#4fd894}
+  .badge.v-skip,.b-Outofstock{background:rgba(226,86,79,.16);color:#f08078}
+  .badge.v-cost,.b-Lowstock{background:rgba(245,213,71,.16);color:#f5d547}
+  .pos{color:#4fd894}.neg{color:#f08078}
 
   /* bars — gradient fills */
   .bar-fill{background:linear-gradient(90deg,var(--accent),var(--accent2))}
   .ah-bar{box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 8px 18px -6px rgba(0,0,0,.5)}
 
   /* modal — deeper glass */
-  .modal{background:linear-gradient(180deg,rgba(24,33,53,.98),rgba(18,24,38,.98));border:1px solid var(--glass-line);
+  .modal{background:linear-gradient(180deg,rgba(36,30,22,.98),rgba(26,22,16,.98));border:1px solid var(--glass-line);
     box-shadow:0 30px 80px -20px rgba(0,0,0,.75)}
   .modal-overlay{backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
 
@@ -381,15 +416,15 @@
   thead th[data-tip]{cursor:help}
   thead th .hint{display:inline-block;width:13px;height:13px;line-height:13px;text-align:center;
     border-radius:50%;font-size:9px;font-weight:800;vertical-align:middle;margin-left:3px;
-    background:rgba(106,163,255,.16);color:#8fb8ff;border:1px solid rgba(106,163,255,.3);opacity:.75}
+    background:rgba(204,136,41,.16);color:#e0b062;border:1px solid rgba(204,136,41,.3);opacity:.75}
   thead th:hover .hint{opacity:1;background:var(--accent);color:#fff;border-color:var(--accent)}
   /* position:fixed so the tip escapes the table's overflow/sticky container */
   .hdrtip{position:fixed;z-index:70;display:none;max-width:320px;
-    background:linear-gradient(180deg,#151d2c,#0d1219);border:1px solid rgba(106,163,255,.35);
+    background:linear-gradient(180deg,#241e16,#100d0a);border:1px solid rgba(204,136,41,.35);
     color:var(--txt);font-size:11.5px;font-weight:500;line-height:1.55;letter-spacing:0;
     text-transform:none;white-space:normal;padding:9px 12px;border-radius:10px;
     box-shadow:0 16px 40px rgba(0,0,0,.65);pointer-events:none}
-  .hdrtip b{color:#8fb8ff}
+  .hdrtip b{color:#e0b062}
 
   /* ============================================================
      MOBILE / RESPONSIVE  — comfortable on a phone
@@ -558,14 +593,14 @@
           <button class="ghost" id="simUseCeil" title="Set the discount to this scope's weighted full-COGS ceiling — the deepest discount that still returns 100% of product cost" style="padding:4px 9px;font-size:11.5px">→ ceiling</button>
           <button class="ghost" id="simUseFloor" title="Set the discount to this scope's weighted out-of-pocket floor" style="padding:4px 9px;font-size:11.5px">→ floor</button>
         </label>
-        <label class="chip" title="Price elasticity of demand: multiplier = (1/(1-discount))^E. Deliberately non-linear — a 10% cut barely moves velocity, a deep cut moves it a lot.">Elasticity (E)&nbsp;
+        <label class="chip" title="How strongly your customers react to a price cut. It converts a discount into a sales-speed multiplier: multiplier = (1 / (1 - discount)) ^ E. Non-linear on purpose — a small cut barely moves velocity, a deep cut moves it a lot.">How fast discounts sell&nbsp;
           <select id="simElast">
-            <option value="0">0 · no response</option>
-            <option value="75">0.75 · sluggish</option>
-            <option value="100">1.0 · modest</option>
-            <option value="150" selected>1.5 · typical clearance</option>
-            <option value="200">2.0 · responsive</option>
-            <option value="250">2.5 · very responsive</option>
+            <option value="0">Ignore — discount doesn't move sales</option>
+            <option value="75">Sluggish — barely reacts (E 0.75)</option>
+            <option value="100">Modest (E 1.0)</option>
+            <option value="150" selected>Typical clearance (E 1.5)</option>
+            <option value="200">Responsive (E 2.0)</option>
+            <option value="250">Very responsive (E 2.5)</option>
           </select>
         </label>
         <label class="chip">Referral %&nbsp;<input type="number" id="engRef" value="15" min="0" max="100" step="0.5" style="width:58px" /></label>
@@ -573,8 +608,10 @@
         <span class="spacer"></span>
         <span class="chip" id="simScopeChip"></span>
       </div>
+      <div id="simElastNote" style="margin:8px 0 0;padding:8px 12px;border-radius:9px;font-size:11.5px;line-height:1.6;
+           background:rgba(204,136,41,.07);border:1px solid rgba(204,136,41,.22);color:#cdc6b8"></div>
       <div id="simHint" class="hide" style="margin:6px 0 0;padding:9px 12px;border-radius:9px;font-size:12px;line-height:1.55;
-           background:rgba(251,191,36,.09);border:1px solid rgba(251,191,36,.32);color:#ffd45e"></div>
+           background:rgba(245,213,71,.09);border:1px solid rgba(245,213,71,.32);color:#f5d547"></div>
       <div class="footnote">
         <b>The model, in one line:</b> a discount lowers the price you collect but lifts sell velocity, so the aged stock clears sooner and stops accruing the surcharge. Net recovery counts <b>only the cash from units you actually sell inside the horizon</b>, minus the surcharge you actually pay — units still sitting at the end are neither credited nor written off (they're shown as <i>Left</i>).<br/>
         <b>Guard-rails per SKU:</b> <span class="badge v-run">Ceiling</span> is the deepest discount that still returns <b>100% of product cost</b> — its price is the <b>COGS-recovery price</b> = (COGS + FBA) ÷ (1 − referral). <span class="badge v-cost">Floor</span> is where the cash payout hits zero; past it you pay Amazon to take the unit. <b>★ Best</b> scans every discount from 0–90% and picks the one with the highest net recovery for the scope.<br/>
@@ -589,8 +626,8 @@
         <h3>📅 Surcharge by month — hold vs discount (FIFO roll-forward)</h3>
         <div id="simChart"></div>
         <div class="legend" style="display:flex;gap:16px;margin-top:10px;font-size:12px;color:var(--muted)">
-          <span><span class="dot" style="background:#6e7681"></span> Hold (current velocity)</span>
-          <span><span class="dot" style="background:linear-gradient(135deg,#6aa3ff,#a678ff)"></span> Discount (uplifted velocity)</span>
+          <span><span class="dot" style="background:#7a6f5e"></span> Hold (current velocity)</span>
+          <span><span class="dot" style="background:#cc8829"></span> Discount (uplifted velocity)</span>
         </div>
       </div>
       <div class="panel">
@@ -1029,24 +1066,32 @@ function renderKPIs(){
 }
 
 /* ---------- charts ---------- */
-function barChart(elId,pairs,valFmt){
+// `colors` is optional: pass a ramp when the rows are an ORDERED dimension (age
+// bands) so the colour carries the order; omit it for nominal rows, which all
+// take the accent — colouring those by value would just restate the bar length.
+function barChart(elId,pairs,valFmt,colors){
   const max=Math.max(1,...pairs.map(p=>p[1]));
-  document.getElementById(elId).innerHTML=pairs.map(p=>
+  document.getElementById(elId).innerHTML=pairs.map((p,i)=>
     `<div class="bar-row"><span class="name" title="${p[0]}">${p[0]}</span>
-     <span class="bar-track"><span class="bar-fill" style="width:${p[1]/max*100}%"></span></span>
+     <span class="bar-track"><span class="bar-fill" style="width:${p[1]/max*100}%${colors?`;background:${colors[i%colors.length]}`:''}"></span></span>
      <span class="num">${valFmt(p[1])}</span></div>`
   ).join('') || '<div class="muted">No data</div>';
 }
 
 const AGE_BRACKETS=[
-  {k:'a0_30',  t:'0–30 days',   c:'#2ea043'},
-  {k:'a31_60', t:'31–60 days',  c:'#3fb950'},
-  {k:'a61_90', t:'61–90 days',  c:'#56d364'},
-  {k:'a91_180',t:'91–180 days', c:'#d29922'},
-  {k:'a181_270',t:'181–270 days',c:'#e3833b'},
-  {k:'a271_365',t:'271–365 days',c:'#e5534b'},
-  {k:'a366_455',t:'366–455 days',c:'#c93c37'},
-  {k:'a456',   t:'456+ days',   c:'#8b1a1a'},
+  // Two encodings, deliberately: the free-storage window wears the "good" green
+  // (age costs nothing there, so the three steps only hint at drift toward the
+  // cliff), 91–180 wears the warning yellow, and the four charged bands take
+  // steps off the same ordinal ramp as the AIS band chart — older = brighter,
+  // so the surcharge tiers read as one scale across both charts.
+  {k:'a0_30',  t:'0–30 days',   c:'#1f7a4d'},
+  {k:'a31_60', t:'31–60 days',  c:'#26925c'},
+  {k:'a61_90', t:'61–90 days',  c:'#2ea86a'},
+  {k:'a91_180',t:'91–180 days', c:'#f5d547'},
+  {k:'a181_270',t:'181–270 days',c:'#994416'},
+  {k:'a271_365',t:'271–365 days',c:'#d66223'},
+  {k:'a366_455',t:'366–455 days',c:'#f8986c'},
+  {k:'a456',   t:'456+ days',   c:'#fcd9c9'},
 ];
 const AGE_SHORT={a0_30:'0–30d',a31_60:'31–60d',a61_90:'61–90d',a91_180:'91–180d',a181_270:'181–270d',a271_365:'271–365d',a366_455:'366–455d',a456:'456d+'};
 const CHARGED_KEYS=new Set(['a181_270','a271_365','a366_455','a456']);
@@ -1077,14 +1122,14 @@ function renderAgeBar(){
   const chargedU=AGE_BRACKETS.filter(b=>CHARGED_KEYS.has(b.k)).reduce((s,b)=>s+tot[b.k],0);
   const soonU=tot.a91_180;
   html+=`<div class="ah-summary">
-    <span class="ah-chip"><span class="dot" style="background:#e5534b"></span><b>${fmt(chargedU)}</b>&nbsp;units surcharged (${(chargedU/grand*100).toFixed(0)}%) · 181+ days</span>
-    <span class="ah-chip"><span class="dot" style="background:#d29922"></span><b>${fmt(soonU)}</b>&nbsp;entering AIS next · 91–180d</span>
+    <span class="ah-chip"><span class="dot" style="background:#d66223"></span><b>${fmt(chargedU)}</b>&nbsp;units surcharged (${(chargedU/grand*100).toFixed(0)}%) · 181+ days</span>
+    <span class="ah-chip"><span class="dot" style="background:#f5d547"></span><b>${fmt(soonU)}</b>&nbsp;entering AIS next · 91–180d</span>
     <span class="ah-chip" style="margin-left:auto"><b>${fmt(grand)}</b>&nbsp;units total</span>
   </div>`;
   document.getElementById('ageChart').innerHTML=html;
 }
 
-const BAND_COLORS=['#e3833b','#e5733b','#e5633b','#e5534b','#d6443f','#c93c37','#a82a26','#8b1a1a'];
+const BAND_COLORS=['#7c350f','#994416','#b7531c','#d66223','#f6722b','#f8986c','#faba9d','#fcd9c9'];
 function bandTable(elId,rows){
   const bandUnits=AIS_BANDS.map((b,i)=>rows.reduce((s,x)=>s+(x.aisQ[i]||0),0));
   const bandEst  =AIS_BANDS.map((b,i)=>rows.reduce((s,x)=>s+(x.aisB[i]||0),0));
@@ -1238,9 +1283,9 @@ function renderAgingTable(){
   const stat=(lbl,val,cls)=>`<div style="min-width:130px"><div class="label" style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px">${lbl}</div><div class="val" style="font-size:22px;font-weight:680${cls?';color:'+cls:''}">${val}</div></div>`;
   document.getElementById('chargeTotals').innerHTML=
     `<div style="display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start">
-       ${stat('Aged-inventory surcharge','$'+aisTot.toLocaleString('en-US',{maximumFractionDigits:0}),'#e3b341')}
+       ${stat('Aged-inventory surcharge','$'+aisTot.toLocaleString('en-US',{maximumFractionDigits:0}),'#f5d547')}
        ${stat('Base + utilization storage','$'+storageTot.toLocaleString('en-US',{maximumFractionDigits:0}))}
-       ${stat('TOTAL charges / month','$'+grand.toLocaleString('en-US',{maximumFractionDigits:0}),'#ff7b72')}
+       ${stat('TOTAL charges / month','$'+grand.toLocaleString('en-US',{maximumFractionDigits:0}),'#f08078')}
      </div>
      <div class="footnote" style="margin-top:12px">${fmt(unitsCharged)} units due an AIS charge next month across ${rows.length} SKUs. Amazon's estimates from this report — replace with the actual fee reports for billed figures.</div>`;
 }
@@ -1844,7 +1889,7 @@ function exportProjCSV(){
    ======================================================================= */
 const LT = (window.LTSF_DATA || {skus:[],parents:[],meta:{},rateCard:{}});
 const BANDS8=['181–210','211–240','241–270','271–300','301–330','331–365','366–455','456+'];
-const BAND8_COLORS=['#e3833b','#e5733b','#e5633b','#e5534b','#d6443f','#c93c37','#a82a26','#8b1a1a'];
+const BAND8_COLORS=['#7c350f','#994416','#b7531c','#d66223','#f6722b','#f8986c','#faba9d','#fcd9c9'];
 const pct0=v=>(v*100).toFixed(0)+'%';
 const pct1=v=>(v*100).toFixed(1)+'%';
 const m2=v=>(v<0?'-$':'$')+Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -1867,13 +1912,13 @@ function columnChart(elId, items, opts){
   let html=`<div class="agehist" style="--plotH:${H}px;align-items:flex-end;position:relative">`;
   if(ref){
     const topPx = (H*(1 - barPct(ref.value)/100)).toFixed(1);   // px from plot top → aligns to bar scale
-    html+=`<div class="ah-refline" style="position:absolute;left:0;right:0;top:${topPx}px;border-top:2px dashed ${ref.color||'#fbbf24'};pointer-events:none;z-index:4">
-      <span style="position:absolute;right:0;top:-16px;font-size:10px;font-weight:700;color:${ref.color||'#fbbf24'};background:rgba(10,13,20,.72);padding:1px 5px;border-radius:5px;white-space:nowrap">${ref.label||''}</span>
+    html+=`<div class="ah-refline" style="position:absolute;left:0;right:0;top:${topPx}px;border-top:2px dashed ${ref.color||'#f5d547'};pointer-events:none;z-index:4">
+      <span style="position:absolute;right:0;top:-16px;font-size:10px;font-weight:700;color:${ref.color||'#f5d547'};background:rgba(16,13,10,.72);padding:1px 5px;border-radius:5px;white-space:nowrap">${ref.label||''}</span>
     </div>`;
   }
   items.forEach((d,i)=>{
     const v=d.value||0, h=barPct(v);
-    const col=d.color||'#4f9dff';
+    const col=d.color||'#cc8829';
     const tip=(d.tip||(d.label+'\n'+vfmt(v)));
     html+=`<div class="ah-col" data-tip="${tip}">
       <div class="ah-plot">
@@ -1969,7 +2014,8 @@ function renderBandBreakdown(){
        <td style="padding:6px">${money(totE)}</td></tr>
      </tbody></table>`;
   document.querySelectorAll('#bandChart tr[data-bi]').forEach(tr=>tr.onclick=()=>openBandModalX(+tr.dataset.bi));
-  barChart('ageChart', BANDS8.map((b,i)=>[b,u[i]]), fmt);
+  // same eight bands, same ramp as the chart beside it — one scale, read twice
+  barChart('ageChart', BANDS8.map((b,i)=>[b,u[i]]), fmt, BAND8_COLORS);
 }
 
 /* ---------- parents (tag rollup) ---------- */
@@ -1988,7 +2034,10 @@ function renderParents(){
   const all=parentAgg();
   const grand=all.reduce((s,p)=>s+p.ais,0)||1;
   columnChart('parentChart', all.slice(0,12).map((p,i)=>({
-    label:tagLabel(p.tag), short:p.tag, value:p.ais, color:BAND8_COLORS[Math.min(i,7)],
+    // Parents are nominal — SLQS vs SSS4 has no inherent order — so every bar
+    // takes the same hue. Ranking them down a ramp would spend the identity
+    // channel re-encoding what the bar length already says.
+    label:tagLabel(p.tag), short:p.tag, value:p.ais, color:'#cc8829',
     sub:pct0(p.ais/grand), tip:tagLabel(p.tag)+'\n'+money2(p.ais)+' · '+pct0(p.ais/grand)+' of AIS\n'+fmt(p.units)+' units · '+p.skus+' SKUs'
   })), {compact:true, height:260, barMax:58});
   const top5=all.slice(0,5).reduce((s,p)=>s+p.ais,0);
@@ -2131,11 +2180,84 @@ function rollMonthlyFIFO(seed,rate,vel,horizon,m1Charge){
   }
   return {months,total,sold:soldTot,left:b.reduce((s,v)=>s+v,0)};
 }
+/* Totals-only twin of the roll above — identical arithmetic, but it allocates nothing
+   per month (no month objects, no per-band arrays) and reuses two scratch buffers.
+   The optimiser and the sweet-spot curve run tens of thousands of rolls per render and
+   only ever read .total/.sold, so building month detail for them was the whole cost. */
+const _rbA=new Float64Array(9), _rbB=new Float64Array(9);
+const _raA=new Float64Array(9), _raB=new Float64Array(9);
+function rollTotalsFIFO(seed,rate,vel,horizon,m1Charge){
+  const n=seed.length;
+  let cur=_rbA, nxt=_rbB;
+  for(let i=0;i<n;i++) cur[i]=seed[i];
+  let total=0, soldTot=0;
+  for(let m=1;m<=horizon;m++){
+    if(m>1){                                    // age one bracket up, top accumulates
+      nxt[0]=0;
+      for(let i=1;i<n-1;i++) nxt[i]=cur[i-1];
+      nxt[n-1]=cur[n-2]+cur[n-1];
+      const t=cur; cur=nxt; nxt=t;
+    }
+    if(m===1){
+      if(m1Charge!=null) total+=m1Charge;
+      else { let c=0; for(let i=1;i<n;i++) c+=cur[i]*rate[i]; total+=c; }
+      let s=vel; for(let i=n-1;i>=0&&s>1e-9;i--){ const t=cur[i]<s?cur[i]:s; cur[i]-=t; s-=t; } soldTot+=vel-s;
+    } else {
+      let s=vel; for(let i=n-1;i>=0&&s>1e-9;i--){ const t=cur[i]<s?cur[i]:s; cur[i]-=t; s-=t; } soldTot+=vel-s;
+      let c=0; for(let i=1;i<n;i++) c+=cur[i]*rate[i]; total+=c;
+    }
+  }
+  let left=0; for(let i=0;i<n;i++) left+=cur[i];
+  return {total,sold:soldTot,left};
+}
 /* Velocity response to a discount — constant-elasticity demand curve:
       multiplier = (1 / (1 − disc)) ^ E
    Deliberately NON-linear: a 10% cut barely moves the needle while a deep cut moves
    a lot, which is how clearance actually behaves. E=1.5 gives 10%→1.17x, 30%→1.70x,
    50%→2.83x, 70%→6.1x. Capped at 12x so extreme discounts can't produce fantasy sales. */
+/* Third variant: rolls the cohort AND adds straight into the scope's monthly
+   accumulators. computeSim previously built 12 month objects (each with two 9-element
+   arrays) per SKU per scenario — ~25k throwaway arrays per render. This writes into the
+   preallocated agg buffers instead, so a render allocates essentially nothing. */
+function rollAccumFIFO(seed,rate,vel,horizon,m1Charge,agg,isScen,payPerUnit){
+  const n=seed.length;
+  let cur=_raA, nxt=_raB;
+  for(let i=0;i<n;i++) cur[i]=seed[i];
+  let total=0, soldTot=0;
+  for(let m=1;m<=horizon;m++){
+    if(m>1){
+      nxt[0]=0;
+      for(let i=1;i<n-1;i++) nxt[i]=cur[i-1];
+      nxt[n-1]=cur[n-2]+cur[n-1];
+      const t=cur; cur=nxt; nxt=t;
+    }
+    let open=0; for(let i=0;i<n;i++) open+=cur[i];
+    let charge=0, sold=0;
+    if(m===1){
+      let derived=0; for(let i=1;i<n;i++) derived+=cur[i]*rate[i];
+      charge = (m1Charge!=null) ? m1Charge : derived;
+      const k = (m1Charge!=null && derived>0) ? m1Charge/derived : (m1Charge!=null?0:1);
+      let s=vel; for(let i=n-1;i>=0&&s>1e-9;i--){ const t=cur[i]<s?cur[i]:s; cur[i]-=t; s-=t; }
+      sold=vel-s;
+      if(isScen){ for(let i=1;i<n;i++) agg.mBandCh[m-1][i]+=cur[i]*rate[i]*k; }
+    } else {
+      let s=vel; for(let i=n-1;i>=0&&s>1e-9;i--){ const t=cur[i]<s?cur[i]:s; cur[i]-=t; s-=t; }
+      sold=vel-s;
+      for(let i=1;i<n;i++) charge+=cur[i]*rate[i];
+      if(isScen){ for(let i=1;i<n;i++) agg.mBandCh[m-1][i]+=cur[i]*rate[i]; }
+    }
+    total+=charge; soldTot+=sold;
+    if(isScen){
+      agg.mDisc[m-1]+=charge; agg.mOpen[m-1]+=open; agg.mSold[m-1]+=sold;
+      agg.mClose[m-1]+=open-sold; agg.mCash[m-1]+=sold*payPerUnit;
+      for(let i=0;i<n;i++) agg.mBands[m-1][i]+=cur[i];
+    } else {
+      agg.mHold[m-1]+=charge;
+    }
+  }
+  let left=0; for(let i=0;i<n;i++) left+=cur[i];
+  return {total,sold:soldTot,left};
+}
 function velMultFor(disc,E){
   if(!(E>0)) return 1;
   const d=Math.min(0.95,Math.max(0,disc));
@@ -2162,9 +2284,10 @@ function simScopeSkus(p){
              .filter(x=>skuSeed9(x).reduce((s,v)=>s+v,0)>0);
 }
 /* net recovery for one SKU at a given discount — cash from units SOLD, less surcharge PAID */
-function skuNet(x,seed,rate,velBase,m1,disc,elast,hor,ref){
+function skuNet(x,seed,rate,velBase,m1,disc,elast,hor,ref,wantMonths){
   const vel=velBase*velMultFor(disc,elast);
-  const r=rollMonthlyFIFO(seed,rate,vel,hor,m1);
+  const r=wantMonths ? rollMonthlyFIFO(seed,rate,vel,hor,m1)
+                     : rollTotalsFIFO(seed,rate,vel,hor,m1);
   const pay=x.price*(1-disc)*(1-ref)-x.fba;
   return {net:pay*r.sold-r.total, roll:r, pay, vel};
 }
@@ -2200,13 +2323,18 @@ function computeSim(){
     const m1=x.ais>0?x.ais:null;
     const price=x.price;
     // hold = no discount, current velocity
-    const hold=skuNet(x,seed,rate,velBase,m1,0,p.elast,hor,p.ref);
+    const holdRoll=rollAccumFIFO(seed,rate,velBase,hor,m1,agg,false,0);
+    const payHold=x.price*(1-p.ref)-x.fba;
+    const hold={net:payHold*holdRoll.sold-holdRoll.total, roll:holdRoll, pay:payHold, vel:velBase};
     const opt=simOptimum(x,seed,rate,velBase,m1,p);
     /* the discount actually APPLIED to this SKU under the chosen plan:
        flat plan -> the Discount % box · per-SKU optimal -> this SKU's own best % */
     const dApp = p.mode==='opt' ? opt.disc : p.disc;
     // scenario = applied discount, with the velocity that discount implies
-    const scen=skuNet(x,seed,rate,velBase,m1,dApp,p.elast,hor,p.ref);
+    const velScen=velBase*velMultFor(dApp,p.elast);
+    const payScen=x.price*(1-dApp)*(1-p.ref)-x.fba;
+    const scenRoll=rollAccumFIFO(seed,rate,velScen,hor,m1,agg,true,payScen);
+    const scen={net:payScen*scenRoll.sold-scenRoll.total, roll:scenRoll, pay:payScen, vel:velScen};
     const adjP=price*(1-dApp);
     const ceiling=price>0?1-(x.cogs+x.fba)/((1-p.ref)*price):0;
     const floor=price>0?1-x.fba/((1-p.ref)*price):0;
@@ -2247,18 +2375,18 @@ function computeSim(){
     agg.payoutW+=r.payout*units; agg.cogsW+=x.cogs*units; agg.adjW+=adjP*units;
     if(price>0){ agg.ceilW+=ceiling*units; agg.floorW+=floor*units; agg.bestDiscW+=opt.disc*units;
       agg.appliedW+=dApp*units; agg.gwUnits+=units; }
-    for(let m=0;m<hor;m++){
-      const H=hold.roll.months[m], D=scen.roll.months[m];
-      agg.mHold[m]+=H.charge; agg.mDisc[m]+=D.charge;
-      agg.mOpen[m]+=D.open; agg.mSold[m]+=D.sold; agg.mClose[m]+=D.close; agg.mCash[m]+=D.sold*scen.pay;
-      for(let i=0;i<9;i++){ agg.mBands[m][i]+=D.bands[i]; agg.mBandCh[m][i]+=D.bandCharges[i]; }
-    }
   });
   return {p,rows,agg};
 }
 /* net-recovery-vs-discount curve for the whole scope (drives the sweet-spot chart) */
+let _curveKey='', _curveVal=null;
 function simCurve(S){
-  const {p}=S, pts=[];
+  const {p}=S;
+  /* the curve is a function of scope + elasticity + horizon + referral only — NOT of the
+     chosen discount, so changing the discount box must not recompute 10k rolls. */
+  const key=[p.parent,p.size,p.elast,p.hor,p.ref].join('|');
+  if(key===_curveKey && _curveVal) return _curveVal;
+  const pts=[];
   const scope=simScopeSkus(p).map(x=>{
     const seed=skuSeed9(x);
     return {x,seed,rate:skuRates9(x),
@@ -2271,7 +2399,8 @@ function simCurve(S){
     pts.push({disc:dd,net});
   }
   let best=pts[0]; pts.forEach(q=>{ if(q.net>best.net) best=q; });
-  return {pts,best};
+  _curveKey=key; _curveVal={pts,best};
+  return _curveVal;
 }
 function simMonthNames(hor){
   const N=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -2326,10 +2455,10 @@ function simDualChart(S){
     html+=`<div class="ah-col" style="flex:1 0 46px" data-tip="${names[m]}\nhold ${money(agg.mHold[m])}\ndiscount ${money(agg.mDisc[m])}\nsaved ${money(sv)}">
       <div style="display:flex;align-items:flex-end;gap:3px;height:${H+22}px;justify-content:center">
         <div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end">
-          <div style="width:17px;height:${hh}px;background:#6e7681;border-radius:5px 5px 2px 2px;opacity:.85"></div></div>
+          <div style="width:17px;height:${hh}px;background:#7a6f5e;border-radius:5px 5px 2px 2px;opacity:.85"></div></div>
         <div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end">
           <div class="ah-val" style="margin-bottom:3px">${moneyK(agg.mDisc[m])}</div>
-          <div style="width:17px;height:${hd}px;background:linear-gradient(180deg,#6aa3ff,#a678ff);border-radius:5px 5px 2px 2px"></div></div>
+          <div style="width:17px;height:${hd}px;background:#cc8829;border-radius:5px 5px 2px 2px"></div></div>
       </div>
       <div class="ah-lbl" style="margin-top:6px;text-align:center">${names[m]}</div>
     </div>`;
@@ -2351,20 +2480,20 @@ function simCurveChart(S){
     const isBest=Math.abs(q.disc-C.best.disc)<1e-9;
     const isSel=Math.abs(q.disc*100-selPct)<2.5;
     const h=18+((q.net-lo)/span)*H;          // floor of 18px so every level stays visible
-    const safeCol=isBest?'linear-gradient(180deg,#5ff0b8,#22c58a)'
-             :isSel?'linear-gradient(180deg,#6aa3ff,#a678ff)'
-             :'linear-gradient(180deg,#7d90b8,#4f5f85)';
-    const label=(isBest||isSel)?`<div class="ah-val" style="font-size:10px;margin-bottom:3px;white-space:nowrap;${isBest?'color:#5ff0b8;font-weight:800':'color:#8fb8ff'}">${isBest?'★ ':''}${moneyK(q.net)}</div>`:'';
+    const safeCol=isBest?'linear-gradient(180deg,#4fd894,#2ea86a)'
+             :isSel?'#cc8829'
+             :'linear-gradient(180deg,#948b7c,#4a3d28)';
+    const label=(isBest||isSel)?`<div class="ah-val" style="font-size:10px;margin-bottom:3px;white-space:nowrap;${isBest?'color:#4fd894;font-weight:800':'color:#e0b062'}">${isBest?'★ ':''}${moneyK(q.net)}</div>`:'';
     html+=`<div class="ah-col" style="flex:1 0 28px" data-tip="${(q.disc*100).toFixed(0)}% off\nnet recovery ${moneyS(q.net)}${isBest?'\n★ best for this scope':''}${isSel&&!isBest?'\n(your selected discount)':''}">
       <div style="height:${H+30}px;width:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center">
         ${label}
-        <div style="width:20px;height:${h.toFixed(1)}px;background:${safeCol};border-radius:5px 5px 2px 2px;${isBest?'box-shadow:0 0 14px rgba(52,211,153,.55)':''}"></div>
+        <div style="width:20px;height:${h.toFixed(1)}px;background:${safeCol};border-radius:5px 5px 2px 2px;${isBest?'box-shadow:0 0 14px rgba(46,168,106,.55)':''}"></div>
       </div>
-      <div class="ah-lbl" style="margin-top:5px;text-align:center;${isBest?'color:#5ff0b8;font-weight:800':(isSel?'color:var(--accent);font-weight:800':'')}">${(q.disc*100).toFixed(0)}%</div>
+      <div class="ah-lbl" style="margin-top:5px;text-align:center;${isBest?'color:#4fd894;font-weight:800':(isSel?'color:var(--accent);font-weight:800':'')}">${(q.disc*100).toFixed(0)}%</div>
     </div>`;
   });
   html+='</div>';
-  html+=`<div class="footnote" style="margin-top:6px">Bars are scaled across the range ${moneyS(lo)} → ${moneyS(hi)} so the curve's shape is readable; <b style="color:#5ff0b8">★ ${(C.best.disc*100).toFixed(0)}%</b> is the best flat discount for this scope${hi<0?' — every level is negative here, so the goal is to lose the least':''}.</div>`;
+  html+=`<div class="footnote" style="margin-top:6px">Bars are scaled across the range ${moneyS(lo)} → ${moneyS(hi)} so the curve's shape is readable; <b style="color:#4fd894">★ ${(C.best.disc*100).toFixed(0)}%</b> is the best flat discount for this scope${hi<0?' — every level is negative here, so the goal is to lose the least':''}.</div>`;
   document.getElementById('simCurve').innerHTML=html;
   window._simBest=C.best;
 }
@@ -2405,9 +2534,9 @@ function renderSimMonthly(S){
       return `<div style="display:inline-block;margin:3px 10px 3px 0;padding:5px 9px;border:1px solid var(--glass-line);border-radius:8px;background:rgba(255,255,255,.03)">
         <div style="font-size:10px;color:var(--muted)">${L}d${i===0?' (free)':''}</div>
         <div style="font-weight:700">${fmt(Math.round(un))} u</div>
-        <div style="font-size:10.5px;color:${i===0?'var(--muted)':'#ffd45e'}">${i===0?'no charge':money2(ch)}</div></div>`;
+        <div style="font-size:10.5px;color:${i===0?'var(--muted)':'#f5d547'}">${i===0?'no charge':money2(ch)}</div></div>`;
     }).join('');
-    det.innerHTML=`<td colspan="9" style="background:rgba(106,163,255,.04);white-space:normal">
+    det.innerHTML=`<td colspan="9" style="background:rgba(204,136,41,.04);white-space:normal">
       <div style="font-size:11px;color:var(--muted);margin-bottom:2px">Closing inventory by age bracket — ${names[m]} (discount scenario, FIFO)</div>${cells||'<span class=muted>cohort cleared</span>'}</td>`;
     tr.after(det); el.textContent='bands ▾';
   });
@@ -2505,7 +2634,7 @@ function simCell(r,k){
     case 'reachable': return r.discForTarget==null?'<span class="badge v-skip">⛔ no sales</span>'
                        :(r.reachable?'<span class="badge v-run">✅ yes</span>':'<span class="badge v-skip">⛔ past floor</span>');
     case 'svAtCeil': return fmtN1(r.svAtCeil);
-    case 'velScen': return `<b style="color:#ffd45e">${fmtN1(r.velScen)}</b>`;
+    case 'velScen': return `<b style="color:#f5d547">${fmtN1(r.velScen)}</b>`;
     case 'svUpliftPct': return (!isFinite(r.svUpliftPct)||r.svUpliftPct<=0.001)?'<span class=muted>—</span>'
                        :`<span class="pos">+${(r.svUpliftPct*100).toFixed(0)}%</span>`;
     case 'svGain': return r.svGain>0.05?`<span class="pos">+${fmtN1(r.svGain)}</span>`:'<span class=muted>—</span>';
@@ -2521,7 +2650,7 @@ function simCell(r,k){
     case 'nrD': return `<span class="${r.nrD>=0?'pos':'neg'}">${m2(r.nrD)}</span>`;
     case 'delta': return `<span class="${r.delta>=0?'pos':'neg'}"><b>${m2(r.delta)}</b></span>`;
     case 'verdict': return r.verdict==='disc'?'<span class="badge v-run">🏷️ DISCOUNT</span>':'<span class="badge v-na">⏳ HOLD</span>';
-    case 'bestDisc': return `<b style="color:#5ff0b8">${pct0(r.bestDisc)}</b>`;
+    case 'bestDisc': return `<b style="color:#4fd894">${pct0(r.bestDisc)}</b>`;
     case 'bestNet': return `<span class="${r.bestNet>=0?'pos':'neg'}">${m2(r.bestNet)}</span>`;
     case 'bestGain': return `<span class="${r.bestGain>=0?'pos':'neg'}">${m2(r.bestGain)}</span>`;
     case 'remove': return r.remove?'<span class="badge v-cost">🚚 remove</span>':'<span class="badge v-na">🏬 hold</span>';
@@ -2546,8 +2675,8 @@ function renderSimTable(S){
   simView=rows;
   /* grouped header band so related columns read together */
   let g='',run=null,span=0;
-  cols.forEach(c=>{ if(c.grp!==run){ if(run) g+=`<th colspan="${span}" style="text-align:center;font-size:10px;letter-spacing:.6px;color:var(--accent);background:rgba(106,163,255,.06);border-bottom:1px solid var(--glass-line)">${SIM_GROUP_LABEL[run]||''}</th>`; run=c.grp; span=0; } span++; });
-  if(run) g+=`<th colspan="${span}" style="text-align:center;font-size:10px;letter-spacing:.6px;color:var(--accent);background:rgba(106,163,255,.06);border-bottom:1px solid var(--glass-line)">${SIM_GROUP_LABEL[run]||''}</th>`;
+  cols.forEach(c=>{ if(c.grp!==run){ if(run) g+=`<th colspan="${span}" style="text-align:center;font-size:10px;letter-spacing:.6px;color:var(--accent);background:rgba(204,136,41,.06);border-bottom:1px solid var(--glass-line)">${SIM_GROUP_LABEL[run]||''}</th>`; run=c.grp; span=0; } span++; });
+  if(run) g+=`<th colspan="${span}" style="text-align:center;font-size:10px;letter-spacing:.6px;color:var(--accent);background:rgba(204,136,41,.06);border-bottom:1px solid var(--glass-line)">${SIM_GROUP_LABEL[run]||''}</th>`;
   document.getElementById('simGroupHead').innerHTML=g;
   document.getElementById('simHead').innerHTML=cols.map(c=>{
     const arr=simSortKey===c.k?`<span class="sortarrow">${simSortDir<0?'▼':'▲'}</span>`:'';
@@ -2560,7 +2689,7 @@ function renderSimTable(S){
     ||`<tr><td colspan="${cols.length}" class="muted" style="padding:24px;text-align:center">No SKUs match.</td></tr>`;
   const w=rows.filter(r=>r.verdict==='disc').length;
   document.getElementById('simSummary').innerHTML=
-    `<b>${rows.length}</b> SKUs · discount wins on <b style="color:#5ff0b8">${w}</b> · holds on ${rows.length-w}`;
+    `<b>${rows.length}</b> SKUs · discount wins on <b style="color:#4fd894">${w}</b> · holds on ${rows.length-w}`;
 }
 const SIM_PAIRS=[['simParent','simParent2'],['simSize','simSize2'],['simDisc','simDisc2'],
                  ['simElast','simElast2'],['simHorizon','simHorizon2'],['simMode','simMode2']];
@@ -2574,6 +2703,31 @@ function syncSimMirror(){
 }
 /* When one flat discount is the wrong lever (mixed fast/slow movers), saying "best = 0%"
    is technically true but useless. Explain it and point at the per-SKU optimum. */
+/* Spell out, live, what the elasticity setting actually DOES: turn each discount level
+   into a sales-speed multiplier, and show the one currently in play. */
+function renderElastNote(S){
+  const el=document.getElementById('simElastNote'); if(!el) return;
+  const E=S.p.elast, gu=S.agg.gwUnits||S.agg.units||1;
+  const applied=S.p.mode==='opt'?(S.agg.appliedW/gu):S.p.disc;
+  if(!(E>0)){
+    el.innerHTML='<b>Discount → sales speed: OFF.</b> Velocity stays at today’s pace no matter how deep the discount, '+
+      'so the model only ever shows the margin you give up. Pick a setting above to let discounts move stock faster.';
+    return;
+  }
+  const steps=[0.10,0.25,0.40,0.60,0.75];
+  const scale=steps.map(dv=>{
+    const m=velMultFor(dv,E), on=Math.abs(dv-applied)<0.055;
+    return `<span style="display:inline-block;margin-right:14px;${on?'color:#f5d547;font-weight:800':''}">`+
+           `${(dv*100).toFixed(0)}% off → <b>${m.toFixed(2)}×</b></span>`;
+  }).join('');
+  const mNow=velMultFor(applied,E);
+  el.innerHTML=
+    `<b>What this setting does:</b> it turns a discount into a sales-speed multiplier — `+
+    `<code>multiplier = (1 ÷ (1 − discount))<sup>${E.toFixed(2)}</sup></code>. On this setting: ${scale}<br/>`+
+    `Your ${S.p.mode==='opt'?'plan averages':'discount of'} <b>${pct0(applied)}</b>, so the model assumes stock sells `+
+    `<b>${mNow.toFixed(2)}× faster</b> (${mNow>1?'+'+((mNow-1)*100).toFixed(0)+'%':'no change'}) — that is how <b>Target SV</b> is derived from <b>Current SV</b>. `+
+    `Raise it if your past deals moved more units than this; lower it if they moved fewer. It is the one assumption in the model, so it is yours to set.`;
+}
 function flashSimHint(forceShow){
   const el=document.getElementById('simHint'); if(!el) return;
   const S=_lastSim, b=window._simBest;
@@ -2599,7 +2753,13 @@ function flashSimHint(forceShow){
   if(msg){ el.innerHTML=msg; el.classList.remove('hide'); }
   else el.classList.add('hide');
 }
-let _lastSim=null;
+let _lastSim=null, _simRaf=0;
+/* Selects fire change AND our input listener; typing fires input per keystroke. Coalesce
+   into one render per frame so a burst of events costs one recompute, not three. */
+function renderSimSoon(){
+  if(_simRaf) return;
+  _simRaf=requestAnimationFrame(()=>{ _simRaf=0; renderSim(); });
+}
 function renderSim(){
   const S=_lastSim=computeSim();
   window._simState=S;
@@ -2609,6 +2769,7 @@ function renderSim(){
   document.getElementById('simScopeChip').innerHTML=scope;
   const c2=document.getElementById('simScopeChip2'); if(c2) c2.innerHTML=scope;
   syncSimMirror();
+  renderElastNote(S);
   flashSimHint(false);
 }
 function populateSimSizes(){
@@ -2814,12 +2975,12 @@ function renderDailyChart(){
   const items=dates.map((d,i)=>{
     const v=series[i]||0;
     return {label:d, short:shortDate(d), value:v,
-      color: v>=tgtDaily?'#34d399':'#fb7185',
+      color: v>=tgtDaily?'#2ea86a':'#e2564f',
       tip:d+'\n'+fmt(v)+' units'+(tgtDaily?'\ntarget '+Math.round(tgtDaily)+'/day (need '+(v>=tgtDaily?'on track':'+'+Math.round(tgtDaily-v))+')':'')};
   });
   // bars + target line share one scale (with headroom) so the line never collides
   columnChart('dailyChart', items, {fmt:fmt, height:210, barMax:48,
-    refLine: tgtDaily>0 ? {value:tgtDaily, label:'target '+Math.round(tgtDaily)+'/day', color:'#fbbf24'} : null});
+    refLine: tgtDaily>0 ? {value:tgtDaily, label:'target '+Math.round(tgtDaily)+'/day', color:'#f5d547'} : null});
   const tot=series.reduce((a,b)=>a+b,0);
   document.getElementById('trkWindow').innerHTML=`${fmt(tot)} units over ${dates.length} days`+(sel?` · ${tagLabel(sel)}`:'');
 }
@@ -2875,7 +3036,7 @@ function renderTracking(){
   const daySums=dates.map((d,i)=>rows.reduce((s,r)=>s+((r.daily&&r.daily[i])||0),0));
   const tot=trkRowCalc(sumTarget,sumSold,rows.length,'Σ',''); tot.daily=daySums;
   const mode=document.getElementById('trkMode').value;
-  const totRow=`<tr style="background:linear-gradient(180deg,#1d2732,#171e26);font-weight:700;box-shadow:inset 0 -2px 0 var(--accent)">`
+  const totRow=`<tr style="background:linear-gradient(180deg,#241e16,#1a1610);font-weight:700;box-shadow:inset 0 -2px 0 var(--accent)">`
     +`<td class="sku" style="color:var(--accent)">Σ ${mode==='parent'?'parents':'SKUs'}</td>`
     +`<td class="num">${fmt(rows.length)}</td><td class="num">${fmt(sumTarget)}</td><td class="num"><b>${fmt(sumSold)}</b></td>`
     +`<td class="num muted">·</td>`+daySums.map(v=>`<td class="num"><b>${v?fmt(v):'·'}</b></td>`).join('')
@@ -2965,10 +3126,10 @@ document.getElementById('exportParents').onclick=exportParentsCSV;
 document.getElementById('exportSkus').onclick=exportSkusCSV;
 
 /* ---- decision engine wireup ---- */
-document.getElementById('simParent').addEventListener('change',()=>{ populateSimSizes(); renderSim(); });
+document.getElementById('simParent').addEventListener('change',()=>{ populateSimSizes(); renderSimSoon(); });
 ['simSize','simDisc','simElast','simHorizon','engRef','simView','simSearch','simVerdict','simZone','simMode']
   .forEach(id=>{ const el=document.getElementById(id); if(!el) return;
-    el.addEventListener('input',renderSim); el.addEventListener('change',renderSim); });
+    el.addEventListener('input',renderSimSoon); el.addEventListener('change',renderSimSoon); });
 const setDisc=v=>{ document.getElementById('simDisc').value=Math.max(0,Math.min(95,Math.round(v))); renderSim(); };
 document.getElementById('simUseCeil').onclick=()=>{ const S=_lastSim; if(!S||!S.agg.units) return;
   setDisc(Math.floor(S.agg.ceilW/(S.agg.gwUnits||S.agg.units)*100)); };
@@ -2994,14 +3155,14 @@ SIM_PAIRS.forEach(([a,b])=>{
   const push=()=>{ A.value=B.value;
     if(a==='simParent'){ populateSimSizes(); }        // parent change rebuilds the size list
     if(a==='simMode') syncSimMode();
-    renderSim(); };
+    renderSimSoon(); };
   B.addEventListener('input',push); B.addEventListener('change',push);
 });
 ['simUseCeil'].forEach(id=>{
   const m=document.getElementById(id+'2');
   if(m) m.onclick=()=>document.getElementById(id).click();
 });
-document.getElementById('simMode').addEventListener('change',()=>{ syncSimMode(); renderSim(); });
+document.getElementById('simMode').addEventListener('change',()=>{ syncSimMode(); renderSimSoon(); });
 syncSimMode();
 
 /* ---- tracking wireup ---- */

@@ -600,6 +600,30 @@
       </div>
     </div>
 
+    <!-- mirrored controls: same levers, repeated here so you can tune without scrolling back up -->
+    <div class="panel" style="margin-bottom:12px;padding:11px 14px">
+      <div class="filters" style="margin:0">
+        <span class="chip" style="color:var(--accent);font-weight:700">⚙ Scenario</span>
+        <label class="chip">Parent&nbsp;<select id="simParent2"><option value="">All parents</option></select></label>
+        <label class="chip">Size&nbsp;<select id="simSize2"><option value="">All sizes</option></select></label>
+        <label class="chip">Discount %&nbsp;
+          <input type="number" id="simDisc2" value="30" min="0" max="95" step="1" style="width:64px" />
+          <button class="ghost" id="simUseCeil2" title="Set the discount to this scope's weighted full-COGS ceiling" style="padding:4px 9px;font-size:11.5px">→ ceiling</button>
+          <button class="ghost" id="simUseFloor2" title="Set the discount to this scope's weighted out-of-pocket floor" style="padding:4px 9px;font-size:11.5px">→ floor</button>
+        </label>
+        <label class="chip">SV uplift&nbsp;
+          <select id="simUplift2">
+            <option value="0">no change</option><option value="25">+25%</option><option value="50" selected>+50%</option>
+            <option value="75">+75%</option><option value="100">+100% (2×)</option><option value="150">+150%</option>
+            <option value="200">+200% (3× · sheet lever)</option><option value="300">+300% (4×)</option>
+          </select>
+        </label>
+        <label class="chip">Horizon (mo)&nbsp;<input type="number" id="simHorizon2" value="12" min="3" max="24" step="1" style="width:56px" /></label>
+        <span class="spacer"></span>
+        <span class="chip" id="simScopeChip2"></span>
+      </div>
+    </div>
+
     <div class="panel" style="margin-bottom:20px">
       <div class="filters">
         <h3 style="margin:0">Per-SKU scenario detail</h3>
@@ -2399,14 +2423,28 @@ function renderSimTable(S){
   const w=rows.filter(r=>r.verdict==='disc').length;
   document.getElementById('simSummary').innerHTML=`<b>${rows.length}</b> SKUs · discount wins on <b>${w}</b>`;
 }
+/* the scenario controls appear twice (top of the tab and again above the per-SKU
+   table); these keep the two bars showing the same thing. */
+const SIM_PAIRS=[['simParent','simParent2'],['simSize','simSize2'],['simDisc','simDisc2'],
+                 ['simUplift','simUplift2'],['simHorizon','simHorizon2']];
+function syncSimMirror(){
+  SIM_PAIRS.forEach(([a,b])=>{
+    const A=document.getElementById(a), B=document.getElementById(b);
+    if(!A||!B) return;
+    if(A.tagName==='SELECT'&&B.innerHTML!==A.innerHTML) B.innerHTML=A.innerHTML;
+    if(B.value!==A.value) B.value=A.value;
+  });
+}
 let _lastSim=null;
 function renderSim(){
   const S=_lastSim=computeSim();
   window._simState=S;   // debug/testing hook
   renderSimKpis(S); simDualChart(S); renderSimMonthly(S); renderSimTable(S);
   const {p,agg}=S;
-  document.getElementById('simScopeChip').innerHTML=
-    (p.parent?`<b>${p.parent}</b>`:'all parents')+(p.size?' · '+p.size:'')+' — '+fmt(agg.units)+' aged units';
+  const scope=(p.parent?`<b>${p.parent}</b>`:'all parents')+(p.size?' · '+p.size:'')+' — '+fmt(agg.units)+' aged units';
+  document.getElementById('simScopeChip').innerHTML=scope;
+  const c2=document.getElementById('simScopeChip2'); if(c2) c2.innerHTML=scope;
+  syncSimMirror();
 }
 function populateSimSizes(){
   const parent=document.getElementById('simParent').value;
@@ -2780,6 +2818,20 @@ document.getElementById('simUseCeil').onclick=()=>{ const S=_lastSim; if(!S||!S.
 document.getElementById('simUseFloor').onclick=()=>{ const S=_lastSim; if(!S||!S.agg.units) return;
   document.getElementById('simDisc').value=Math.max(0,Math.floor(S.agg.floorW/(S.agg.gwUnits||S.agg.units)*100)); renderSim(); };
 document.getElementById('exportSim').onclick=exportSimCSV;
+
+/* mirrored control bar (above the per-SKU table) drives the primary controls */
+SIM_PAIRS.forEach(([a,b])=>{
+  const A=document.getElementById(a), B=document.getElementById(b);
+  if(!A||!B) return;
+  const push=()=>{ A.value=B.value;
+    if(a==='simParent'){ populateSimSizes(); }        // parent change rebuilds the size list
+    renderSim(); };
+  B.addEventListener('input',push); B.addEventListener('change',push);
+});
+['simUseCeil','simUseFloor'].forEach(id=>{
+  const m=document.getElementById(id+'2');
+  if(m) m.onclick=()=>document.getElementById(id).click();
+});
 
 /* ---- tracking wireup ---- */
 ['trkSearch','trkStatus','trkMode','trkCoverage','trkBasis','trkPct'].forEach(id=>document.getElementById(id).addEventListener('input',renderTracking));

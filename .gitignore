@@ -4,3 +4,5 @@ Thumbs.db
 index.base.html
 METRICS-TRACKER-HANDOFF.md
 data.csv
+_visreview*.html
+*.tmp.html

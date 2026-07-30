@@ -2391,14 +2391,18 @@ function renderSim(){
 function populateSimSizes(){
   const parent=document.getElementById('simParent').value;
   const scope=DATA.filter(x=>(!parent||x.tag===parent)&&skuSeed9(x).reduce((s,v)=>s+v,0)>0);
-  const sizes=[...new Set(scope.map(x=>x.size).filter(Boolean))].sort();
+  const m={};
+  scope.forEach(x=>{ if(!x.size) return; const s=m[x.size]||(m[x.size]={size:x.size,ais:0}); s.ais+=x.ais||0; });
+  const sizes=Object.values(m).sort((a,b)=>(b.ais-a.ais)||a.size.localeCompare(b.size));
   const el=document.getElementById('simSize'); const cur=el.value;
-  el.innerHTML='<option value="">All sizes</option>'+sizes.map(s=>`<option value="${s}">${s}</option>`).join('');
-  if(sizes.includes(cur)) el.value=cur;
+  el.innerHTML='<option value="">All sizes</option>'+
+    sizes.map(s=>`<option value="${s.size}">${s.size}${s.ais>0?'  —  '+moneyK(s.ais):''}</option>`).join('');
+  if(sizes.some(s=>s.size===cur)) el.value=cur;
 }
 function populateSimFilters(){
-  const tags=[...new Set(DATA.filter(x=>skuSeed9(x).reduce((s,v)=>s+v,0)>0).map(x=>x.tag))].sort();
-  document.getElementById('simParent').innerHTML='<option value="">All parents</option>'+tags.map(t=>`<option value="${t}">${tagLabel(t)}</option>`).join('');
+  const aged=DATA.filter(x=>skuSeed9(x).reduce((s,v)=>s+v,0)>0);
+  document.getElementById('simParent').innerHTML=
+    '<option value="">All parents (ranked by AIS ↓)</option>'+parentOptionHTML(aged);
   populateSimSizes();
 }
 function exportSimCSV(){
@@ -2672,9 +2676,8 @@ function exportTrackCSV(){
   dl(lines.join('\n'),'ltsf-sales-tracking.csv');
 }
 function populateTrackFilters(){
-  const tags=[...new Set(DATA.filter(x=>x.targetUnits>0||x.totalSold>0).map(x=>x.tag))].sort();
-  const opts=tags.map(t=>`<option value="${t}">${tagLabel(t)}</option>`).join('');
-  document.getElementById('trkTag').innerHTML='<option value="">All parents</option>'+opts;
+  const opts=parentOptionHTML(DATA.filter(x=>x.targetUnits>0||x.totalSold>0));
+  document.getElementById('trkTag').innerHTML='<option value="">All parents (by AIS ↓)</option>'+opts;
   document.getElementById('trkParentSel').innerHTML='<option value="">All parents (total)</option>'+opts;
   const cov=document.getElementById('trkCoverage'); if(cov&&TRK.coverageDays) cov.value=Math.round(TRK.coverageDays);
   const pl=document.getElementById('trkPct'); if(pl&&TRK.pctLever) pl.value=Math.round(TRK.pctLever*100);
@@ -2682,12 +2685,22 @@ function populateTrackFilters(){
 }
 
 /* ============================ filters, tabs, wireup, init ============================ */
+/* Parent dropdowns are ranked by next-month AIS (biggest problem first) and show the
+   amount inline — an A-Z list of 23 tag codes buries the parents that actually matter. */
+function parentOptionHTML(rows){
+  const m={};
+  (rows||DATA).forEach(x=>{const t=x.tag||'—'; const p=m[t]||(m[t]={tag:t,ais:0,units:0}); p.ais+=x.ais||0; p.units+=x.unitsCharged||0;});
+  return Object.values(m)
+    .sort((a,b)=>(b.ais-a.ais)||a.tag.localeCompare(b.tag))
+    .map((p,i)=>`<option value="${p.tag}">${i+1}. ${tagLabel(p.tag)}${p.ais>0?'  —  '+moneyK(p.ais):''}</option>`)
+    .join('');
+}
 function populateOverviewFilters(){
-  const tags=[...new Set(DATA.map(x=>x.tag))].sort();
   const sizes=[...new Set(DATA.map(x=>x.size).filter(Boolean))].sort();
-  document.getElementById('skuTag').innerHTML='<option value="">All parents</option>'+tags.map(t=>`<option value="${t}">${tagLabel(t)}</option>`).join('');
+  const opts=parentOptionHTML(DATA);
+  document.getElementById('skuTag').innerHTML='<option value="">All parents (by AIS ↓)</option>'+opts;
   document.getElementById('skuSize').innerHTML='<option value="">All sizes</option>'+sizes.map(s=>`<option value="${s}">${s}</option>`).join('');
-  document.getElementById('engTag').innerHTML='<option value="">All parents</option>'+tags.map(t=>`<option value="${t}">${tagLabel(t)}</option>`).join('');
+  document.getElementById('engTag').innerHTML='<option value="">All parents (by AIS ↓)</option>'+opts;
 }
 function initLTSF(){
   if(!LT.skus || !LT.skus.length){

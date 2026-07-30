@@ -648,7 +648,6 @@
                  style="width:70px;font-size:15px;font-weight:700;color:var(--accent)" />
           <button class="ghost" id="simUseCeil" title="Set the discount to the ceiling — the deepest cut that still returns 100% of product cost">→ ceiling</button>
           <button class="ghost" id="simUseFloor" title="Set the discount to the floor — where your payout hits exactly zero">→ floor</button>
-          <button class="ghost" id="simUseBest" title="Set the discount that recovers the most cash for this selection">→ best</button>
         </label>
         <label class="chip">Referral %&nbsp;<input type="number" id="engRef" value="15" min="0" max="100" step="0.5" style="width:56px" /></label>
         <span class="spacer"></span>
@@ -2170,27 +2169,13 @@ function skuAt(x,seed,rate,velHold,velTarget,m1,disc,ref){
   const r=rollFIFO(seed,rate,disc>0?velTarget:velHold,m1);
   return {pay, r, net1:pay*r.sold1-r.tot1, netL:pay*r.soldL-r.totL};
 }
-/* best discount per SKU, judged on the full-clearance number (cached) */
-let _optKey='', _optMap={};
-function simOptimum(x,seed,rate,velHold,velTarget,m1,ref){
-  const key=ref+'';
-  if(key!==_optKey){ _optKey=key; _optMap={}; }
-  if(_optMap[x.sku]!==undefined) return _optMap[x.sku];
-  let best={disc:0,netL:-Infinity};
-  for(let d=0;d<=90;d+=5){
-    const dd=d/100;
-    const a=skuAt(x,seed,rate,velHold,velTarget,m1,dd,ref);
-    if(a.netL>best.netL) best={disc:dd,netL:a.netL};
-  }
-  return (_optMap[x.sku]=best);
-}
 function computeSim(){
   const p=simParams();
   const rows=[];
   const agg={units:0,skus:0,sold:0,
     ais1Hold:0,ais1Disc:0,aisLHold:0,aisLDisc:0,
     payout:0,payoutW:0,cogsW:0,ceilW:0,floorW:0,gw:0,
-    discGiven:0,net1Hold:0,net1Disc:0,netLHold:0,netLDisc:0,bestNetL:0,
+    discGiven:0,net1Hold:0,net1Disc:0,netLHold:0,netLDisc:0,
     cleared1:0,clearedL:0,left1:0,svNow:0,svTarget:0};
   simScopeSkus(p).forEach(x=>{
     const seed=skuSeed9(x), units=seed.reduce((s,v)=>s+v,0);
@@ -2206,7 +2191,6 @@ function computeSim(){
 
     const hold=skuAt(x,seed,rate,velHold,velTarget,m1,0,p.ref);
     const disc=skuAt(x,seed,rate,velHold,velTarget,m1,p.disc,p.ref);
-    const opt=simOptimum(x,seed,rate,velHold,velTarget,m1,p.ref);
 
     const dealP=price*(1-p.disc);
     const totalPayout=disc.pay*disc.r.soldL;            // cash in hand over the clearance
@@ -2227,7 +2211,6 @@ function computeSim(){
       discGiven:(price-dealP)*disc.r.soldL,
       net1Hold:hold.net1,net1Disc:disc.net1,netLHold:hold.netL,netLDisc:disc.netL,
       delta1:disc.net1-hold.net1,deltaL:disc.netL-hold.netL,
-      bestDisc:opt.disc,bestNetL:opt.netL,bestGain:opt.netL-hold.netL,
       verdict:(disc.netL>hold.netL)?'disc':'hold',
     };
     rows.push(r);
@@ -2237,7 +2220,7 @@ function computeSim(){
     agg.payout+=r.totalPayout; agg.payoutW+=r.payout*units; agg.cogsW+=x.cogs*units;
     agg.discGiven+=r.discGiven;
     agg.net1Hold+=r.net1Hold; agg.net1Disc+=r.net1Disc;
-    agg.netLHold+=r.netLHold; agg.netLDisc+=r.netLDisc; agg.bestNetL+=r.bestNetL;
+    agg.netLHold+=r.netLHold; agg.netLDisc+=r.netLDisc;
     agg.cleared1+=r.cleared1; agg.clearedL+=r.clearedL; agg.left1+=r.left1;
     agg.svNow+=r.svNow; agg.svTarget+=r.svTarget;
     if(price>0){ agg.ceilW+=ceiling*units; agg.floorW+=floor*units; agg.gw+=units; }
@@ -2339,7 +2322,6 @@ const SIM_COLS=[
   {k:'netLDisc',t:'Net if we discount',cls:'num',grp:'dec',tip:'Cash from units sold at the deal price, minus the smaller surcharge, until the stock is gone.'},
   {k:'deltaL',t:'Difference',cls:'num',grp:'dec',tip:'Net if we discount − net if we hold. Positive means discounting leaves more cash in your pocket even after the margin given up.'},
   {k:'verdict',t:'Decision',cls:'',grp:'dec',tip:'Which option recovers more cash by the time the stock is gone.'},
-  {k:'bestDisc',t:'Best %',cls:'num',grp:'dec',tip:'The discount that recovers the most cash for THIS SKU, found by testing 0–90% off.'},
 ];
 const SIM_GROUPS={id:'SKU · aged stock',gr:'Ceiling & floor',pay:'Payout',sv:'Sales velocity',ais:'Surcharge (AIS)',dec:'Decision'};
 let simSortKey='aisLHold', simSortDir=-1, simView=[];
@@ -2375,7 +2357,6 @@ function simCell(r,k){
     case 'netLDisc': return `<span class="${r.netLDisc>=0?'pos':'neg'}">${m2(r.netLDisc)}</span>`;
     case 'deltaL': return `<b class="${r.deltaL>=0?'pos':'neg'}">${m2(r.deltaL)}</b>`;
     case 'verdict': return r.verdict==='disc'?'<span class="badge v-run">🏷️ DISCOUNT</span>':'<span class="badge v-na">⏳ HOLD</span>';
-    case 'bestDisc': return `<b class="pos">${pct0(r.bestDisc)}</b>`;
   }
   return '';
 }
@@ -2804,10 +2785,6 @@ document.getElementById('simUseCeil').onclick=()=>{ const S=_lastSim; if(!S||!S.
   setDisc(S.agg.ceilW/S.agg.gw*100); };
 document.getElementById('simUseFloor').onclick=()=>{ const S=_lastSim; if(!S||!S.agg.gw) return;
   setDisc(S.agg.floorW/S.agg.gw*100); };
-document.getElementById('simUseBest').onclick=()=>{ const S=_lastSim; if(!S||!S.rows.length) return;
-  // units-weighted average of each SKU's own best discount
-  let w=0,u=0; S.rows.forEach(r=>{ if(r.price>0){ w+=r.bestDisc*r.units; u+=r.units; } });
-  setDisc(u>0?(w/u*100):0); };
 document.getElementById('exportSim').onclick=exportSimCSV;
 
 /* ---- tracking wireup ---- */

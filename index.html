@@ -377,6 +377,20 @@
   .panel{min-width:0}
   #simChart{overflow-x:auto;-webkit-overflow-scrolling:touch}
 
+  /* ---- column-header help tooltips ---- */
+  thead th[data-tip]{cursor:help}
+  thead th .hint{display:inline-block;width:13px;height:13px;line-height:13px;text-align:center;
+    border-radius:50%;font-size:9px;font-weight:800;vertical-align:middle;margin-left:3px;
+    background:rgba(106,163,255,.16);color:#8fb8ff;border:1px solid rgba(106,163,255,.3);opacity:.75}
+  thead th:hover .hint{opacity:1;background:var(--accent);color:#fff;border-color:var(--accent)}
+  /* position:fixed so the tip escapes the table's overflow/sticky container */
+  .hdrtip{position:fixed;z-index:70;display:none;max-width:320px;
+    background:linear-gradient(180deg,#151d2c,#0d1219);border:1px solid rgba(106,163,255,.35);
+    color:var(--txt);font-size:11.5px;font-weight:500;line-height:1.55;letter-spacing:0;
+    text-transform:none;white-space:normal;padding:9px 12px;border-radius:10px;
+    box-shadow:0 16px 40px rgba(0,0,0,.65);pointer-events:none}
+  .hdrtip b{color:#8fb8ff}
+
   /* ============================================================
      MOBILE / RESPONSIVE  — comfortable on a phone
      ============================================================ */
@@ -572,8 +586,14 @@
         <h3>🧮 Month-by-month projection (discount scenario)</h3>
         <div class="tablewrap" style="max-height:340px">
           <table><thead><tr>
-            <th>Month</th><th class="num">Opening</th><th class="num">Sold</th><th class="num">Closing</th>
-            <th class="num">AIS hold</th><th class="num">AIS disc</th><th class="num">Saved</th><th></th>
+            <th data-tip="Projection month. Month 1 is the cycle Amazon is about to bill.">Month <span class="hint">?</span></th>
+            <th class="num" data-tip="Aged units on hand at the start of the month (last month's closing, each unit one bracket older).">Opening <span class="hint">?</span></th>
+            <th class="num" data-tip="Units sold during the month at the uplifted velocity. FIFO — the oldest age bracket empties first.">Sold <span class="hint">?</span></th>
+            <th class="num" data-tip="Units still on hand at month end. These are what the surcharge is charged on.">Closing <span class="hint">?</span></th>
+            <th class="num" data-tip="Surcharge for the month if you HOLD and sell at today's velocity.">AIS hold <span class="hint">?</span></th>
+            <th class="num" data-tip="Surcharge for the month if you DISCOUNT and sell at the uplifted velocity.">AIS disc <span class="hint">?</span></th>
+            <th class="num" data-tip="Surcharge avoided that month by clearing faster = AIS hold − AIS disc.">Saved <span class="hint">?</span></th>
+            <th data-tip="Expand to see that month's closing inventory split by age bracket.">Detail <span class="hint">?</span></th>
           </tr></thead><tbody id="simMonthBody"></tbody></table>
         </div>
         <div class="footnote">Click <b>bands ▸</b> on a row to see that month's closing inventory by age bracket (FIFO: oldest sells first, survivors age one bracket per month). Month 1 charge = Amazon's current-month estimate.</div>
@@ -1910,9 +1930,9 @@ function renderBandBreakdown(){
   document.getElementById('bandChart').innerHTML=
    `<table style="width:100%;font-size:12.5px;border-collapse:collapse">
      <thead><tr style="color:var(--muted)">
-       <th style="text-align:left;padding:4px 6px">Age band (days)</th>
-       <th style="text-align:right;padding:4px 6px">Units</th>
-       <th style="text-align:left;padding:4px 6px;width:52%">Est. charge next mo.</th></tr></thead><tbody>
+       <th style="text-align:left;padding:4px 6px" data-tip="How long the units have been stored in Amazon's warehouses. The surcharge rate escalates with each bracket. Click a row to see its SKUs.">Age band (days) <span class="hint">?</span></th>
+       <th style="text-align:right;padding:4px 6px" data-tip="Units Amazon will bill the aged-inventory surcharge on in this bracket next month.">Units <span class="hint">?</span></th>
+       <th style="text-align:left;padding:4px 6px;width:52%" data-tip="Amazon's own estimated surcharge for this bracket in the next billing cycle.">Est. charge next mo. <span class="hint">?</span></th></tr></thead><tbody>
      ${BANDS8.map((b,i)=>`<tr class="band-row-click" data-bi="${i}" title="Click for SKU breakdown of ${b} days">
         <td style="padding:5px 6px"><span class="dot" style="background:${BAND8_COLORS[i]}"></span> ${b} <span class="muted" style="font-size:10px">›</span></td>
         <td class="num" style="padding:5px 6px">${u[i]?fmt(u[i]):'<span class=muted>0</span>'}</td>
@@ -1937,8 +1957,8 @@ function parentAgg(){
 }
 let parentSortKey='ais', parentSortDir=-1;
 const PARENT_COLS=[
-  {k:'tag',t:'Parent',cls:''},{k:'skus',t:'SKUs',cls:'num'},{k:'units',t:'Units charged',cls:'num'},
-  {k:'ais',t:'Est. AIS/mo',cls:'num'},{k:'share',t:'% of total',cls:'num'},{k:'c1yr',t:'1yr AIS',cls:'num'},
+  {k:'tag',t:'Parent',cls:'',tip:'Parent product tag — every child SKU rolls up here.'},{k:'skus',t:'SKUs',cls:'num',tip:'How many child SKUs under this parent carry aged stock.'},{k:'units',t:'Units charged',cls:'num',tip:'Units to be charged the surcharge next month.'},
+  {k:'ais',t:'Est. AIS/mo',cls:'num',tip:'Estimated aged-inventory surcharge next month for the whole parent.'},{k:'share',t:'% of total',cls:'num',tip:'This parent’s share of the total surcharge across the catalogue.'},{k:'c1yr',t:'1yr AIS',cls:'num',tip:'Projected surcharge over the next 12 months if nothing changes.'},
 ];
 function renderParents(){
   const all=parentAgg();
@@ -1956,7 +1976,7 @@ function renderParents(){
     return (A-B)*parentSortDir; });
   document.getElementById('parentHead').innerHTML=PARENT_COLS.map(c=>{
     const arr=parentSortKey===c.k?`<span class="sortarrow">${parentSortDir<0?'▼':'▲'}</span>`:'';
-    return `<th class="${c.cls.includes('num')?'num':''}" data-k="${c.k}">${c.t} ${arr}</th>`;}).join('');
+    return `<th class="${c.cls.includes('num')?'num':''}" data-k="${c.k}"${c.tip?` data-tip="${c.tip.replace(/"/g,'&quot;')}"`:''}>${c.t} ${arr}${c.tip?' <span class="hint">?</span>':''}</th>`;}).join('');
   document.querySelectorAll('#parentHead th').forEach(th=>th.onclick=()=>{
     const k=th.dataset.k; if(parentSortKey===k) parentSortDir*=-1; else {parentSortKey=k; parentSortDir=(k==='tag')?1:-1;} renderParents();});
   document.getElementById('parentBody').innerHTML=rows.map(p=>`<tr class="band-row-click" data-tag="${p.tag}" title="Click for child SKUs">
@@ -1974,9 +1994,9 @@ function renderParents(){
 /* ---------- SKU detail table ---------- */
 let skuSortKey='ais', skuSortDir=-1, skuView=[];
 const SKU_COLS=[
-  {k:'sku',t:'SKU',cls:''},{k:'tag',t:'Parent',cls:''},{k:'size',t:'Size',cls:''},
-  {k:'price',t:'Price',cls:'num'},{k:'cogs',t:'COGS',cls:'num'},{k:'fba',t:'FBA',cls:'num'},{k:'margin',t:'Margin',cls:'num'},
-  {k:'aged365',t:'366+ units',cls:'num'},{k:'unitsCharged',t:'Units charged',cls:'num'},{k:'ais',t:'Est. AIS/mo',cls:'num'},{k:'aged',t:'Aged 181+',cls:'num'},
+  {k:'sku',t:'SKU',cls:'',tip:'Child SKU.'},{k:'tag',t:'Parent',cls:'',tip:'Parent product tag — all sizes/colours roll up under it.'},{k:'size',t:'Size',cls:'',tip:'Variation size.'},
+  {k:'price',t:'Price',cls:'num',tip:'Current Amazon selling price.'},{k:'cogs',t:'COGS',cls:'num',tip:'Product cost per unit paid to the supplier.'},{k:'fba',t:'FBA',cls:'num',tip:'Amazon fulfilment fee per unit.'},{k:'margin',t:'Margin',cls:'num',tip:'Contribution per unit at full price = price − COGS − FBA − referral fee.'},
+  {k:'aged365',t:'366+ units',cls:'num',tip:'Units stored 366+ days — the steepest surcharge tier.'},{k:'unitsCharged',t:'Units charged',cls:'num',tip:'Units Amazon will bill the aged-inventory surcharge on next month.'},{k:'ais',t:'Est. AIS/mo',cls:'num',tip:'Amazon’s own estimated surcharge for this SKU next month.'},{k:'aged',t:'Aged 181+',cls:'num',tip:'All units stored 181+ days, i.e. everything the surcharge applies to.'},
 ];
 function filteredSkus(){
   const q=(document.getElementById('skuSearch').value||'').toLowerCase().trim();
@@ -1996,7 +2016,7 @@ function renderSkuTable(){
   const rows=skuView=filteredSkus();
   document.getElementById('skuHead').innerHTML=SKU_COLS.map(c=>{
     const arr=skuSortKey===c.k?`<span class="sortarrow">${skuSortDir<0?'▼':'▲'}</span>`:'';
-    return `<th class="${c.cls.includes('num')?'num':''}" data-k="${c.k}">${c.t} ${arr}</th>`;}).join('');
+    return `<th class="${c.cls.includes('num')?'num':''}" data-k="${c.k}"${c.tip?` data-tip="${c.tip.replace(/"/g,'&quot;')}"`:''}>${c.t} ${arr}${c.tip?' <span class="hint">?</span>':''}</th>`;}).join('');
   document.querySelectorAll('#skuHead th').forEach(th=>th.onclick=()=>{
     const k=th.dataset.k; if(skuSortKey===k) skuSortDir*=-1; else {skuSortKey=k; skuSortDir=(k==='sku'||k==='tag'||k==='size')?1:-1;} renderSkuTable();});
   const z=v=>v?fmt(v):'<span class=muted>0</span>';
@@ -2021,11 +2041,11 @@ function renderLtsfOverview(){ renderLtsfKpis(); renderBandBreakdown(); renderPa
 /* ============================ DECISION ENGINE (1-Year) ============================ */
 let engSortKey='totalPayout', engSortDir=-1, engView=[];
 const ENG_COLS=[
-  {k:'sku',t:'SKU',cls:''},{k:'tag',t:'Parent',cls:''},
-  {k:'price',t:'Price',cls:'num'},{k:'cogs',t:'COGS',cls:'num'},{k:'fba',t:'FBA',cls:'num'},{k:'bePrice',t:'BE $',cls:'num'},
-  {k:'ceiling',t:'Ceiling %',cls:'num'},{k:'floor',t:'Floor %',cls:'num'},
-  {k:'adjP',t:'Adj $',cls:'num'},{k:'payout',t:'Net payout/u',cls:'num'},{k:'totalPayout',t:'Total payout',cls:'num'},
-  {k:'recovery',t:'% COGS rec.',cls:'num'},{k:'zone',t:'Zone',cls:''},{k:'threePL',t:'3PL vs Amz',cls:''},{k:'variance3pl',t:'3PL variance',cls:'num'},
+  {k:'sku',t:'SKU',cls:'',tip:'Child SKU.'},{k:'tag',t:'Parent',cls:'',tip:'Parent product tag — every size/colour of one product rolls up here.'},
+  {k:'price',t:'Price',cls:'num',tip:'Current Amazon selling price.'},{k:'cogs',t:'COGS',cls:'num',tip:'Product cost per unit paid to the supplier. Already spent, so treated as sunk.'},{k:'fba',t:'FBA',cls:'num',tip:'Amazon fulfilment fee per unit (pick, pack and ship).'},{k:'bePrice',t:'BE $',cls:'num',tip:'Break-even price = (COGS + FBA) ÷ (1 − referral %). Selling above this covers product cost and all Amazon fees.'},
+  {k:'ceiling',t:'Ceiling %',cls:'num',tip:'Full-COGS ceiling: deepest discount that still recovers the entire product cost.'},{k:'floor',t:'Floor %',cls:'num',tip:'Out-of-pocket floor: past this discount your cash payout turns negative — you’d be paying Amazon to take the unit.'},
+  {k:'adjP',t:'Adj $',cls:'num',tip:'Price at the discount set on the slider above.'},{k:'payout',t:'Net payout/u',cls:'num',tip:'Cash collected per unit after referral and FBA fees (product COGS excluded).'},{k:'totalPayout',t:'Total payout',cls:'num',tip:'Payout per unit × the units being charged the surcharge.'},
+  {k:'recovery',t:'% COGS rec.',cls:'num',tip:'Share of product COGS recovered by that cash payout.'},{k:'zone',t:'Zone',cls:'',tip:'Where the modelled discount lands: 🟢 inside the full-COGS ceiling, 🟡 between ceiling and floor (partial recovery), 🔴 past the floor (out of pocket).'},{k:'threePL',t:'3PL vs Amz',cls:'',tip:'Whether pulling this stock to a third-party warehouse beats leaving it at Amazon for a year.'},{k:'variance3pl',t:'3PL variance',cls:'num',tip:'(Amazon base storage + 1-yr surcharge) − total 3PL cost. Positive means removing the stock saves money.'},
 ];
 function engParams(){
   return {disc:(+document.getElementById('engDisc').value||0)/100, ref:(num(document.getElementById('engRef').value)||15)/100};
@@ -2113,7 +2133,7 @@ function renderEngine(){
   engView=rows;
   document.getElementById('engHead').innerHTML=ENG_COLS.map(c=>{
     const arr=engSortKey===c.k?`<span class="sortarrow">${engSortDir<0?'▼':'▲'}</span>`:'';
-    return `<th class="${c.cls.includes('num')?'num':''}" data-k="${c.k}">${c.t} ${arr}</th>`;}).join('');
+    return `<th class="${c.cls.includes('num')?'num':''}" data-k="${c.k}"${c.tip?` data-tip="${c.tip.replace(/"/g,'&quot;')}"`:''}>${c.t} ${arr}${c.tip?' <span class="hint">?</span>':''}</th>`;}).join('');
   document.querySelectorAll('#engHead th').forEach(th=>th.onclick=()=>{
     const k=th.dataset.k; if(engSortKey===k) engSortDir*=-1; else {engSortKey=k; engSortDir=(k==='sku'||k==='tag'||k==='zone'||k==='threePL')?1:-1;} renderEngine();});
   document.getElementById('engBody').innerHTML=rows.map(r=>'<tr>'+ENG_COLS.map(c=>`<td class="${c.cls.includes('num')?'num':''}">${engCell(r,c.k)}</td>`).join('')+'</tr>').join('')
@@ -2334,12 +2354,12 @@ function renderSimMonthly(S){
 }
 let simSortKey='delta', simSortDir=-1, simView=[];
 const SIM_COLS=[
-  {k:'sku',t:'SKU',cls:''},{k:'size',t:'Size',cls:''},{k:'units',t:'Units',cls:'num'},
-  {k:'price',t:'Base $',cls:'num'},{k:'ceiling',t:'Ceil %',cls:'num'},{k:'adjP',t:'Deal $',cls:'num'},
-  {k:'payout',t:'Payout/u',cls:'num'},{k:'recovery',t:'% Rec',cls:'num'},{k:'mcScen',t:'Mo→clear',cls:'num'},
-  {k:'aisBase',t:'AIS hold',cls:'num'},{k:'aisScen',t:'AIS disc',cls:'num'},{k:'saved',t:'AIS saved',cls:'num'},
-  {k:'discGiven',t:'Disc given',cls:'num'},{k:'nrNo',t:'Net rec hold',cls:'num'},{k:'nrD',t:'Net rec disc',cls:'num'},
-  {k:'delta',t:'Δ Net rec',cls:'num'},{k:'verdict',t:'Verdict',cls:''},
+  {k:'sku',t:'SKU',cls:'',tip:'Child SKU (one variation) inside the selected parent + size scope.'},{k:'size',t:'Size',cls:'',tip:'Variation size. Siblings usually share the same base price and FBA fee.'},{k:'units',t:'Units',cls:'num',tip:'Aged cohort units carried into the projection — stock already 181+ days plus 91–180d about to cross over.'},
+  {k:'price',t:'Base $',cls:'num',tip:'Current Amazon selling price, before any discount.'},{k:'ceiling',t:'Ceil %',cls:'num',tip:'Full-COGS ceiling: the deepest discount that still recovers your ENTIRE product cost. Discount past this and you stop getting all your COGS back.'},{k:'adjP',t:'Deal $',cls:'num',tip:'Deal price at your chosen discount = base price × (1 − discount %).'},
+  {k:'payout',t:'Payout/u',cls:'num',tip:'Net cash payout per unit = deal price − referral fee − FBA fee. Product COGS is excluded (already spent), so this is the cash you actually collect on each unit sold.'},{k:'recovery',t:'% Rec',cls:'num',tip:'Share of your product COGS recovered by that cash payout. 100% = you get the full product cost back; below that you recover only part of it.'},{k:'mcScen',t:'Mo→clear',cls:'num',tip:'Months needed to clear the whole aged cohort at the uplifted sell velocity.'},
+  {k:'aisBase',t:'AIS hold',cls:'num',tip:'Total aged-inventory surcharge over the horizon if you HOLD and keep selling at today’s velocity.'},{k:'aisScen',t:'AIS disc',cls:'num',tip:'Total surcharge over the horizon if you DISCOUNT — stock clears sooner, so fewer months get charged.'},{k:'saved',t:'AIS saved',cls:'num',tip:'Surcharge eliminated by clearing faster = AIS hold − AIS discount.'},
+  {k:'discGiven',t:'Disc given',cls:'num',tip:'Revenue given up to run the discount = (base price − deal price) × cohort units.'},{k:'nrNo',t:'Net rec hold',cls:'num',tip:'Net recovery if you HOLD: cash payout at full price × units − the surcharge you’d pay over the horizon.'},{k:'nrD',t:'Net rec disc',cls:'num',tip:'Net recovery if you DISCOUNT: cash payout at the deal price × units − the (smaller) surcharge.'},
+  {k:'delta',t:'Δ Net rec',cls:'num',tip:'Net recovery with discount minus without. POSITIVE = discounting leaves more cash in your pocket even after the margin you gave up.'},{k:'verdict',t:'Verdict',cls:'',tip:'DISCOUNT when Δ net recovery is positive; HOLD when keeping full price nets more.'},
 ];
 function simCell(r,k){
   switch(k){
@@ -2371,7 +2391,7 @@ function renderSimTable(S){
   simView=rows;
   document.getElementById('simHead').innerHTML=SIM_COLS.map(c=>{
     const arr=simSortKey===c.k?`<span class="sortarrow">${simSortDir<0?'▼':'▲'}</span>`:'';
-    return `<th class="${c.cls.includes('num')?'num':''}" data-k="${c.k}">${c.t} ${arr}</th>`;}).join('');
+    return `<th class="${c.cls.includes('num')?'num':''}" data-k="${c.k}"${c.tip?` data-tip="${c.tip.replace(/"/g,'&quot;')}"`:''}>${c.t} ${arr}${c.tip?' <span class="hint">?</span>':''}</th>`;}).join('');
   document.querySelectorAll('#simHead th').forEach(th=>th.onclick=()=>{
     const k=th.dataset.k; if(simSortKey===k) simSortDir*=-1; else {simSortKey=k; simSortDir=(k==='sku'||k==='size'||k==='verdict')?1:-1;} renderSimTable(_lastSim);});
   document.getElementById('simBody').innerHTML=rows.map(r=>'<tr>'+SIM_COLS.map(c=>`<td class="${c.cls.includes('num')?'num':''}">${simCell(r,c.k)}</td>`).join('')+'</tr>').join('')
@@ -2498,11 +2518,11 @@ const TRK = LT.meta.tracking || {daysElapsed:0,coverageDays:30,startDate:'',endD
 const DAILY = LT.daily || {dates:[],totals:[],byParent:{}};
 let trkSortKey='remaining', trkSortDir=-1, trkView=[];
 const TRK_COLS=[
-  {k:'name',t:'Name',cls:''},{k:'skus',t:'SKUs',cls:'num'},
-  {k:'target',t:'Target',cls:'num'},{k:'sold',t:'Sold',cls:'num'},{k:'remaining',t:'Remaining',cls:'num'},
-  {k:'curSV',t:'Current SV',cls:'num'},{k:'curDOH',t:'Current DOH',cls:'num'},
-  {k:'tgtSV',t:'Target SV',cls:'num'},{k:'tgtDOH',t:'Target DOH',cls:'num'},
-  {k:'upAbs',t:'Uplift/day',cls:'num'},{k:'upPct',t:'Uplift %',cls:'num'},{k:'status',t:'Status',cls:''},
+  {k:'name',t:'Name',cls:'',tip:'SKU (or parent, when grouped) being tracked against its clearance target.'},{k:'skus',t:'SKUs',cls:'num',tip:'Number of SKUs included in this row.'},
+  {k:'target',t:'Target',cls:'num',tip:'Aged units this row needs to sell through.'},{k:'sold',t:'Sold',cls:'num',tip:'Units actually sold during the tracking window.'},{k:'remaining',t:'Remaining',cls:'num',tip:'Target − sold: units still to clear.'},
+  {k:'curSV',t:'Current SV',cls:'num',tip:'Current sell velocity = units sold ÷ days elapsed (your actual daily pace).'},{k:'curDOH',t:'Current DOH',cls:'num',tip:'Current days on hand = remaining ÷ current SV — how long clearing takes at today’s pace.'},
+  {k:'tgtSV',t:'Target SV',cls:'num',tip:'Daily pace REQUIRED to hit the target, per the Target-basis selector above.'},{k:'tgtDOH',t:'Target DOH',cls:'num',tip:'Days the target implies for clearing the remaining units.'},
+  {k:'upAbs',t:'Uplift/day',cls:'num',tip:'Extra units per day needed: target SV − current SV.'},{k:'upPct',t:'Uplift %',cls:'num',tip:'That uplift as a % increase over your current pace.'},{k:'status',t:'Status',cls:'',tip:'🔴 behind = today’s pace won’t clear in the window · 🟢 on track · ✅ target met.'},
 ];
 function coverageDays(){ return Math.max(1, num(document.getElementById('trkCoverage').value)||TRK.coverageDays||30); }
 function trkParams(){
@@ -2638,10 +2658,10 @@ function renderTracking(){
   const dates=DAILY.dates||[];
   const L=TRK_COLS.slice(0,4), R=TRK_COLS.slice(4);   // left: name/skus/target/sold · right: remaining..status
   const thSort=c=>{ const arr=trkSortKey===c.k?`<span class="sortarrow">${trkSortDir<0?'▼':'▲'}</span>`:'';
-    return `<th class="${c.cls.includes('num')?'num':''}" data-k="${c.k}">${c.t} ${arr}</th>`; };
-  const dayTh=dates.map(d=>`<th class="num" title="units sold ${d}" style="min-width:36px">${shortDate(d)}</th>`).join('');
+    return `<th class="${c.cls.includes('num')?'num':''}" data-k="${c.k}"${c.tip?` data-tip="${c.tip.replace(/"/g,'&quot;')}"`:''}>${c.t} ${arr}${c.tip?' <span class="hint">?</span>':''}</th>`; };
+  const dayTh=dates.map(d=>`<th class="num" data-tip="Units sold on ${d}. Daily sell-through for this row across the tracking window." style="min-width:36px">${shortDate(d)}</th>`).join('');
   document.getElementById('trkHead').innerHTML=L.map(thSort).join('')
-    +`<th class="num" style="min-width:34px;color:var(--accent)" title="daily units sold →">📅</th>`+dayTh
+    +`<th class="num" style="min-width:34px;color:var(--accent)" data-tip="Daily sell-through — the columns to the right show units sold on each day of the tracking window.">📅</th>`+dayTh
     +R.map(thSort).join('');
   document.querySelectorAll('#trkHead th[data-k]').forEach(th=>th.onclick=()=>{
     const k=th.dataset.k; if(trkSortKey===k) trkSortDir*=-1; else {trkSortKey=k; trkSortDir=(k==='name'||k==='status')?1:-1;} renderTracking();});
@@ -2792,6 +2812,27 @@ document.getElementById('bandModalExport').onclick=exportListModal;
 document.getElementById('bandModalSearch').addEventListener('input',fillListModal);
 document.getElementById('bandModal').addEventListener('click',e=>{ if(e.target.id==='bandModal') closeListModal(); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeListModal(); });
+
+/* ---- column-header help tooltips (delegated; survives every re-render) ---- */
+(function(){
+  let tip=null;
+  const show=th=>{
+    if(!tip){ tip=document.createElement('div'); tip.className='hdrtip'; document.body.appendChild(tip); }
+    const label=(th.textContent||'').replace(/[▼▲?]/g,'').trim();
+    tip.innerHTML='<b>'+label+'</b><br>'+th.dataset.tip;
+    tip.style.display='block'; tip.style.left='0px'; tip.style.top='0px';
+    const r=th.getBoundingClientRect(), t=tip.getBoundingClientRect();
+    let left=r.left, top=r.bottom+7;
+    if(left+t.width>innerWidth-10) left=Math.max(8,innerWidth-t.width-10);
+    if(top+t.height>innerHeight-10) top=Math.max(8,r.top-t.height-7);   // flip above when short on space
+    tip.style.left=left+'px'; tip.style.top=top+'px';
+  };
+  const hide=()=>{ if(tip) tip.style.display='none'; };
+  document.addEventListener('mouseover',e=>{ const th=e.target.closest&&e.target.closest('th[data-tip]'); if(th) show(th); });
+  document.addEventListener('mouseout', e=>{ const th=e.target.closest&&e.target.closest('th[data-tip]'); if(th) hide(); });
+  document.addEventListener('click',hide);
+  addEventListener('scroll',hide,true);
+})();
 
 /* ---- premium cursor-origin ripple (delegated) ---- */
 document.addEventListener('pointerdown',e=>{

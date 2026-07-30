@@ -473,6 +473,33 @@
      so you never lose which tab and which dataset you are reading.
      ============================================================ */
   header{position:sticky;top:0;z-index:60}
+  /* Making the header sticky put it in the same stacking contest as the drill-down
+     modal, which sat at 50 — the header then painted over the modal's title bar.
+     Anything that overlays the whole viewport has to clear the sticky chrome:
+     tabs 50 < header 60 < modal 90 < header-tooltip 100. */
+  .modal-overlay{z-index:90}
+  .hdrtip{z-index:100}
+  /* Belt and braces. z-index alone is fragile here: any ancestor that ever gains
+     a transform/filter/will-change would trap the modal in its own stacking
+     context and the header would cover it again. So while a modal is open the
+     sticky chrome simply stands down — it cannot win a contest it is not in. */
+  body:has(.modal-overlay.show) header{z-index:1}
+  body:has(.modal-overlay.show) .tabs{z-index:1}
+  /* Geometric guarantee, independent of stacking entirely: start the modal panel
+     BELOW the sticky header's height. Even if every z-index rule above failed,
+     the title bar and the close button would still be clear of the header. */
+  .modal-overlay{padding:94px 16px 44px}
+  /* Centre the panel in the space LEFT OVER below the header, so it never butts
+     against the chrome. margin:auto rather than align-items:center — a centred
+     flex child that outgrows its container gets clipped at the top and becomes
+     unscrollable; auto margins centre it without that failure mode. */
+  .modal{margin:auto}
+  .modal-head{position:sticky;top:0;z-index:2;background:var(--panel2);
+    border-radius:var(--radius) var(--radius) 0 0}
+  .modal-head .x{position:relative;z-index:3}
+  /* Keep the whole panel inside the leftover space so it stays centred instead of
+     overflowing once a band has a long SKU list. */
+  .modal-body{max-height:calc(100vh - 250px)}
   .tabs{position:sticky;top:var(--hdrH,64px);z-index:50;
     background:linear-gradient(180deg,var(--bg) 72%,transparent);
     padding-top:6px;margin-bottom:14px}
@@ -528,8 +555,8 @@
     thead th,tbody td{padding:7px 8px}
     .tablewrap{max-height:64vh}
     .footnote{font-size:10.5px}
-    /* modal fills the screen nicely */
-    .modal-overlay{padding:16px 8px}
+    /* modal fills the screen nicely — but still clears the (shorter) sticky header */
+    .modal-overlay{padding:72px 8px 16px}
     .modal-body{max-height:72vh}
     .modal-head{padding:12px 14px}
     /* embedded KPI dashboard */
@@ -538,6 +565,73 @@
   @media (max-width:390px){
     .kpis{grid-template-columns:1fr}
     .kpi .val{font-size:20px}
+  }
+
+  /* ============================================================
+     COMMAND CENTER — wall-board layout (four columns of cards,
+     one number per card, readable from across the room).
+     Every colour is drawn from the Ember tokens above; nothing
+     here introduces a new hue. Status green/red keep their
+     reserved meaning (ahead / behind), never a series colour.
+     ============================================================ */
+  .gbwall{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;align-items:start}
+  @media(max-width:1480px){.gbwall{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:820px){.gbwall{grid-template-columns:minmax(0,1fr)}}
+  .gbcol{display:flex;flex-direction:column;gap:14px;min-width:0}
+  .gbcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px 18px;min-width:0}
+  .gbcard.hero{border-color:rgba(226,86,79,.45);background:linear-gradient(180deg,#241a12,var(--panel))}
+  .gbcard h4{margin:0 0 14px;font-size:15px;font-weight:700;letter-spacing:.2px;color:var(--txt)}
+  /* the headline number: clamp() so it fills a 4-up wall and still fits a phone */
+  .gbbig{font-size:clamp(30px,3.1vw,52px);font-weight:730;line-height:.98;letter-spacing:-1px;font-variant-numeric:tabular-nums;color:var(--txt)}
+  .gbbig .cur{font-size:.46em;font-weight:650;vertical-align:.44em;margin-right:1px;color:var(--txt2)}
+  .gbbig .unit{font-size:.42em;font-weight:650;vertical-align:.32em;margin-left:3px;color:var(--txt2)}
+  .gbbig.alert{color:#f08078} .gbbig.good{color:#4fd894} .gbbig.warn{color:var(--amber)}
+  .gblabel{font-size:13px;color:var(--txt2);margin-top:7px}
+  /* delta line — arrow + colour + word, never colour alone */
+  .gbdelta{font-size:12.5px;margin-top:9px;color:var(--muted);display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
+  .gbdelta b{font-size:14.5px;font-variant-numeric:tabular-nums}
+  .gbdelta.up{color:#4fd894} .gbdelta.down{color:#f08078}
+  .gbsub{font-size:13px;color:var(--txt2);margin:20px 0 6px;font-weight:600}
+  .gbchart svg{width:100%;height:auto;display:block}
+  .gbchart .empty{color:var(--muted);font-size:12px;padding:22px 0;text-align:center}
+  /* simple key/value list (AIS by size, top parents) */
+  .gbli{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+  .gbli:last-child{border-bottom:0}
+  /* min-width:0 is load-bearing: without it a nowrap flex child refuses to
+     shrink, so long SKU names would push the amount off the card. */
+  .gbli .k{color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+  .gbbar .top .k{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+  .gbli .v{color:var(--txt);font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .gbli .k .muted{font-size:11.5px}
+  /* labelled bar list (age tiers) */
+  .gbbars{display:flex;flex-direction:column;gap:15px}
+  .gbbar .top{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;margin-bottom:7px}
+  .gbbar .top .v{font-weight:600;font-variant-numeric:tabular-nums}
+  .gbbar .trk{height:8px;border-radius:5px;background:var(--panel2);overflow:hidden}
+  .gbbar .fil{display:block;height:100%;border-radius:5px;transition:width .5s cubic-bezier(.22,1,.36,1)}
+  /* statement table (cost of doing nothing vs removing) */
+  .gbstmt{width:100%;border-collapse:collapse;font-size:13.5px}
+  .gbstmt td{padding:7px 0;border-bottom:1px solid var(--line);color:var(--txt)}
+  .gbstmt td.v{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .gbstmt tr.head td{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;border-bottom:0;padding:14px 0 3px}
+  .gbstmt tr:first-child.head td{padding-top:0}
+  .gbstmt tr.tot td{font-weight:700;border-bottom:0;border-top:1px solid var(--line);padding-top:9px}
+  .gbstmt tr.tot.save td{color:#4fd894}
+  /* footer strip — brand + live clock, like a wall board */
+  .gbfoot{display:flex;align-items:center;gap:16px;margin-top:14px;padding:12px 18px;background:var(--panel);
+    border:1px solid var(--line);border-radius:var(--radius);flex-wrap:wrap}
+  .gbfoot .brand{font-weight:700;font-size:15px;display:flex;align-items:center;gap:9px}
+  .gbfoot .brand .mark{width:26px;height:26px;border-radius:7px;background:var(--grad);display:inline-flex;
+    align-items:center;justify-content:center;font-size:14px}
+  .gbfoot .meta{color:var(--muted);font-size:12px}
+  .gbfoot .clock{font-size:23px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.6px}
+  /* TV mode: the tab itself goes fullscreen, so keep 4 columns and drop the chrome */
+  #viewPulse:fullscreen{background:var(--bg);padding:16px 18px;overflow:auto}
+  #viewPulse:fullscreen .gbwall{grid-template-columns:repeat(4,minmax(0,1fr))}
+  @media(max-width:820px){
+    .gbbig{font-size:clamp(28px,9vw,40px)}
+    .gbcard{padding:13px 14px 15px}
+    .gbfoot .clock{font-size:19px}
   }
 </style>
 </head>
@@ -571,6 +665,7 @@
     <button class="tab active" data-tab="ltsf">📊 LTSF Overview</button>
     <button class="tab" data-tab="proj">🧮 Decision Engine</button>
     <button class="tab" data-tab="track">📈 Sales Tracking</button>
+    <button class="tab" data-tab="pulse">🖥️ Command Center</button>
     <button class="tab" data-tab="kpi">📊 KPI Metrics</button>
   </nav>
 
@@ -788,6 +883,91 @@
       </div>
     </div>
   </div><!-- /viewTrack -->
+
+  <!-- ============ COMMAND CENTER (at-a-glance wall board) ============ -->
+  <div id="viewPulse" class="hide">
+    <div class="filters">
+      <span class="chip">Scope</span>
+      <select id="pulseScope"><option value="">All parents (total)</option></select>
+      <span class="spacer"></span>
+      <span class="chip" id="pulseNote"></span>
+      <button class="ghost" id="pulseFs">⛶ TV mode</button>
+    </div>
+
+    <div class="gbwall">
+      <!-- ---------------- column 1: sell-through ---------------- -->
+      <div class="gbcol">
+        <div class="gbcard">
+          <h4>Units sold</h4>
+          <div id="pToday"></div>
+          <div class="gbsub">Sell-through volume</div>
+          <div class="gbchart" id="pDailyChart"></div>
+        </div>
+        <div class="gbcard">
+          <h4>Surcharge by size</h4>
+          <div id="pBySize"></div>
+        </div>
+        <div class="gbcard">
+          <h4>Top SKUs by surcharge</h4>
+          <div id="pTopSkus"></div>
+        </div>
+      </div>
+
+      <!-- ---------------- column 2: clearance ---------------- -->
+      <div class="gbcol">
+        <div class="gbcard">
+          <h4>Aged units cleared</h4>
+          <div id="pCleared"></div>
+          <div class="gbsub">Aged stock remaining</div>
+          <div class="gbchart" id="pBurn"></div>
+        </div>
+        <div class="gbcard">
+          <h4>Units charged by age tier</h4>
+          <div class="gbbars" id="pTiers"></div>
+        </div>
+        <div class="gbcard">
+          <h4>SKU clearance status</h4>
+          <div class="gbbars" id="pStatus"></div>
+        </div>
+      </div>
+
+      <!-- ---------------- column 3: exposure + pace ---------------- -->
+      <div class="gbcol">
+        <div class="gbcard hero">
+          <h4>Est. surcharge — next cycle</h4>
+          <div id="pAis"></div>
+          <div style="margin-top:26px" id="pClear"></div>
+        </div>
+        <div class="gbcard">
+          <h4>Pace vs target</h4>
+          <div class="gbchart" id="pGauge"></div>
+        </div>
+      </div>
+
+      <!-- ---------------- column 4: statement + parents ---------------- -->
+      <div class="gbcol">
+        <div class="gbcard">
+          <h4>Cost statement — next 12 months</h4>
+          <table class="gbstmt"><tbody id="pStmt"></tbody></table>
+        </div>
+        <div class="gbcard">
+          <h4>Surcharge by parent</h4>
+          <div id="pParents"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="gbfoot">
+      <span class="brand"><span class="mark">📦</span> LTSF Command Center</span>
+      <span class="meta" id="pFootMeta"></span>
+      <span class="spacer"></span>
+      <span class="clock" id="pClock">--:--</span>
+    </div>
+
+    <div class="footnote">
+      One screen, no clicks — the numbers the other tabs compute, sized to be read from across the room. <b>Sold / cleared / pace</b> come from the tracking window in the workbook; <b>surcharge</b> figures are Amazon's own next-cycle estimate; the <b>cost statement</b> is the 12-month do-nothing total (aged-inventory surcharge + base storage) against the cost of removing the same units to 3PL (removal + freight + 3PL storage). Target pace follows the basis you set on the <b>Sales Tracking</b> tab, so both tabs always agree.
+    </div>
+  </div><!-- /viewPulse -->
 
   <!-- ============ KPI METRICS (embedded standalone tracker) ============ -->
   <div id="viewKpi" class="hide">
@@ -2919,6 +3099,270 @@ function initLTSF(){
   populateSimFilters();
   renderSim();
   renderTracking();
+  populatePulseFilters();
+  renderPulse();
+  startPulseClock();
+}
+
+/* ============================ COMMAND CENTER (wall board) ============================
+   A read-only wall: one number per card, sized to be read from across the room.
+   Nothing here re-derives a metric — every tile reuses the aggregates the other
+   tabs already compute (trkRowCalc / overallTargetDaily / the workbook cost
+   columns), so the board can never disagree with a drill-down. Target pace
+   deliberately reads the Tracking tab's basis controls, which live in the DOM
+   whether or not that tab is visible.
+   ==================================================================================== */
+const TIERS4=[
+  {t:'181–270 days', idx:[0,1,2], color:'#b7531c'},
+  {t:'271–365 days', idx:[3,4,5], color:'#f6722b'},
+  {t:'366–455 days', idx:[6],     color:'#f8986c'},
+  {t:'456+ days',    idx:[7],     color:'#fcd9c9'},
+];
+const sumBy=(rows,f)=>rows.reduce((s,x)=>s+(f(x)||0),0);
+/* $52,311 -> "$52.31 K", matching the wall-board convention of two significant
+   decimals plus a unit suffix; small amounts stay exact. */
+function bigMoneyHTML(v){
+  const a=Math.abs(v), sign=v<0?'-':'';
+  if(a>=1e6) return `<span class="cur">${sign}$</span>${(a/1e6).toFixed(2)}<span class="unit">M</span>`;
+  if(a>=1e3) return `<span class="cur">${sign}$</span>${(a/1e3).toFixed(2)}<span class="unit">K</span>`;
+  return `<span class="cur">${sign}$</span>${Math.round(a).toLocaleString('en-US')}`;
+}
+function pulseTag(){ const el=document.getElementById('pulseScope'); return el?el.value:''; }
+function pulseSkus(){ const t=pulseTag(); return t?DATA.filter(x=>x.tag===t):DATA; }
+function pulseSeries(){ const t=pulseTag(); return ((t?DAILY.byParent[t]:DAILY.totals)||[]).map(v=>v||0); }
+
+function pulseStats(){
+  const rows=pulseSkus(), ser=pulseSeries(), dates=DAILY.dates||[];
+  const days=TRK.daysElapsed||ser.length||1;
+  const ais=sumBy(rows,x=>x.ais), units=sumBy(rows,x=>x.unitsCharged);
+  const target=sumBy(rows,x=>x.targetUnits), sold=sumBy(rows,x=>x.totalSold);
+  const remaining=Math.max(0,target-sold);
+  const curSV=days>0?sold/days:0;
+  const tgtSV=overallTargetDaily(remaining,curSV);
+  const onTrack=tgtSV>0?curSV/tgtSV:(remaining>0?0:1);
+  const projDays=curSV>0?remaining/curSV:Infinity;
+  const today=ser.length?ser[ser.length-1]:0;
+  const lastWk=ser.length>=8?ser[ser.length-8]:null;      // same weekday, one week back
+  /* Surcharge already dodged: units sold out of the aged pool, priced at that
+     SKU's own per-unit rate. Capped at the target so an over-seller can't
+     "avoid" more than it was ever going to be charged. */
+  const avoided=rows.reduce((s,x)=>{
+    const per=x.unitsCharged>0?x.ais/x.unitsCharged:0;
+    return s+Math.min(x.totalSold||0,x.targetUnits||0)*per;
+  },0);
+  const tiers=TIERS4.map(t=>({
+    t:t.t, color:t.color,
+    units:sumBy(rows,x=>t.idx.reduce((a,i)=>a+(x.aisQ[i]||0),0)),
+    ais:  sumBy(rows,x=>t.idx.reduce((a,i)=>a+(x.aisB[i]||0),0)),
+  }));
+  const cost={
+    ais1yr:sumBy(rows,x=>x.charges1yrNo), storage:sumBy(rows,x=>x.baseStorage),
+    amz:sumBy(rows,x=>x.totalAmz), removal:sumBy(rows,x=>x.removalCost),
+    inb:sumBy(rows,x=>x.in3pl), outb:sumBy(rows,x=>x.out3pl),
+    stor3pl:sumBy(rows,x=>x.storage3pl), tpl:sumBy(rows,x=>x.total3pl),
+  };
+  cost.variance=cost.amz-cost.tpl;
+  return {rows,ser,dates,days,ais,units,target,sold,remaining,curSV,tgtSV,onTrack,
+          projDays,today,lastWk,avoided,tiers,cost,perUnit:units?ais/units:0};
+}
+
+/* ---------- line chart (responsive SVG; 1–2 series, optional area) ---------- */
+function pulseLine(elId, labels, series, opts){
+  const el=document.getElementById(elId); if(!el) return;
+  opts=opts||{};
+  const vals=[]; series.forEach(s=>s.values.forEach(v=>{ if(v!=null&&isFinite(v)) vals.push(v); }));
+  if(labels.length<2||!vals.length){ el.innerHTML='<div class="empty">No daily data for this scope.</div>'; return; }
+  const W=620,H=opts.height||225,PL=56,PR=16,PT=36,PB=26;
+  const yfmt=opts.yfmt||fmt;
+  const hi=Math.max(...vals,1)*1.1, lo=0;
+  const x=i=>PL+i*(W-PL-PR)/(labels.length-1);
+  const y=v=>H-PB-((v-lo)/(hi-lo))*(H-PT-PB);
+  let g='';
+  [0,.5,1].forEach(f=>{ const v=lo+(hi-lo)*f, yy=y(v);
+    g+=`<line x1="${PL}" x2="${W-PR}" y1="${yy.toFixed(1)}" y2="${yy.toFixed(1)}" stroke="var(--line)" stroke-width="1"/>`+
+       `<text x="${(PL-9)}" y="${(yy+4).toFixed(1)}" text-anchor="end" font-size="11" fill="var(--muted)">${yfmt(Math.round(v))}</text>`;
+  });
+  [...new Set([0,Math.floor((labels.length-1)/2),labels.length-1])].forEach(i=>{
+    const anc=i===0?'start':(i===labels.length-1?'end':'middle');
+    g+=`<text x="${x(i).toFixed(1)}" y="${H-6}" text-anchor="${anc}" font-size="11" fill="var(--muted)">${labels[i]}</text>`;
+  });
+  let paths='', defs='', legend='', lx=PL;
+  series.forEach((s,si)=>{
+    const pts=s.values.map((v,i)=>(v==null||!isFinite(v))?null:`${x(i).toFixed(1)},${y(v).toFixed(1)}`).filter(Boolean);
+    if(!pts.length) return;
+    if(si===0&&!opts.noArea){
+      const gid='gb_'+elId;
+      defs+=`<linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${s.color}" stop-opacity=".30"/><stop offset="100%" stop-color="${s.color}" stop-opacity="0"/></linearGradient>`;
+      paths+=`<polygon points="${x(0).toFixed(1)},${H-PB} ${pts.join(' ')} ${x(labels.length-1).toFixed(1)},${H-PB}" fill="url(#${gid})"/>`;
+    }
+    paths+=`<polyline points="${pts.join(' ')}" fill="none" stroke="${s.color}" stroke-width="${s.w||2.6}"
+      stroke-linejoin="round" stroke-linecap="round"${s.dash?' stroke-dasharray="7 5"':''}/>`;
+    if(!s.dash){
+      const li=s.values.length-1, lv=s.values[li];
+      if(lv!=null&&isFinite(lv))
+        paths+=`<circle cx="${x(li).toFixed(1)}" cy="${y(lv).toFixed(1)}" r="4.5" fill="${s.color}" stroke="var(--panel)" stroke-width="2"/>`;
+    }
+    legend+=`<circle cx="${lx+5}" cy="${PT-24}" r="4.5" fill="${s.color}"/>`+
+            `<text x="${lx+15}" y="${PT-20}" font-size="11.5" fill="var(--muted)">${s.name}</text>`;
+    lx+=26+String(s.name).length*6.1;
+  });
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${opts.aria||''}">`+
+               (defs?`<defs>${defs}</defs>`:'')+g+legend+paths+'</svg>';
+}
+
+/* ---------- half-dial gauge: actual pace as a share of required pace ---------- */
+function pulseGauge(elId, frac, S){
+  const el=document.getElementById(elId); if(!el) return;
+  const W=300,H=196,cx=150,cy=152,r=112,max=1.5;
+  const cl=v=>Math.max(0,Math.min(1,v));
+  const pt=(f,rr)=>{ const a=Math.PI*(1-cl(f)); return [cx+(rr||r)*Math.cos(a), cy-(rr||r)*Math.sin(a)]; };
+  const arc=(f0,f1,color,w)=>{ const [x0,y0]=pt(f0),[x1,y1]=pt(f1);
+    return `<path d="M${x0.toFixed(1)} ${y0.toFixed(1)} A${r} ${r} 0 ${(f1-f0)>.5?1:0} 1 ${x1.toFixed(1)} ${y1.toFixed(1)}"
+      fill="none" stroke="${color}" stroke-width="${w||20}" stroke-linecap="round"/>`; };
+  const f=cl(frac/max);
+  const [nx,ny]=pt(f,r-16);
+  const [tx,ty]=pt(.5/max,r+11), [tx2,ty2]=pt(.5/max,r-11);
+  const col=frac>=1?'#4fd894':(frac>=.6?'var(--amber)':'#f08078');
+  const word=frac>=1?'on / ahead of pace':(frac>=.6?'behind pace':'well behind pace');
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Pace vs target ${pct0(frac)}">
+    ${arc(0,1,'var(--panel2)')}
+    ${arc(1/max,1,'#2ea86a')}
+    <line x1="${tx.toFixed(1)}" y1="${ty.toFixed(1)}" x2="${tx2.toFixed(1)}" y2="${ty2.toFixed(1)}" stroke="#e2564f" stroke-width="3"/>
+    <line x1="${cx}" y1="${cy}" x2="${nx.toFixed(1)}" y2="${ny.toFixed(1)}" stroke="var(--txt)" stroke-width="5" stroke-linecap="round"/>
+    <circle cx="${cx}" cy="${cy}" r="11" fill="var(--txt)"/>
+    <text x="${cx-r-2}" y="${cy+20}" text-anchor="middle" font-size="12" fill="var(--muted)">0%</text>
+    <text x="${cx+r+2}" y="${cy+20}" text-anchor="middle" font-size="12" fill="var(--muted)">150%</text>
+    <text x="${cx}" y="${cy-30}" text-anchor="middle" font-size="46" font-weight="720" fill="${col}">${pct0(frac)}</text>
+  </svg>
+  <div style="text-align:center;font-size:13px;color:${col};font-weight:600;margin:-2px 0 12px">${frac>=1?'🟢':'🔴'} ${word}</div>
+  <div class="gbli"><span class="k">Current pace</span><span class="v">${fmt(Math.round(S.curSV))} / day</span></div>
+  <div class="gbli"><span class="k">Target pace</span><span class="v">${fmt(Math.round(S.tgtSV))} / day</span></div>
+  <div class="gbli"><span class="k">Projected days to clear</span><span class="v">${isFinite(S.projDays)?fmt(Math.round(S.projDays))+' d':'∞'}</span></div>`;
+}
+
+function renderPulse(){
+  if(!document.getElementById('pulseScope')) return;
+  const S=pulseStats(), scope=pulseTag();
+  const labels=(S.dates||[]).map(shortDate);
+
+  /* --- 1. units sold today, vs the same weekday a week back --- */
+  const dTxt=S.lastWk==null
+    ? '<span>no prior week inside the tracking window</span>'
+    : (()=>{ const d=S.today-S.lastWk;
+        return `<span class="${d>0?'up':(d<0?'down':'')}">${d>0?'▲':(d<0?'▼':'▬')} <b>${fmt(Math.abs(Math.round(d)))}</b></span> vs same day last week`; })();
+  document.getElementById('pToday').innerHTML=
+    `<div class="gbbig">${fmt(Math.round(S.today))}</div>
+     <div class="gblabel">Units shipped · ${S.dates.length?S.dates[S.dates.length-1]:'—'}</div>
+     <div class="gbdelta ${S.lastWk!=null&&S.today>S.lastWk?'up':(S.lastWk!=null&&S.today<S.lastWk?'down':'')}">${dTxt}</div>`;
+
+  const avg=S.ser.length?S.ser.reduce((a,b)=>a+b,0)/S.ser.length:0;
+  pulseLine('pDailyChart',labels,[
+    {name:'units / day',color:'#cc8829',values:S.ser},
+    {name:'window average ('+fmt(Math.round(avg))+'/day)',color:'#7a6f5e',values:S.ser.map(()=>avg),dash:true,w:2},
+  ],{height:225,aria:'Units shipped per day'});
+
+  /* --- 2. cleared to date + burn-down of the aged pool --- */
+  document.getElementById('pCleared').innerHTML=
+    `<div class="gbbig good">${fmt(Math.round(S.sold))}</div>
+     <div class="gblabel">Aged units sold · ${S.days} days${S.dates.length?' · '+S.dates[0]+' → '+S.dates[S.dates.length-1]:''}</div>
+     <div class="gbdelta up">▼ <b>${money(S.avoided)}</b> surcharge avoided so far</div>`;
+
+  const cov=coverageDays();
+  let run=0;
+  const remain=S.ser.map(v=>{ run+=v; return Math.max(0,S.target-run); });
+  const ideal=S.ser.map((_,i)=>Math.max(0,S.target*(1-(i+1)/cov)));
+  pulseLine('pBurn',labels,[
+    {name:'aged units remaining',color:'#1d7fe9',values:remain},
+    {name:'ideal pace (clear in '+cov+'d)',color:'#f5d547',values:ideal,dash:true,w:2},
+  ],{height:225,yfmt:v=>v>=1000?(v/1000).toFixed(0)+'k':fmt(v),aria:'Aged units remaining vs ideal clearance pace'});
+
+  /* --- 3. exposure + clearance rate --- */
+  document.getElementById('pAis').innerHTML=
+    `<div class="gbbig alert">${bigMoneyHTML(S.ais)}</div>
+     <div class="gblabel">Aged-inventory surcharge, next billing cycle</div>
+     <div class="gbdelta">${fmt(Math.round(S.units))} units · ${money2(S.perUnit)} avg per unit</div>`;
+  const rate=S.target?S.sold/S.target:0;
+  document.getElementById('pClear').innerHTML=
+    `<div class="gbbig ${rate>=.5?'good':(rate>=.2?'warn':'alert')}">${(rate*100).toFixed(1)}<span class="unit">%</span></div>
+     <div class="gblabel">Clearance rate — aged units sold vs target</div>
+     <div class="gbdelta">${fmt(Math.round(S.sold))} of ${fmt(Math.round(S.target))} units · ${fmt(Math.round(S.remaining))} left</div>`;
+
+  pulseGauge('pGauge',S.onTrack,S);
+
+  /* --- 4. surcharge by size / by age tier / by parent --- */
+  const bySize={};
+  S.rows.forEach(x=>{ if(x.ais>0){ const k=x.size||'—'; bySize[k]=(bySize[k]||0)+x.ais; } });
+  const sizes=Object.entries(bySize).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  document.getElementById('pBySize').innerHTML = sizes.length
+    ? sizes.map(([k,v])=>`<div class="gbli"><span class="k">${k}</span><span class="v">${moneyK(v)}</span></div>`).join('')
+    : '<div class="gbli"><span class="k muted">No surcharge in this scope</span></div>';
+
+  const maxT=Math.max(1,...S.tiers.map(t=>t.units));
+  document.getElementById('pTiers').innerHTML=S.tiers.map(t=>
+    `<div class="gbbar">
+       <div class="top"><span class="k">${t.t} <span class="muted">· ${moneyK(t.ais)}</span></span><span class="v">${fmt(Math.round(t.units))}</span></div>
+       <div class="trk"><span class="fil" style="width:${(t.units/maxT*100).toFixed(1)}%;background:${t.color}"></span></div>
+     </div>`).join('');
+
+  const topSkus=S.rows.filter(x=>x.ais>0).sort((a,b)=>b.ais-a.ais).slice(0,6);
+  document.getElementById('pTopSkus').innerHTML = topSkus.length
+    ? topSkus.map(x=>`<div class="gbli" title="${x.sku}"><span class="k">${x.sku} <span class="muted">· ${fmt(Math.round(x.unitsCharged))}u</span></span><span class="v">${moneyK(x.ais)}</span></div>`).join('')
+    : '<div class="gbli"><span class="k muted">No surcharge in this scope</span></div>';
+
+  /* status counts come from trkRowCalc — the same verdict the Tracking table shows */
+  const st={behind:0,ontrack:0,done:0};
+  S.rows.forEach(x=>{ if((x.targetUnits||0)<=0&&(x.totalSold||0)<=0) return;
+    st[trkRowCalc(x.targetUnits,x.totalSold,1,x.sku,x.tag).status]++; });
+  const stDefs=[{k:'behind',t:'🔴 Behind target',c:'#e2564f'},{k:'ontrack',t:'🟢 On / ahead of pace',c:'#2ea86a'},{k:'done',t:'✅ Target met',c:'#1d7fe9'}];
+  const stTot=Math.max(1,st.behind+st.ontrack+st.done);
+  document.getElementById('pStatus').innerHTML=stDefs.map(d=>
+    `<div class="gbbar">
+       <div class="top"><span class="k">${d.t} <span class="muted">· ${pct0(st[d.k]/stTot)}</span></span><span class="v">${fmt(st[d.k])}</span></div>
+       <div class="trk"><span class="fil" style="width:${(st[d.k]/stTot*100).toFixed(1)}%;background:${d.c}"></span></div>
+     </div>`).join('');
+
+  const par={};
+  S.rows.forEach(x=>{ const t=x.tag||'—'; par[t]=(par[t]||0)+(x.ais||0); });
+  const tops=Object.entries(par).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  document.getElementById('pParents').innerHTML = tops.length
+    ? tops.map(([t,v])=>`<div class="gbli"><span class="k">${t} <span class="muted">· ${TAG_LABELS[t]||''}</span></span><span class="v">${moneyK(v)}</span></div>`).join('')
+    : '<div class="gbli"><span class="k muted">No surcharge in this scope</span></div>';
+
+  /* --- 5. cost statement: 12 months of doing nothing vs removing --- */
+  const c=S.cost;
+  const row=(k,v,cls)=>`<tr${cls?` class="${cls}"`:''}><td>${k}</td><td class="v">${money(v)}</td></tr>`;
+  document.getElementById('pStmt').innerHTML=
+    `<tr class="head"><td colspan="2">Next billing cycle</td></tr>`+
+    row('Estimated surcharge',S.ais)+
+    `<tr><td>Units charged</td><td class="v">${fmt(Math.round(S.units))}</td></tr>`+
+    `<tr class="head"><td colspan="2">Keep at Amazon — 12 months</td></tr>`+
+    row('Aged-inventory surcharge',c.ais1yr)+
+    row('Base storage',c.storage)+
+    row('Total Amazon cost',c.amz,'tot')+
+    `<tr class="head"><td colspan="2">Remove to 3PL instead</td></tr>`+
+    row('Removal fees',c.removal)+
+    row('Inbound freight',c.inb)+
+    row('Outbound freight',c.outb)+
+    row('3PL storage',c.stor3pl)+
+    row('Total 3PL cost',c.tpl,'tot')+
+    row('Avoided by removing',c.variance,'tot save');
+
+  const note=document.getElementById('pulseNote');
+  if(note) note.textContent=(scope?tagLabel(scope):'All parents')+' · '+fmt(S.rows.length)+' SKUs · '+money(S.ais)+' next cycle';
+  const meta=document.getElementById('pFootMeta');
+  if(meta) meta.textContent=(LT.meta.source||'LTSF workbook')+' · window '+(TRK.startDate||'—')+' → '+(TRK.endDate||'—')+' · '+S.days+' days';
+}
+
+function populatePulseFilters(){
+  const el=document.getElementById('pulseScope'); if(!el) return;
+  el.innerHTML='<option value="">All parents (by AIS ↓)</option>'+parentOptionHTML(DATA);
+}
+let _pulseClock=0;
+function startPulseClock(){
+  const el=document.getElementById('pClock'); if(!el||_pulseClock) return;
+  const tick=()=>{ el.textContent=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false}); };
+  tick(); _pulseClock=setInterval(tick,15000);
 }
 
 /* ---- tab switching ---- */
@@ -2928,9 +3372,11 @@ document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
   document.getElementById('viewLtsf').classList.toggle('hide',tab!=='ltsf');
   document.getElementById('viewProj').classList.toggle('hide',tab!=='proj');
   document.getElementById('viewTrack').classList.toggle('hide',tab!=='track');
+  document.getElementById('viewPulse').classList.toggle('hide',tab!=='pulse');
   document.getElementById('viewKpi').classList.toggle('hide',tab!=='kpi');
   if(tab==='proj'){ renderSim(); reveal('simKpis'); }
   else if(tab==='track'){ renderTracking(); reveal('trkKpis'); }
+  else if(tab==='pulse'){ renderPulse(); startPulseClock(); }
   else if(tab==='kpi'){ /* self-contained iframe loads its own data */ }
   else { renderLtsfOverview(); reveal('kpis'); }
 });
@@ -2982,6 +3428,20 @@ function syncBasisUI(){
     : 'Adjusted DOH = Current DOH × (1 − % lever) · Target SV = remaining ÷ Adjusted DOH';
 }
 document.getElementById('trkBasis').addEventListener('change',syncBasisUI);
+
+/* ---- command-center wireup ---- */
+/* the wall reads the tracking basis, so it re-renders whenever that basis moves */
+['trkBasis','trkCoverage','trkPct'].forEach(id=>document.getElementById(id).addEventListener('change',renderPulse));
+document.getElementById('pulseScope').addEventListener('change',renderPulse);
+document.getElementById('pulseFs').onclick=()=>{
+  const v=document.getElementById('viewPulse');
+  if(document.fullscreenElement) document.exitFullscreen();
+  else if(v.requestFullscreen) v.requestFullscreen().catch(()=>{});
+};
+document.addEventListener('fullscreenchange',()=>{
+  const b=document.getElementById('pulseFs');
+  if(b) b.textContent=document.fullscreenElement?'⛶ Exit TV mode':'⛶ TV mode';
+});
 
 /* ---- drill-down modal wireup ---- */
 document.getElementById('bandModalClose').onclick=closeListModal;

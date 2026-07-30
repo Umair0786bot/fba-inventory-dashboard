@@ -568,6 +568,24 @@
   #viewProj table tbody tr:hover td{background-image:linear-gradient(rgba(204,136,41,.10),rgba(204,136,41,.10))}
 
   /* ============================================================
+     KPI TAB — the embedded tracker is a full application, so give it the
+     full tab. It was sitting in a .panel inside .wrap's padding at a fixed
+     82vh: a card inside a card, inset ~64px on every side, and tall enough
+     to push the page into its own scrollbar. Now it goes edge to edge and
+     is sized to exactly the space the chrome leaves behind.
+     ============================================================ */
+  .kpi-title{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+  .kpi-pop{margin-left:auto;font-size:11px;font-weight:600;letter-spacing:.2px;
+    text-transform:none;color:var(--accent);text-decoration:none;
+    border:1px solid var(--line);border-radius:7px;padding:3px 9px;transition:.15s}
+  .kpi-pop:hover{background:rgba(204,136,41,.12);border-color:var(--accent)}
+  /* cancel .wrap's horizontal padding so the frame reaches both edges */
+  .kpi-frame{margin:0 -28px -20px;background:var(--panel);border-top:1px solid var(--line)}
+  .kpi-frame iframe{display:block;width:100%;border:0;
+    /* header + tab bar + section title + wrap padding = the chrome above it */
+    height:calc(100vh - 178px);min-height:520px}
+
+  /* ============================================================
      MOBILE / RESPONSIVE  — comfortable on a phone
      ============================================================ */
   @media (max-width:680px){
@@ -614,7 +632,9 @@
     .modal-body{max-height:72vh}
     .modal-head{padding:12px 14px}
     /* embedded KPI dashboard */
-    #viewKpi iframe{height:76vh}
+    /* phone: shorter chrome above, and cancel the phone-sized wrap padding */
+    .kpi-frame{margin:0 -10px -12px}
+    .kpi-frame iframe{height:calc(100vh - 150px);min-height:420px}
   }
   @media (max-width:390px){
     .kpis{grid-template-columns:1fr}
@@ -1025,15 +1045,18 @@
 
   <!-- ============ KPI METRICS (embedded standalone tracker) ============ -->
   <div id="viewKpi" class="hide">
-    <div class="sectiontitle">KPI metrics — full catalog &amp; LTSF</div>
-    <div class="panel" style="padding:4px;overflow:hidden">
-      <iframe src="metrics-tracker.html" title="KPI Metrics Tracker"
-              style="width:100%;height:82vh;border:0;border-radius:10px;display:block"
-              loading="lazy"></iframe>
+    <!-- The tracker is a whole application, not a widget, so this tab gives it the
+         whole tab: the title collapses to one line and the frame goes full-bleed.
+         Provenance moved into the title's tooltip rather than a footnote block,
+         which was costing ~60px of height for text you read once. -->
+    <div class="sectiontitle kpi-title"
+         title="Embedded from metrics-tracker.html — a self-contained KPI dashboard, auto-refreshed by the metrics tracker's Update-Dashboard.bat. Do not edit by hand.">
+      KPI metrics — full catalog &amp; LTSF
+      <a href="https://umair0786bot.github.io/daily-metrics-dashboard/" target="_blank" rel="noopener"
+         class="kpi-pop">open standalone ↗</a>
     </div>
-    <div class="footnote">
-      Embedded from <b>metrics-tracker.html</b> — a self-contained KPI dashboard (auto-refreshed by the metrics tracker's <code>Update-Dashboard.bat</code>; do not edit by hand).
-      Live standalone version: <a href="https://umair0786bot.github.io/daily-metrics-dashboard/" target="_blank" rel="noopener" style="color:var(--accent)">daily-metrics-dashboard</a>.
+    <div class="kpi-frame">
+      <iframe src="metrics-tracker.html" title="KPI Metrics Tracker" loading="lazy"></iframe>
     </div>
   </div><!-- /viewKpi -->
 

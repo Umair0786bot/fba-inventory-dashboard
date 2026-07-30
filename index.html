@@ -496,7 +496,13 @@
   .modal{margin:auto}
   .modal-head{position:sticky;top:0;z-index:2;background:var(--panel2);
     border-radius:var(--radius) var(--radius) 0 0}
-  .modal-head .x{position:relative;z-index:3}
+  /* .x is a <button>, so it inherited padding:8px 14px from the base button rule.
+     With box-sizing:border-box on a 30x30 box that leaves a 2x14px content area —
+     smaller than the 15px glyph — so the ✕ overflowed and sat off-centre. Zero the
+     padding and centre it as a flex box instead of relying on line-height. */
+  .modal-head .x{position:relative;z-index:3;padding:0;display:inline-flex;
+    align-items:center;justify-content:center;line-height:1;font-size:16px;
+    flex:0 0 auto}
   /* Keep the whole panel inside the leftover space so it stays centred instead of
      overflowing once a band has a long SKU list. */
   .modal-body{max-height:calc(100vh - 250px)}
@@ -3247,7 +3253,9 @@ function renderPulse(){
   const labels=(S.dates||[]).map(shortDate);
 
   /* --- 1. units sold today, vs the same weekday a week back --- */
-  const dTxt=S.lastWk==null
+  const dTxt=!S.ser.length
+    ? '<span>no daily sales recorded for this scope</span>'
+    : S.lastWk==null
     ? '<span>no prior week inside the tracking window</span>'
     : (()=>{ const d=S.today-S.lastWk;
         return `<span class="${d>0?'up':(d<0?'down':'')}">${d>0?'▲':(d<0?'▼':'▬')} <b>${fmt(Math.abs(Math.round(d)))}</b></span> vs same day last week`; })();

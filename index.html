@@ -2472,7 +2472,36 @@ function computeSim(){
     const dealP=price*(1-dApp);
     const totalPayout=disc.pay*disc.r.soldL;
     const amazonFee=(dealP*p.ref+x.fba)*disc.r.soldL;
+
+    /* ---- the three scenarios, side by side (mirrors LTSF-3-scenarios.xlsx) ----
+       Ceiling / Floor / Best each get the SAME 14 measures so the blocks read
+       across. Identical shape to scen_vals() in build_ltsf_scenarios.py. */
+    const sCeil=skuAt(x,seed,rate,velHold,m1,ceiling,p.ref);
+    const sFlr =skuAt(x,seed,rate,velHold,m1,floor,p.ref);
+    /* skuBest caches a TRIMMED result ({disc,netL,net1,vel}) — no roll, no payout —
+       so re-run the winning discount once to get the full detail this block needs. */
+    const sBest=skuAt(x,seed,rate,velHold,m1,best.disc,p.ref);
+    /* d is passed in: skuAt() returns {pay,r,vel,net1,netL} and does NOT echo the
+       discount back, unlike its Python twin. */
+    const scen=(a,d)=>{
+      const sold=a.r.soldL, dp=price*(1-d);
+      return {disc:d, sell:dp, pay:a.pay,
+        rec:(x.cogs>0&&price>0)?a.pay/x.cogs:null,
+        sold, mo:a.r.monthsToClear, payout:a.pay*sold,
+        given:(price-dp)*sold,
+        ais1:a.r.tot1, aisL:a.r.totL, saved:hold.r.totL-a.r.totL,
+        net1:a.net1, netL:a.netL, vsHold:a.netL-hold.netL};
+    };
+    const sc={ceil:scen(sCeil,ceiling), flr:scen(sFlr,floor), best:scen(sBest,best.disc)};
+
+    /* verdict block: which of the four leaves the most cash to clear */
+    const cands=[['HOLD',hold.netL],['CEILING',sc.ceil.netL],['FLOOR',sc.flr.netL],['BEST',sc.best.netL]];
+    let win=cands[0]; cands.forEach(c=>{ if(c[1]>win[1]) win=c; });
+    const bestZone = price<=0 ? ''
+      : (best.disc<=ceiling+1e-9 ? 'SAFE' : (best.disc<=floor+1e-9 ? 'THIN' : 'OUT-OF-POCKET'));
+
     const r={
+      sc, winner:win[0], bestNet:win[1], gainVsHold:win[1]-hold.netL, bestZone,
       sku:x.sku,tag:x.tag,size:x.size,units,alreadySold:x.totalSold||0,
       price,cogs:x.cogs,fba:x.fba,
       ceiling,floor,ceilPrice,floorPrice,bestPct:best.disc,bestPrice:price*(1-best.disc),
@@ -2615,54 +2644,101 @@ function renderSimPlain(S){
       `Filter <b>ACTION = REMOVE</b> to see them.`:'');
 }
 /* ---------- the single table ---------- */
+/* ============================================================================
+   PER-SKU DECISION TABLE — column sequence mirrors LTSF-3-scenarios.xlsx
+   exactly: SKU · AGED STOCK | BASELINE HOLD | SCENARIO 1 CEILING |
+   SCENARIO 2 FLOOR | SCENARIO 3 BEST | VERDICT.
+   The three scenario blocks carry the SAME 14 measures in the same order, so
+   they read straight across — which is the whole point of the layout.
+   ============================================================================ */
+const SCEN_SUB=[
+  ['disc',  'Disc %',            'Discount applied to this SKU under this scenario.'],
+  ['sell',  'Sell price',        'Price under this scenario = price × (1 − disc %).'],
+  ['pay',   'Payout / unit',     'Cash in hand per unit = sell price − referral − FBA. COGS is not deducted (already spent).'],
+  ['rec',   '% COGS back',       'Payout per unit ÷ product cost. 100% = the whole product cost comes back.'],
+  ['sold',  'Units sold',        'Units this scenario sells before the aged stock is gone (capped at 36 months).'],
+  ['mo',    'Mo to clear',       'Months to sell through the aged stock. Blank = does not clear inside 36 months.'],
+  ['payout','Total payout',      'Payout per unit × units sold — total cash this SKU puts back in your hand.'],
+  ['given', 'Discount given',    'Revenue given up = (price − sell price) × units sold.'],
+  ['ais1',  'AIS 1yr',           'Long-term-storage surcharge over the next 12 months under this scenario.'],
+  ['aisL',  'AIS to clear',      'Surcharge paid all the way until the stock is gone under this scenario.'],
+  ['saved', 'AIS saved vs hold', "Surcharge escaped versus doing nothing = HOLD's AIS to clear − this scenario's."],
+  ['net1',  'Net 1yr',           'Cash from units sold in year one minus the surcharge paid in year one.'],
+  ['netL',  'Net to clear',      'THE HEADLINE: cash from all units sold minus all surcharge, until the stock is gone.'],
+  ['vsHold','vs HOLD',           'Net to clear − HOLD net to clear. Positive = this scenario beats doing nothing.'],
+];
+const scenCols=g=>SCEN_SUB.map(s=>({k:g+'.'+s[0],t:s[1],cls:'num',grp:g,tip:s[2]}));
+
 const SIM_COLS=[
+  /* ---- SKU · aged stock ---- */
   {k:'sku',t:'SKU',cls:'',grp:'id',tip:'The aged (AIS) SKU. Only SKUs currently carrying long-term-storage stock appear here.'},
   {k:'tag',t:'Parent',cls:'',grp:'id',tip:'Parent product — every size and colour of one product rolls up under this tag.'},
   {k:'size',t:'Size',cls:'',grp:'id',tip:'Variation size.'},
-  {k:'units',t:'AIS units',cls:'num',grp:'id',tip:'Units currently in long-term storage that the surcharge applies to.'},
-  {k:'alreadySold',t:'Already sold',cls:'num',grp:'id',tip:'Units sold so far during the tracking window — progress against clearing this stock.'},
-
-  {k:'price',t:'Price',cls:'num',grp:'gr',tip:'Current selling price on Amazon.'},
-  {k:'ceiling',t:'Ceiling %',cls:'num',grp:'gr',tip:'THE CEILING: the deepest discount you can give and still get 100% of your product cost back. Discount more than this and you stop recovering full COGS.'},
-  {k:'ceilPrice',t:'Ceiling $',cls:'num',grp:'gr',tip:'The price at the ceiling = (COGS + FBA) ÷ (1 − referral). Sell at or above this and your entire product cost comes back.'},
-  {k:'floor',t:'Floor %',cls:'num',grp:'gr',tip:'THE FLOOR: the discount at which your payout is exactly zero — you neither gain nor pay. Go past it and you are paying Amazon out of your own pocket.'},
-  {k:'floorPrice',t:'Floor $',cls:'num',grp:'gr',tip:'The price at the floor = FBA ÷ (1 − referral). Below this every sale costs you cash.'},
-
-  {k:'discPct',t:'Applied %',cls:'num',grp:'pay',tip:'The discount actually applied to THIS SKU under the current basis — the flat box, or the SKU’s own ceiling / floor / best percentage.'},
-  {k:'dealP',t:'Selling price',cls:'num',grp:'pay',tip:'THE PRICE YOU WOULD LIST AT under the current basis = price × (1 − applied %). Switch Discount basis to ★ Best and this becomes the best-percentage selling price.'},
-  {k:'amazonFee',t:'Amazon takes',cls:'num',grp:'pay',tip:'Total paid to Amazon on the units sold — referral fee on the deal price plus the FBA fulfilment fee.'},
-  {k:'payout',t:'Payout / unit',cls:'num',grp:'pay',tip:'NET IN YOUR HAND per unit = deal price − referral − FBA. Product cost is not deducted because it is already spent.'},
-  {k:'totalPayout',t:'Total payout',cls:'num',grp:'pay',tip:'Payout per unit × units sold — the total cash this SKU puts back in your hand.'},
-  {k:'recovery',t:'% COGS back',cls:'num',grp:'pay',tip:'Share of the product cost the payout returns. 100% means you get the whole product cost back.'},
-
-  {k:'svNow',t:'Current SV',cls:'num',grp:'sv',tip:'WHERE WE ARE: units sold per month today, measured from real daily sales history.'},
-  {k:'svTarget',t:'Target SV',cls:'num',grp:'sv',tip:'WHERE WE MUST GET TO: the monthly pace that clears this SKU’s aged stock inside a year.'},
-  {k:'moClearHold',t:'Mo to clear now',cls:'num',grp:'sv',tip:'Months to sell through the aged stock at today’s pace. ∞ or a number above 12 means this SKU keeps paying the surcharge for more than a year.'},
-
-  {k:'ais1Hold',t:'AIS 1yr hold',cls:'num',grp:'ais',tip:'Surcharge over the next 12 months if you change nothing.'},
-  {k:'ais1Disc',t:'AIS 1yr disc',cls:'num',grp:'ais',tip:'Surcharge over the next 12 months if you discount and hit the target pace.'},
-  {k:'ais1Saved',t:'Saved 1yr',cls:'num',grp:'ais',tip:'Surcharge avoided in year one = AIS 1yr hold − AIS 1yr disc.'},
-  {k:'aisLHold',t:'AIS to clear · hold',cls:'num',grp:'ais',tip:'Surcharge paid ALL THE WAY until the stock is gone at today’s pace. For slow SKUs this is far bigger than the 1-year figure — it is the real cost of holding.'},
-  {k:'aisLDisc',t:'AIS to clear · disc',cls:'num',grp:'ais',tip:'Surcharge paid until the stock is gone if you discount and hit the target pace.'},
-  {k:'aisLSaved',t:'Saved to clear',cls:'num',grp:'ais',tip:'Total surcharge escaped by clearing faster, over the whole life of this stock.'},
-
-  {k:'bestPct',t:'★ Best %',cls:'num',grp:'act',tip:'The discount that leaves THIS SKU with the most cash after the surcharge, found by testing 0-90% off. Not capped at the ceiling — it often lands lower, because once a smaller cut clears the stock, going deeper only gives away margin.'},
-  {k:'bestPrice',t:'★ Best $',cls:'num',grp:'act',tip:'THE SELLING PRICE at this SKU’s best percentage — what you would actually list it at. Compare it with Ceiling $ and Floor $: above the ceiling price you recover all your product cost, below the floor price every sale costs you cash.'},
-  {k:'netAtBest',t:'Net @ best',cls:'num',grp:'act',tip:'Net recovery achieved at that best percentage.'},
-  {k:'upliftX',t:'Lift needed',cls:'num',grp:'act',tip:'How many times faster we would have to sell to hit Target SV. 2x is a normal promotion; past 4x no discount realistically gets there.'},
-  {k:'reach',t:'Realistic?',cls:'',grp:'act',tip:'Whether Target SV is actually reachable. DEAD = barely selling at all. NOT REALISTIC / UNLIKELY = discounting will not clear this stock, so removal is the real option.'},
-  {k:'removalCost',t:'Cost to remove',cls:'num',grp:'act',tip:'Amazon’s own per-unit removal fee times the units held — what it costs to pull this stock out of the warehouse and stop the surcharge immediately.'},
-  {k:'removeGain',t:'Remove vs hold',cls:'num',grp:'act',tip:'How much better removing is than holding: (minus the removal fee) − (net if we hold). Positive means pulling the stock out beats leaving it there. No salvage or liquidation income is assumed, so the real figure can only be better.'},
-  {k:'action',t:'ACTION',cls:'',grp:'act',tip:'What to actually do. DISCOUNT when the lift is achievable and it pays. REMOVE when no realistic discount clears the stock and pulling it out beats bleeding surcharge. HOLD when it is already on pace or nothing improves on it.'},
-  {k:'discGiven',t:'Discount given',cls:'num',grp:'dec',tip:'Revenue given up = (price − deal price) × units sold.'},
-  {k:'netLHold',t:'Net if we hold',cls:'num',grp:'dec',tip:'Cash from units sold at full price, minus all the surcharge paid until the stock is gone.'},
-  {k:'netLDisc',t:'Net if we discount',cls:'num',grp:'dec',tip:'Cash from units sold at the deal price, minus the smaller surcharge, until the stock is gone.'},
-  {k:'deltaL',t:'Difference',cls:'num',grp:'dec',tip:'Net if we discount − net if we hold. Positive means discounting leaves more cash in your pocket even after the margin given up.'},
+  {k:'units',t:'AIS units',cls:'num',grp:'id',tip:'Units in long-term storage that the surcharge applies to.'},
+  {k:'alreadySold',t:'Already sold',cls:'num',grp:'id',tip:'Units sold so far in the tracking window.'},
+  {k:'price',t:'Price',cls:'num',grp:'id',tip:'Current selling price on Amazon.'},
+  /* ---- baseline: do nothing ---- */
+  {k:'svNow',t:'Current SV /mo',cls:'num',grp:'hold',tip:'Units sold per month today, from real daily sales history.'},
+  {k:'svTarget',t:'Target SV /mo',cls:'num',grp:'hold',tip:"Monthly pace needed to clear this SKU's aged stock inside a year."},
+  {k:'upliftX',t:'Lift needed ×',cls:'num',grp:'hold',tip:'Target SV ÷ current SV. 2× is a normal promotion; past 4× no discount realistically gets there.'},
+  {k:'reach',t:'Realistic?',cls:'',grp:'hold',tip:'onpace / ok / stretch / unlikely / no / dead — can any discount up to 90% actually reach the target pace?'},
+  {k:'moClearHold',t:'Mo to clear',cls:'num',grp:'hold',tip:"Months to clear at today's pace. Blank = never clears inside 36 months."},
+  {k:'ais1Hold',t:'AIS 1yr',cls:'num',grp:'hold',tip:'Surcharge over the next 12 months if you change nothing.'},
+  {k:'aisLHold',t:'AIS to clear',cls:'num',grp:'hold',tip:"Surcharge paid until the stock is gone at today's pace — the real cost of holding."},
+  {k:'netLHold',t:'Net to clear',cls:'num',grp:'hold',tip:'Cash from full-price sales minus all surcharge until the stock is gone.'},
+  /* ---- the three scenarios ---- */
+  ...scenCols('ceil'),
+  ...scenCols('flr'),
+  ...scenCols('best'),
+  /* ---- verdict ---- */
+  {k:'winner',t:'Winner',cls:'',grp:'ver',tip:'Which of HOLD / CEILING / FLOOR / BEST leaves the most cash (net to clear).'},
+  {k:'bestNet',t:'Best net',cls:'num',grp:'ver',tip:'Net to clear under the winning scenario.'},
+  {k:'gainVsHold',t:'Gain vs HOLD',cls:'num',grp:'ver',tip:"Winner's net minus HOLD net. What the right move is worth on this SKU."},
+  {k:'bestZone',t:'Best % zone',cls:'',grp:'ver',tip:"Where Scenario 3's percentage sits. SAFE = at or under the ceiling, all product cost comes back. THIN = past the ceiling but above the floor. OUT-OF-POCKET = past the floor, every sale costs you cash — the optimiser goes there when escaping the surcharge is worth more than the loss per unit."},
+  {k:'removalCost',t:'Cost to remove',cls:'num',grp:'ver',tip:"Amazon's removal fee × units — cost to pull the stock out and stop the surcharge now."},
+  {k:'removeGain',t:'Remove vs hold',cls:'num',grp:'ver',tip:'(−removal fee) − HOLD net. Positive = pulling the stock out beats leaving it there. Compare against Gain vs HOLD.'},
+  {k:'action',t:'ACTION',cls:'',grp:'ver',tip:'DISCOUNT when the lift is achievable and it pays. REMOVE when no realistic discount clears it and pulling out beats holding. HOLD otherwise.'},
 ];
-const SIM_GROUPS={id:'SKU · aged stock',gr:'Ceiling & floor',pay:'Payout',sv:'Sales velocity',ais:'Surcharge (AIS)',act:'Reality check & action',dec:'Discount economics'};
+const SIM_GROUPS={id:'SKU · aged stock',hold:'Baseline — HOLD (no discount)',
+  ceil:'Scenario 1 — Ceiling % off  (recovers 100% of COGS)',
+  flr:'Scenario 2 — Floor % off  (payout falls to zero)',
+  best:'Scenario 3 — Best % off  (max net recovery)',
+  ver:'Verdict'};
 let simSortKey='aisLHold', simSortDir=-1, simView=[];
 function simCell(r,k){
+  /* Scenario blocks (ceil.* / flr.* / best.*) share one renderer, because they
+     share one shape — that is what lets the three read straight across. */
+  if(k.indexOf('.')>0){
+    const p=k.split('.'), s=r.sc&&r.sc[p[0]];
+    if(!s) return dash;
+    switch(p[1]){
+      case 'disc':   return s.disc>0?`<b>${pct1(s.disc)}</b>`:'<span class=muted>0%</span>';
+      case 'sell':   return money2(s.sell);
+      case 'pay':    return s.pay<0?`<span class="neg">${money2(s.pay)}</span>`:money2(s.pay);
+      case 'rec':    return s.rec==null?dash
+                       :`<span class="${s.rec>=1?'pos':(s.rec>=.5?'':'neg')}">${pct0(s.rec)}</span>`;
+      case 'sold':   return fmt(Math.round(s.sold));
+      case 'mo':     return !isFinite(s.mo)?'<span class="muted" title="does not clear inside 36 months">—</span>':fmt(s.mo);
+      case 'payout': return money(s.payout);
+      case 'given':  return s.given>0?`<span class="neg">${money(s.given)}</span>`:dash;
+      case 'ais1':   return money(s.ais1);
+      case 'aisL':   return money(s.aisL);
+      case 'saved':  return s.saved>0?`<span class="pos">${money(s.saved)}</span>`:money(s.saved);
+      case 'net1':   return moneyS(s.net1);
+      case 'netL':   return `<b>${moneyS(s.netL)}</b>`;
+      case 'vsHold': return `<span class="${s.vsHold>=0?'pos':'neg'}">${moneyS(s.vsHold)}</span>`;
+    }
+    return dash;
+  }
   switch(k){
+    case 'winner': { const M={HOLD:'v-na',CEILING:'v-run',FLOOR:'v-cost',BEST:'v-run'};
+      return `<span class="badge ${M[r.winner]||'v-na'}">${r.winner}</span>`; }
+    case 'bestNet': return `<b>${moneyS(r.bestNet)}</b>`;
+    case 'gainVsHold': return `<span class="${r.gainVsHold>=0?'pos':'neg'}">${moneyS(r.gainVsHold)}</span>`;
+    case 'bestZone': { const M={'SAFE':'v-run','THIN':'v-cost','OUT-OF-POCKET':'v-skip'};
+      return r.bestZone?`<span class="badge ${M[r.bestZone]||'v-na'}">${r.bestZone}</span>`:dash; }
+    case 'removalCost': return r.removalCost>0?money(r.removalCost):dash;
+    case 'removeGain': return `<span class="${r.removeGain>=0?'pos':'neg'}">${moneyS(r.removeGain)}</span>`;
     case 'sku': return `<span class="sku">${r.sku}</span>`;
     case 'tag': return `<span class="tagchip">${r.tag}</span>`;
     case 'size': return r.size||dash;

@@ -675,6 +675,7 @@
         <table><thead><tr>
           <th data-tip="The four choices available to us, each priced with every SKU at its own percentage rather than one blended number.">Option <span class="hint">?</span></th>
           <th class="num" data-tip="Average discount actually applied, weighted by units.">Avg % off <span class="hint">?</span></th>
+          <th class="num" data-tip="Average selling price you would list at under this option, weighted by units. Compare with the full price to see what you are giving up.">Avg price <span class="hint">?</span></th>
           <th class="num" data-tip="Cash collected after Amazon's referral and FBA fees, on the units we actually sell.">Cash collected <span class="hint">?</span></th>
           <th class="num" data-tip="Total surcharge paid until the stock is gone.">Surcharge paid <span class="hint">?</span></th>
           <th class="num" data-tip="Revenue given up to run the discount.">Discount given <span class="hint">?</span></th>
@@ -2242,8 +2243,8 @@ function computeSim(){
     nRemove:0,removeUnits:0,removeCost:0,removeGain:0,removeAis:0,
     cleared1:0,clearedL:0,left1:0,svNow:0,svTarget:0,
     /* the four levers, totalled for the comparison panel */
-    cmp:{none:{net:0,cash:0,ais:0,disc:0,w:0},ceiling:{net:0,cash:0,ais:0,disc:0,w:0},
-         floor:{net:0,cash:0,ais:0,disc:0,w:0},best:{net:0,cash:0,ais:0,disc:0,w:0}}};
+    cmp:{none:{net:0,cash:0,ais:0,disc:0,w:0,pw:0},ceiling:{net:0,cash:0,ais:0,disc:0,w:0,pw:0},
+         floor:{net:0,cash:0,ais:0,disc:0,w:0,pw:0},best:{net:0,cash:0,ais:0,disc:0,w:0,pw:0}}};
   simScopeSkus(p).forEach(x=>{
     const seed=skuSeed9(x), units=seed.reduce((s,v)=>s+v,0);
     const rate=skuRates9(x);
@@ -2288,7 +2289,7 @@ function computeSim(){
     const r={
       sku:x.sku,tag:x.tag,size:x.size,units,alreadySold:x.totalSold||0,
       price,cogs:x.cogs,fba:x.fba,
-      ceiling,floor,ceilPrice,floorPrice,bestPct:best.disc,
+      ceiling,floor,ceilPrice,floorPrice,bestPct:best.disc,bestPrice:price*(1-best.disc),
       discPct:dApp,dealP,payout:disc.pay,totalPayout,amazonFee,
       recovery:(x.cogs>0&&price>0)?disc.pay/x.cogs:null,
       zone:price<=0?'na':(dApp<=ceiling?'safe':(dApp<=floor?'thin':'oop')),
@@ -2309,7 +2310,7 @@ function computeSim(){
     /* ---- four-lever comparison, each SKU at its OWN percentage ---- */
     const add=(key,d,a)=>{const c=agg.cmp[key];
       c.net+=a.netL; c.cash+=a.pay*a.r.soldL; c.ais+=a.r.totL;
-      c.disc+=(price-price*(1-d))*a.r.soldL; c.w+=d*units;};
+      c.disc+=(price-price*(1-d))*a.r.soldL; c.w+=d*units; c.pw+=price*(1-d)*units;};
     add('none',0,hold);
     add('ceiling',ceiling,ceiling===dApp?disc:skuAt(x,seed,rate,velHold,m1,ceiling,p.ref));
     add('floor',floor,floor===dApp?disc:skuAt(x,seed,rate,velHold,m1,floor,p.ref));
@@ -2350,6 +2351,7 @@ function renderCompare(S){
       <td><b${win?' style="color:var(--accent)"':''}>${label}</b>${win?' <span class="badge v-run">BEST</span>':''}
         <div class="muted" style="font-size:11px;font-weight:400">${note}</div></td>
       <td class="num">${k==='none'?'<span class=muted>—</span>':pct1(c.w/gw)}</td>
+      <td class="num">${money2(c.pw/gw)}</td>
       <td class="num">${money(c.cash)}</td>
       <td class="num"><span class="${c.ais>0?'neg':''}">${money(c.ais)}</span></td>
       <td class="num">${k==='none'?'<span class=muted>—</span>':money(c.disc)}</td>
@@ -2440,8 +2442,8 @@ const SIM_COLS=[
   {k:'floor',t:'Floor %',cls:'num',grp:'gr',tip:'THE FLOOR: the discount at which your payout is exactly zero — you neither gain nor pay. Go past it and you are paying Amazon out of your own pocket.'},
   {k:'floorPrice',t:'Floor $',cls:'num',grp:'gr',tip:'The price at the floor = FBA ÷ (1 − referral). Below this every sale costs you cash.'},
 
-  {k:'discPct',t:'Disc %',cls:'num',grp:'pay',tip:'The discount you set above, applied to this SKU.'},
-  {k:'dealP',t:'Deal $',cls:'num',grp:'pay',tip:'Selling price after your discount = price × (1 − discount).'},
+  {k:'discPct',t:'Applied %',cls:'num',grp:'pay',tip:'The discount actually applied to THIS SKU under the current basis — the flat box, or the SKU’s own ceiling / floor / best percentage.'},
+  {k:'dealP',t:'Selling price',cls:'num',grp:'pay',tip:'THE PRICE YOU WOULD LIST AT under the current basis = price × (1 − applied %). Switch Discount basis to ★ Best and this becomes the best-percentage selling price.'},
   {k:'amazonFee',t:'Amazon takes',cls:'num',grp:'pay',tip:'Total paid to Amazon on the units sold — referral fee on the deal price plus the FBA fulfilment fee.'},
   {k:'payout',t:'Payout / unit',cls:'num',grp:'pay',tip:'NET IN YOUR HAND per unit = deal price − referral − FBA. Product cost is not deducted because it is already spent.'},
   {k:'totalPayout',t:'Total payout',cls:'num',grp:'pay',tip:'Payout per unit × units sold — the total cash this SKU puts back in your hand.'},
@@ -2459,6 +2461,7 @@ const SIM_COLS=[
   {k:'aisLSaved',t:'Saved to clear',cls:'num',grp:'ais',tip:'Total surcharge escaped by clearing faster, over the whole life of this stock.'},
 
   {k:'bestPct',t:'★ Best %',cls:'num',grp:'act',tip:'The discount that leaves THIS SKU with the most cash after the surcharge, found by testing 0-90% off. Not capped at the ceiling — it often lands lower, because once a smaller cut clears the stock, going deeper only gives away margin.'},
+  {k:'bestPrice',t:'★ Best $',cls:'num',grp:'act',tip:'THE SELLING PRICE at this SKU’s best percentage — what you would actually list it at. Compare it with Ceiling $ and Floor $: above the ceiling price you recover all your product cost, below the floor price every sale costs you cash.'},
   {k:'netAtBest',t:'Net @ best',cls:'num',grp:'act',tip:'Net recovery achieved at that best percentage.'},
   {k:'upliftX',t:'Lift needed',cls:'num',grp:'act',tip:'How many times faster we would have to sell to hit Target SV. 2x is a normal promotion; past 4x no discount realistically gets there.'},
   {k:'reach',t:'Realistic?',cls:'',grp:'act',tip:'Whether Target SV is actually reachable. DEAD = barely selling at all. NOT REALISTIC / UNLIKELY = discounting will not clear this stock, so removal is the real option.'},
@@ -2502,6 +2505,8 @@ function simCell(r,k){
     case 'netLDisc': return `<span class="${r.netLDisc>=0?'pos':'neg'}">${m2(r.netLDisc)}</span>`;
     case 'deltaL': return `<b class="${r.deltaL>=0?'pos':'neg'}">${m2(r.deltaL)}</b>`;
     case 'bestPct': return `<b style="color:var(--accent)">${pct0(r.bestPct)}</b>`;
+    case 'bestPrice': { const zc=r.bestPct<=r.ceiling?'pos':(r.bestPct<=r.floor?'':'neg');
+      return r.price?`<b class="${zc}">${money2(r.bestPrice)}</b>`:dash; }
     case 'netAtBest': return `<span class="${r.netAtBest>=0?'pos':'neg'}">${m2(r.netAtBest)}</span>`;
     case 'upliftX': return !isFinite(r.upliftX)?'<span class="flag" title="no sales at all">∞</span>'
       :(r.upliftX<=1.01?'<span class="pos">on pace</span>'

@@ -4,6 +4,11 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>LTSF / Aged-Inventory Surcharge Dashboard</title>
+<!-- Favicon: a storage carton with an ageing dial on it — the whole tool in one
+     mark. Inline SVG data-URI so it needs no extra file and survives the
+     single-file deploy. Ember amber on the app's own charcoal. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231a1610'/%3E%3Cpath d='M12 22l20-9 20 9-20 9-20-9z' fill='%23cc8829'/%3E%3Cpath d='M12 22v20l20 9V31L12 22z' fill='%23a86f1d'/%3E%3Cpath d='M52 22v20l-20 9V31l20-9z' fill='%23e0a94a'/%3E%3Ccircle cx='45' cy='45' r='12' fill='%23100d0a'/%3E%3Ccircle cx='45' cy='45' r='9.5' fill='none' stroke='%23f5d547' stroke-width='2.5'/%3E%3Cpath d='M45 39.5V45l3.5 3.5' fill='none' stroke='%23f5d547' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+<meta name="theme-color" content="#100d0a" />
 <style>
   /* ============================================================
      EMBER — warm amber on toasted charcoal.
@@ -518,6 +523,49 @@
     border-bottom:1px solid var(--accent);white-space:nowrap;cursor:default}
   tr.totrow th .tl{color:var(--accent);font-size:10px;letter-spacing:.7px;text-transform:uppercase;display:block}
   tr.totrow+tr th{top:31px;z-index:3}
+
+  /* ============================================================
+     DECISION-ENGINE TABLE — making 63 columns readable.
+     Each of the six blocks gets its own faint wash and a hard rule on its
+     left edge, so the eye can find "where does Ceiling end and Floor begin"
+     without reading a single number. The washes are barely-there on purpose:
+     they separate, they don't decorate, and the numbers stay the loudest
+     thing on screen.
+     ============================================================ */
+  #viewProj table td.g-id,     #viewProj table th.g-id     {background:rgba(255,255,255,.022)}
+  #viewProj table td.g-hold,   #viewProj table th.g-hold   {background:rgba(148,139,124,.075)}
+  #viewProj table td.g-ceil,   #viewProj table th.g-ceil   {background:rgba(46,168,106,.075)}
+  #viewProj table td.g-flr,    #viewProj table th.g-flr    {background:rgba(226,86,79,.070)}
+  #viewProj table td.g-best,   #viewProj table th.g-best   {background:rgba(204,136,41,.095)}
+  #viewProj table td.g-ver,    #viewProj table th.g-ver    {background:rgba(155,90,217,.085)}
+  /* the divider the eye actually follows */
+  #viewProj table td.g-hold:first-of-type{}
+  #viewProj table th.g-hold, #viewProj table td.g-hold,
+  #viewProj table th.g-ceil, #viewProj table td.g-ceil,
+  #viewProj table th.g-flr,  #viewProj table td.g-flr,
+  #viewProj table th.g-best, #viewProj table td.g-best,
+  #viewProj table th.g-ver,  #viewProj table td.g-ver{border-left:0}
+  #viewProj table th.g-hold:first-child,#viewProj table td.g-hold:first-of-type{border-left:2px solid var(--line)}
+  /* a real rule at every block boundary, header and body alike */
+  #viewProj table .g-hold.blk,#viewProj table .g-ceil.blk,#viewProj table .g-flr.blk,
+  #viewProj table .g-best.blk,#viewProj table .g-ver.blk{border-left:2px solid rgba(255,255,255,.22)}
+  #viewProj table tr.totrow th.blk{border-left:2px solid rgba(255,255,255,.22)}
+  /* group header band: colour-coded, so the block label reads as a heading */
+  #viewProj table th.grp{font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;
+    font-weight:800;text-align:center;padding:7px 8px;color:var(--txt)}
+  #viewProj table th.grp.g-ceil{color:#4fd894}
+  #viewProj table th.grp.g-flr {color:#f08078}
+  #viewProj table th.grp.g-best{color:var(--accent)}
+  #viewProj table th.grp.g-ver {color:#b98ae6}
+  #viewProj table th.grp.g-hold{color:var(--muted)}
+
+  /* Freeze the SKU name while you scroll 63 columns sideways — without it you
+     lose track of which row you are reading three blocks in. */
+  #viewProj table th.g-id:first-child,#viewProj table td.g-id:first-child{
+    position:sticky;left:0;z-index:3;min-width:210px;
+    box-shadow:2px 0 0 rgba(255,255,255,.10)}
+  #viewProj table thead th.g-id:first-child{z-index:6}
+  #viewProj table tbody tr:hover td{background-image:linear-gradient(rgba(204,136,41,.10),rgba(204,136,41,.10))}
 
   /* ============================================================
      MOBILE / RESPONSIVE  — comfortable on a phone
@@ -2704,6 +2752,8 @@ const SIM_GROUPS={id:'SKU · aged stock',hold:'Baseline — HOLD (no discount)',
   flr:'Scenario 2 — Floor % off  (payout falls to zero)',
   best:'Scenario 3 — Best % off  (max net recovery)',
   ver:'Verdict'};
+/* mark each block's leading column so the divider rule lands on it */
+(()=>{let _g=null;SIM_COLS.forEach(c=>{c.blk=(c.grp!==_g);_g=c.grp;});})();
 let simSortKey='aisLHold', simSortDir=-1, simView=[];
 function simCell(r,k){
   /* Scenario blocks (ceil.* / flr.* / best.*) share one renderer, because they
@@ -2830,17 +2880,17 @@ function renderSimTable(S){
   const rows=simView=simFiltered(S);
   renderSubtotals(rows);
   let g='',run=null,span=0;
-  SIM_COLS.forEach(c=>{ if(c.grp!==run){ if(run) g+=`<th colspan="${span}" class="grp">${SIM_GROUPS[run]||''}</th>`; run=c.grp; span=0; } span++; });
-  if(run) g+=`<th colspan="${span}" class="grp">${SIM_GROUPS[run]||''}</th>`;
+  SIM_COLS.forEach(c=>{ if(c.grp!==run){ if(run) g+=`<th colspan="${span}" class="grp g-${run}">${SIM_GROUPS[run]||''}</th>`; run=c.grp; span=0; } span++; });
+  if(run) g+=`<th colspan="${span}" class="grp g-${run}">${SIM_GROUPS[run]||''}</th>`;
   document.getElementById('simGroupHead').innerHTML=g;
   document.getElementById('simHead').innerHTML=SIM_COLS.map(c=>{
     const arr=simSortKey===c.k?`<span class="sortarrow">${simSortDir<0?'▼':'▲'}</span>`:'';
-    return `<th class="${c.cls.includes('num')?'num':''}" data-k="${c.k}"${c.tip?` data-tip="${c.tip.replace(/"/g,'&quot;')}"`:''}>${c.t} ${arr}${c.tip?' <span class="hint">?</span>':''}</th>`;
+    return `<th class="${c.cls.includes('num')?'num':''} g-${c.grp}${c.blk?" blk":""}" data-k="${c.k}"${c.tip?` data-tip="${c.tip.replace(/"/g,'&quot;')}"`:''}>${c.t} ${arr}${c.tip?' <span class="hint">?</span>':''}</th>`;
   }).join('');
   document.querySelectorAll('#simHead th').forEach(th=>th.onclick=()=>{
     const k=th.dataset.k; if(simSortKey===k) simSortDir*=-1; else {simSortKey=k; simSortDir=(k==='sku'||k==='tag'||k==='size'||k==='verdict')?1:-1;}
     renderSimTable(_lastSim);});
-  document.getElementById('simBody').innerHTML=rows.map(r=>'<tr>'+SIM_COLS.map(c=>`<td class="${c.cls.includes('num')?'num':''}">${simCell(r,c.k)}</td>`).join('')+'</tr>').join('')
+  document.getElementById('simBody').innerHTML=rows.map(r=>'<tr>'+SIM_COLS.map(c=>`<td class="${c.cls.includes('num')?'num':''} g-${c.grp}${c.blk?" blk":""}">${simCell(r,c.k)}</td>`).join('')+'</tr>').join('')
     ||`<tr><td colspan="${SIM_COLS.length}" class="muted" style="padding:24px;text-align:center">No SKUs match.</td></tr>`;
 }
 let _lastSim=null, _simRaf=0;

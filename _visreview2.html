@@ -40,9 +40,8 @@
   .kpi.hero{border-color:rgba(229,83,75,.5);background:linear-gradient(180deg,#221a1c,var(--panel))}
 
   /* layout panels */
-  /* minmax(0,…) so wide children (charts/tables) can't blow the grid past the viewport */
-  .grid2{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px;margin-bottom:20px}
-  @media(max-width:980px){.grid2{grid-template-columns:minmax(0,1fr)}}
+  .grid2{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-bottom:20px}
+  @media(max-width:980px){.grid2{grid-template-columns:1fr}}
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
   .panel h3{margin:0 0 14px;font-size:13px;font-weight:600;color:var(--txt);letter-spacing:.3px}
 
@@ -373,10 +372,6 @@
   /* range slider accent */
   input[type=range]{accent-color:var(--accent)}
 
-  /* wide chart/table children must scroll inside their panel, never widen the page */
-  .panel{min-width:0}
-  #simChart{overflow-x:auto;-webkit-overflow-scrolling:touch}
-
   /* ============================================================
      MOBILE / RESPONSIVE  — comfortable on a phone
      ============================================================ */
@@ -403,7 +398,7 @@
     .filters input,.filters select{font-size:12.5px;padding:7px 9px}
     .filters input[type=search]{min-width:0;flex:1 1 140px}
     .filters .spacer{display:none}
-    .grid2{grid-template-columns:minmax(0,1fr);gap:12px}
+    .grid2{grid-template-columns:1fr;gap:12px}
     /* vertical column charts scroll sideways rather than collapsing */
     #parentChart,#dailyChart,#simChart{overflow-x:auto;-webkit-overflow-scrolling:touch}
     #parentChart .agehist,#dailyChart .agehist{min-width:560px}
@@ -2148,7 +2143,7 @@ function skuRates9(x){
 }
 /* FIFO roll-forward, sheet convention: month 1 charged on opening (= Amazon's current bill),
    months 2+ age one bracket, sell oldest-first, then charge month-end closing inventory. */
-function rollMonthlyFIFO(seed,rate,vel,horizon,m1Charge){
+function rollMonthlyFIFO(seed,rate,vel,horizon){
   const chargeOf=b=>{let c=0;for(let i=1;i<b.length;i++)c+=b[i]*rate[i];return c;};
   const sellFrom=(b,v)=>{let s=v;for(let i=b.length-1;i>=0&&s>1e-9;i--){const t=Math.min(b[i],s);b[i]-=t;s-=t;}return v-s;};
   const ageUp=b=>{const nb=new Array(b.length).fill(0);for(let i=1;i<b.length-1;i++)nb[i]=b[i-1];nb[b.length-1]=b[b.length-2]+b[b.length-1];return nb;};
@@ -2156,26 +2151,12 @@ function rollMonthlyFIFO(seed,rate,vel,horizon,m1Charge){
   for(let m=1;m<=horizon;m++){
     if(m>1) b=ageUp(b);
     const open=b.reduce((s,v)=>s+v,0);
-    let charge,sold,bandCh;
-    if(m===1){
-      /* Month 1 = Amazon's own estimate for the current cycle (matches the workbook's
-         Point-0 charge and the $52,311 shown on the Overview tab). Bands Amazon prices
-         at $0 this cycle contribute $0 — don't fabricate a rate-card charge for them. */
-      bandCh=b.map((u,i)=>i===0?0:u*rate[i]);
-      const derived=bandCh.reduce((s,v)=>s+v,0);
-      if(m1Charge!=null){
-        charge=m1Charge;
-        const k=derived>0?m1Charge/derived:0;       // scale the band split to Amazon's total
-        bandCh=bandCh.map(v=>v*k);
-      } else charge=derived;
-      sold=sellFrom(b,vel);
-    } else {
-      sold=sellFrom(b,vel);
-      bandCh=b.map((u,i)=>i===0?0:u*rate[i]);
-      charge=bandCh.reduce((s,v)=>s+v,0);
-    }
+    let charge,sold;
+    if(m===1){ charge=chargeOf(b); sold=sellFrom(b,vel); }
+    else     { sold=sellFrom(b,vel); charge=chargeOf(b); }
     total+=charge;
-    months.push({open,sold,close:open-sold,charge,bands:b.slice(),bandCharges:bandCh});
+    months.push({open,sold,close:open-sold,charge,bands:b.slice(),
+      bandCharges:b.map((u,i)=>i===0?0:u*rate[i])});
   }
   return {months,total};
 }
@@ -2197,7 +2178,7 @@ function computeSim(){
   const p=simParams();
   const rows=[]; const hor=p.hor;
   const agg={units:0,skus:0,aisBase:0,aisScen:0,discGiven:0,nrNo:0,nrD:0,
-    payoutW:0,cogsW:0,ceilW:0,floorW:0,gwUnits:0,adjW:0,soldScen:0,
+    payoutW:0,cogsW:0,ceilW:0,floorW:0,adjW:0,soldScen:0,
     mHold:new Array(hor).fill(0),mDisc:new Array(hor).fill(0),
     mOpen:new Array(hor).fill(0),mSold:new Array(hor).fill(0),mClose:new Array(hor).fill(0),
     mBands:Array.from({length:hor},()=>new Array(9).fill(0)),
@@ -2207,9 +2188,8 @@ function computeSim(){
     const rate=skuRates9(x);
     const velBase=x.origMonthly>0?x.origMonthly:(x.svDay>0?x.svDay*30:0);
     const velScen=velBase*(1+p.up);
-    const m1=x.ais>0?x.ais:null;          // Amazon's stated charge for the current cycle
-    const base=rollMonthlyFIFO(seed,rate,velBase,hor,m1);
-    const scen=rollMonthlyFIFO(seed,rate,velScen,hor,m1);
+    const base=rollMonthlyFIFO(seed,rate,velBase,hor);
+    const scen=rollMonthlyFIFO(seed,rate,velScen,hor);
     const price=x.price, adjP=price*(1-p.disc);
     const payN=price*(1-p.ref)-x.fba, payD=adjP*(1-p.ref)-x.fba;
     const ceiling=price>0?1-(x.cogs+x.fba)/((1-p.ref)*price):0;
@@ -2218,7 +2198,7 @@ function computeSim(){
     const soldScen=scen.months.reduce((s,m)=>s+m.sold,0);
     const r={sku:x.sku,tag:x.tag,size:x.size,units,price,adjP,ceiling,floor,
       zone:price<=0?'na':(p.disc<=ceiling?'safe':(p.disc<=floor?'thin':'oop')),
-      payout:payD,recovery:(x.cogs>0&&price>0)?payD/x.cogs:null,
+      payout:payD,recovery:x.cogs>0?payD/x.cogs:null,
       velBase,velScen,mcScen:velScen>0?Math.ceil(units/velScen):Infinity,
       aisBase:base.total,aisScen:scen.total,saved:base.total-scen.total,
       discGiven:(price-adjP)*units,nrNo,nrD,delta:nrD-nrNo,soldScen,
@@ -2227,8 +2207,7 @@ function computeSim(){
     agg.units+=units; agg.skus++;
     agg.aisBase+=base.total; agg.aisScen+=scen.total;
     agg.discGiven+=r.discGiven; agg.nrNo+=nrNo; agg.nrD+=nrD; agg.soldScen+=soldScen;
-    agg.payoutW+=payD*units; agg.cogsW+=x.cogs*units; agg.adjW+=adjP*units;
-    if(price>0){ agg.ceilW+=ceiling*units; agg.floorW+=floor*units; agg.gwUnits+=units; }   // priced SKUs only
+    agg.payoutW+=payD*units; agg.cogsW+=x.cogs*units; agg.ceilW+=ceiling*units; agg.floorW+=floor*units; agg.adjW+=adjP*units;
     for(let m=0;m<hor;m++){
       agg.mHold[m]+=base.months[m].charge; agg.mDisc[m]+=scen.months[m].charge;
       agg.mOpen[m]+=scen.months[m].open; agg.mSold[m]+=scen.months[m].sold; agg.mClose[m]+=scen.months[m].close;
@@ -2247,8 +2226,7 @@ function simMonthNames(hor){
 function renderSimKpis(S){
   const {p,agg}=S;
   const u=agg.units||1;
-  const gu=agg.gwUnits||u;
-  const wCeil=agg.ceilW/gu, wFloor=agg.floorW/gu, wAdj=agg.adjW/u;
+  const wCeil=agg.ceilW/u, wFloor=agg.floorW/u, wAdj=agg.adjW/u;
   const wPay=agg.payoutW/u, rec=agg.cogsW>0?agg.payoutW/agg.cogsW:null;
   const saved=agg.aisBase-agg.aisScen, delta=agg.nrD-agg.nrNo;
   const zone=p.disc<=wCeil?['good','within full-COGS ceiling']:(p.disc<=wFloor?['warn','partial COGS recovery']:['alert','OUT OF POCKET — past floor']);
@@ -2743,9 +2721,9 @@ document.getElementById('simParent').addEventListener('change',()=>{ populateSim
   el.addEventListener('input',renderSim); el.addEventListener('change',renderSim);});
 document.getElementById('engRef').addEventListener('input',renderSim);
 document.getElementById('simUseCeil').onclick=()=>{ const S=_lastSim; if(!S||!S.agg.units) return;
-  document.getElementById('simDisc').value=Math.max(0,Math.floor(S.agg.ceilW/(S.agg.gwUnits||S.agg.units)*100)); renderSim(); };
+  document.getElementById('simDisc').value=Math.max(0,Math.floor(S.agg.ceilW/S.agg.units*100)); renderSim(); };
 document.getElementById('simUseFloor').onclick=()=>{ const S=_lastSim; if(!S||!S.agg.units) return;
-  document.getElementById('simDisc').value=Math.max(0,Math.floor(S.agg.floorW/(S.agg.gwUnits||S.agg.units)*100)); renderSim(); };
+  document.getElementById('simDisc').value=Math.max(0,Math.floor(S.agg.floorW/S.agg.units*100)); renderSim(); };
 document.getElementById('exportSim').onclick=exportSimCSV;
 
 /* ---- tracking wireup ---- */
@@ -2796,5 +2774,21 @@ document.addEventListener('pointerdown',e=>{
 /* ---- go ---- */
 initLTSF();
 </script>
-</body>
+<script>window.addEventListener("load",()=>{var t=document.querySelector("[data-tab=proj]");if(t)t.click();
+setTimeout(()=>{
+ var w=document.documentElement.clientWidth;
+ var out=['docScrollW='+document.documentElement.scrollWidth,'clientW='+w,'bodyScrollW='+document.body.scrollWidth];
+ var offenders=[];
+ document.querySelectorAll('#viewProj *').forEach(el=>{
+   var r=el.getBoundingClientRect();
+   if(r.right>w+1 && r.width>0 && r.height>0){
+     var p=el,inScroll=false;
+     while(p && p!==document.body){var cs=getComputedStyle(p);if((cs.overflowX==='auto'||cs.overflowX==='scroll')&&p.scrollWidth>p.clientWidth+1){inScroll=true;break;}p=p.parentElement;}
+     if(!inScroll)offenders.push(el.tagName+'.'+(el.className||'').toString().split(' ')[0]+'#'+(el.id||'')+' right='+Math.round(r.right));
+   }
+ });
+ var d=document.createElement('pre');d.id='diagout';d.textContent=out.join('|')+'||OFFENDERS('+offenders.length+'): '+offenders.slice(0,40).join(' ; ');
+ document.body.appendChild(d);
+},1500);
+})</script></body>
 </html>

@@ -664,10 +664,17 @@
       <div class="filters">
         <h3 style="margin:0">Per-SKU detail</h3>
         <input type="search" id="simSearch" placeholder="Search SKU…" />
-        <select id="simVerdict">
-          <option value="">All SKUs</option>
-          <option value="disc">🏷️ Discount recovers more</option>
-          <option value="hold">⏳ Hold recovers more</option>
+        <select id="simAction">
+          <option value="">All actions</option>
+          <option value="discount">🏷️ Discount — worth doing</option>
+          <option value="remove">🚚 Remove / liquidate — cannot be discounted out</option>
+          <option value="hold">⏳ Hold — leave it alone</option>
+        </select>
+        <select id="simReach">
+          <option value="">Any reachability</option>
+          <option value="ok">🟢 Target is realistic</option>
+          <option value="stretch">🟡 Target is a stretch</option>
+          <option value="bad">🔴 Target out of reach / dead</option>
         </select>
         <select id="simZone">
           <option value="">Any discount depth</option>
@@ -2176,6 +2183,7 @@ function computeSim(){
     ais1Hold:0,ais1Disc:0,aisLHold:0,aisLDisc:0,
     payout:0,payoutW:0,cogsW:0,ceilW:0,floorW:0,gw:0,
     discGiven:0,net1Hold:0,net1Disc:0,netLHold:0,netLDisc:0,
+    nRemove:0,removeUnits:0,removeCost:0,removeGain:0,removeAis:0,
     cleared1:0,clearedL:0,left1:0,svNow:0,svTarget:0};
   simScopeSkus(p).forEach(x=>{
     const seed=skuSeed9(x), units=seed.reduce((s,v)=>s+v,0);
@@ -2195,6 +2203,30 @@ function computeSim(){
     const dealP=price*(1-p.disc);
     const totalPayout=disc.pay*disc.r.soldL;            // cash in hand over the clearance
     const amazonFee=(dealP*p.ref+x.fba)*disc.r.soldL;   // what Amazon takes on those units
+
+    /* ---- REALITY CHECK -------------------------------------------------------
+       Target SV is arithmetic (units / 12). For a SKU selling 1.2/month it demands
+       a 30x lift, which no discount delivers. Grade how big the ask is, and when it
+       is out of reach price the real alternative: pull the stock out of Amazon.
+       Removing stops every future surcharge immediately; the cost is Amazon's own
+       per-unit removal fee from the workbook. No salvage value is assumed. */
+    const upliftX = velHold>0 ? velTarget/velHold : Infinity;
+    let reach;
+    if(velHold<=0.02)      reach='dead';        // effectively no sales at all
+    else if(upliftX<=1.01) reach='onpace';      // already clearing in time
+    else if(upliftX<=2)    reach='ok';          // a normal promotion can do this
+    else if(upliftX<=4)    reach='stretch';     // deep discount + ads, but possible
+    else if(upliftX<=10)   reach='unlikely';
+    else                   reach='no';
+    const canDiscount = (reach==='onpace'||reach==='ok'||reach==='stretch');
+    const removalCost = x.removalRate>0 ? x.removalRate*units : (x.removalCost||0);
+    // hold nets cash minus surcharge; removing nets minus the removal fee and nothing else
+    const removeNet   = -removalCost;
+    const removeGain  = removeNet - hold.netL;          // >0 means removal beats holding
+    let action;
+    if(reach==='onpace')      action='hold';
+    else if(canDiscount)      action = (disc.netL>hold.netL) ? 'discount' : 'hold';
+    else                      action = (removeGain>0) ? 'remove' : 'hold';
     const r={
       sku:x.sku,tag:x.tag,size:x.size,units,alreadySold:x.totalSold||0,
       price,cogs:x.cogs,fba:x.fba,
@@ -2212,6 +2244,7 @@ function computeSim(){
       net1Hold:hold.net1,net1Disc:disc.net1,netLHold:hold.netL,netLDisc:disc.netL,
       delta1:disc.net1-hold.net1,deltaL:disc.netL-hold.netL,
       verdict:(disc.netL>hold.netL)?'disc':'hold',
+      upliftX,reach,canDiscount,removalCost,removeGain,action,
     };
     rows.push(r);
     agg.units+=units; agg.skus++; agg.sold+=r.alreadySold;
@@ -2224,6 +2257,8 @@ function computeSim(){
     agg.cleared1+=r.cleared1; agg.clearedL+=r.clearedL; agg.left1+=r.left1;
     agg.svNow+=r.svNow; agg.svTarget+=r.svTarget;
     if(price>0){ agg.ceilW+=ceiling*units; agg.floorW+=floor*units; agg.gw+=units; }
+    if(r.action==='remove'){ agg.nRemove++; agg.removeUnits+=units; agg.removeCost+=removalCost;
+      agg.removeGain+=removeGain; agg.removeAis+=r.aisLHold; }
   });
   return {p,rows,agg};
 }
@@ -2251,6 +2286,8 @@ function renderSimKpis(S){
     {label:'AIS saved — to clear',val:money(agg.aisLHold-agg.aisLDisc),cls:'good',
       sub:'hold '+money(agg.aisLHold)+' → '+money(agg.aisLDisc)},
     {label:'Discount given',val:money(agg.discGiven),cls:'warn',sub:'(price − deal) × units sold'},
+    {label:'⚠ Cannot be discounted out',val:fmt(agg.nRemove),cls:agg.nRemove?'alert':'',
+      sub:agg.nRemove?fmt(Math.round(agg.removeUnits))+' units · '+money(agg.removeAis)+' surcharge ahead · remove for '+money(agg.removeCost):'every SKU can be cleared by discounting'},
     {label:'Net if we HOLD',val:moneyS(agg.netLHold),cls:agg.netLHold<0?'alert':'',
       sub:'cash from full-price sales − all surcharge until the stock is gone'},
     {label:'Net if we DISCOUNT',val:moneyS(agg.netLDisc),cls:agg.netLDisc<0?'warn':'good',
@@ -2282,7 +2319,11 @@ function renderSimPlain(S){
     (p.disc<=wCeil?`This discount is at or below the ceiling (${pct1(wCeil)}), so every unit still returns its full product cost.`
      :(p.disc<=wFloor?`This is past the ceiling (${pct1(wCeil)}) but above the floor (${pct1(wFloor)}), so you recover part of the product cost, never less than zero.`
      :`⚠ This is past the floor (${pct1(wFloor)}) — you would be paying Amazon out of your own pocket on every sale.`))+
-    (slow?` <b>${fmt(slow)}</b> of these SKUs cannot clear within a year at today's pace, which is why the "to clear" column matters more than the 1-year one.`:'');
+    (slow?` <b>${fmt(slow)}</b> of these SKUs cannot clear within a year at today's pace, which is why the "to clear" column matters more than the 1-year one.`:'')+
+    (agg.nRemove?`<br/><b style="color:var(--red)">⚠ Reality check:</b> on <b>${fmt(agg.nRemove)}</b> of them the required pace is out of reach — `+
+      `they hold <b>${fmt(Math.round(agg.removeUnits))}</b> units with <b>${money(agg.removeAis)}</b> of surcharge still ahead, and no realistic discount clears them. `+
+      `Pulling that stock out of Amazon costs <b>${money(agg.removeCost)}</b> and stops the bleed — <b>${moneyS(agg.removeGain)}</b> better than holding. `+
+      `Filter <b>ACTION = REMOVE</b> to see them.`:'');
 }
 /* ---------- the single table ---------- */
 const SIM_COLS=[
@@ -2307,7 +2348,6 @@ const SIM_COLS=[
 
   {k:'svNow',t:'Current SV',cls:'num',grp:'sv',tip:'WHERE WE ARE: units sold per month today, measured from real daily sales history.'},
   {k:'svTarget',t:'Target SV',cls:'num',grp:'sv',tip:'WHERE WE MUST GET TO: the monthly pace that clears this SKU’s aged stock inside a year.'},
-  {k:'svUpliftPct',t:'Uplift needed',cls:'num',grp:'sv',tip:'How much faster you must sell to hit the target, as a % over today’s pace.'},
   {k:'moClearHold',t:'Mo to clear now',cls:'num',grp:'sv',tip:'Months to sell through the aged stock at today’s pace. ∞ or a number above 12 means this SKU keeps paying the surcharge for more than a year.'},
 
   {k:'ais1Hold',t:'AIS 1yr hold',cls:'num',grp:'ais',tip:'Surcharge over the next 12 months if you change nothing.'},
@@ -2317,13 +2357,17 @@ const SIM_COLS=[
   {k:'aisLDisc',t:'AIS to clear · disc',cls:'num',grp:'ais',tip:'Surcharge paid until the stock is gone if you discount and hit the target pace.'},
   {k:'aisLSaved',t:'Saved to clear',cls:'num',grp:'ais',tip:'Total surcharge escaped by clearing faster, over the whole life of this stock.'},
 
+  {k:'upliftX',t:'Lift needed',cls:'num',grp:'act',tip:'How many times faster we would have to sell to hit Target SV. 2x is a normal promotion; past 4x no discount realistically gets there.'},
+  {k:'reach',t:'Realistic?',cls:'',grp:'act',tip:'Whether Target SV is actually reachable. DEAD = barely selling at all. NOT REALISTIC / UNLIKELY = discounting will not clear this stock, so removal is the real option.'},
+  {k:'removalCost',t:'Cost to remove',cls:'num',grp:'act',tip:'Amazon’s own per-unit removal fee times the units held — what it costs to pull this stock out of the warehouse and stop the surcharge immediately.'},
+  {k:'removeGain',t:'Remove vs hold',cls:'num',grp:'act',tip:'How much better removing is than holding: (minus the removal fee) − (net if we hold). Positive means pulling the stock out beats leaving it there. No salvage or liquidation income is assumed, so the real figure can only be better.'},
+  {k:'action',t:'ACTION',cls:'',grp:'act',tip:'What to actually do. DISCOUNT when the lift is achievable and it pays. REMOVE when no realistic discount clears the stock and pulling it out beats bleeding surcharge. HOLD when it is already on pace or nothing improves on it.'},
   {k:'discGiven',t:'Discount given',cls:'num',grp:'dec',tip:'Revenue given up = (price − deal price) × units sold.'},
   {k:'netLHold',t:'Net if we hold',cls:'num',grp:'dec',tip:'Cash from units sold at full price, minus all the surcharge paid until the stock is gone.'},
   {k:'netLDisc',t:'Net if we discount',cls:'num',grp:'dec',tip:'Cash from units sold at the deal price, minus the smaller surcharge, until the stock is gone.'},
   {k:'deltaL',t:'Difference',cls:'num',grp:'dec',tip:'Net if we discount − net if we hold. Positive means discounting leaves more cash in your pocket even after the margin given up.'},
-  {k:'verdict',t:'Decision',cls:'',grp:'dec',tip:'Which option recovers more cash by the time the stock is gone.'},
 ];
-const SIM_GROUPS={id:'SKU · aged stock',gr:'Ceiling & floor',pay:'Payout',sv:'Sales velocity',ais:'Surcharge (AIS)',dec:'Decision'};
+const SIM_GROUPS={id:'SKU · aged stock',gr:'Ceiling & floor',pay:'Payout',sv:'Sales velocity',ais:'Surcharge (AIS)',act:'Reality check & action',dec:'Discount economics'};
 let simSortKey='aisLHold', simSortDir=-1, simView=[];
 function simCell(r,k){
   switch(k){
@@ -2345,8 +2389,6 @@ function simCell(r,k){
     case 'recovery': return r.recovery==null?dash:`<span class="${r.recovery<0?'neg':(r.recovery>=1?'pos':'')}">${pct0(r.recovery)}</span>`;
     case 'svNow': return fmtN1(r.svNow);
     case 'svTarget': return `<b style="color:var(--amber)">${fmtN1(r.svTarget)}</b>`;
-    case 'svUpliftPct': return !isFinite(r.svUpliftPct)?'<span class="flag">∞</span>'
-      :(r.svUpliftPct<=0.001?'<span class="pos">on pace</span>':`<span class="${r.svUpliftPct>3?'neg':''}">+${(r.svUpliftPct*100).toFixed(0)}%</span>`);
     case 'moClearHold': return !isFinite(r.moClearHold)?'<span class="flag" title="never clears at today’s pace">∞</span>'
       :`<span class="${r.moClearHold>12?'neg':'pos'}">${fmt(r.moClearHold)}</span>`;
     case 'ais1Hold': case 'ais1Disc': case 'aisLDisc': return money2(r[k]);
@@ -2356,15 +2398,28 @@ function simCell(r,k){
     case 'netLHold': return `<span class="${r.netLHold>=0?'':'neg'}">${m2(r.netLHold)}</span>`;
     case 'netLDisc': return `<span class="${r.netLDisc>=0?'pos':'neg'}">${m2(r.netLDisc)}</span>`;
     case 'deltaL': return `<b class="${r.deltaL>=0?'pos':'neg'}">${m2(r.deltaL)}</b>`;
-    case 'verdict': return r.verdict==='disc'?'<span class="badge v-run">🏷️ DISCOUNT</span>':'<span class="badge v-na">⏳ HOLD</span>';
+    case 'upliftX': return !isFinite(r.upliftX)?'<span class="flag" title="no sales at all">∞</span>'
+      :(r.upliftX<=1.01?'<span class="pos">on pace</span>'
+      :`<b class="${r.upliftX>4?'neg':''}">${r.upliftX<10?r.upliftX.toFixed(1):Math.round(r.upliftX)}×</b>`);
+    case 'reach': { const M={onpace:['v-run','✅ on pace'],ok:['v-run','🟢 realistic'],
+        stretch:['v-cost','🟡 a stretch'],unlikely:['v-skip','🟠 unlikely'],
+        no:['v-skip','🔴 not realistic'],dead:['v-skip','⛔ dead SKU']};
+      const [c,t]=M[r.reach]||M.no; return `<span class="badge ${c}">${t}</span>`; }
+    case 'removalCost': return r.removalCost>0?money2(r.removalCost):dash;
+    case 'removeGain': return r.removalCost>0?`<span class="${r.removeGain>0?'pos':'neg'}">${m2(r.removeGain)}</span>`:dash;
+    case 'action': { const M={discount:['v-run','🏷️ DISCOUNT'],remove:['v-cost','🚚 REMOVE / LIQUIDATE'],hold:['v-na','⏳ HOLD']};
+      const [c,t]=M[r.action]||M.hold; return `<span class="badge ${c}">${t}</span>`; }
   }
   return '';
 }
 function simFiltered(S){
   const q=(document.getElementById('simSearch').value||'').toLowerCase().trim();
-  const vf=document.getElementById('simVerdict').value, zf=document.getElementById('simZone').value;
+  const af=document.getElementById('simAction').value, zf=document.getElementById('simZone').value;
+  const rf=document.getElementById('simReach').value;
   let rows=S.rows.filter(r=>{
-    if(vf&&r.verdict!==vf) return false;
+    if(af&&r.action!==af) return false;
+    if(rf==='bad'&&!(r.reach==='unlikely'||r.reach==='no'||r.reach==='dead')) return false;
+    if(rf&&rf!=='bad'&&r.reach!==rf) return false;
     if(zf&&r.zone!==zf) return false;
     if(q&&!(r.sku.toLowerCase().includes(q)||(r.tag||'').toLowerCase().includes(q))) return false;
     return true;
@@ -2393,6 +2448,8 @@ function renderSubtotals(rows){
     ['Net if discount',moneyS(nD),nD<0?'neg':'pos'],
     ['Difference',(d>=0?'+':'−')+money(Math.abs(d)),d>=0?'pos':'neg'],
     ['Discount wins',fmt(wins)+' of '+fmt(rows.length),'pos'],
+    ['⚠ Must remove',fmt(rows.filter(r=>r.action==='remove').length),'neg'],
+    ['Removal cost',money(t(r=>r.action==='remove'?r.removalCost:0)),''],
   ];
   document.getElementById('simSubtotals').innerHTML=cells.map(([k,v,c])=>
     `<div class="st"><div class="k">${k}</div><div class="v ${c}">${v}</div></div>`).join('');
@@ -2776,7 +2833,7 @@ document.getElementById('exportSkus').onclick=exportSkusCSV;
 
 /* ---- decision engine wireup (one control row, no duplicates) ---- */
 document.getElementById('simParent').addEventListener('change',()=>{ populateSimSizes(); renderSimSoon(); });
-['simSize','simDisc','engRef','simSearch','simVerdict','simZone'].forEach(id=>{
+['simSize','simDisc','engRef','simSearch','simAction','simReach','simZone'].forEach(id=>{
   const el=document.getElementById(id); if(!el) return;
   el.addEventListener('input',renderSimSoon); el.addEventListener('change',renderSimSoon);
 });

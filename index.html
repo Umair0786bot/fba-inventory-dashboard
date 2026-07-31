@@ -568,6 +568,31 @@
   #viewProj table tbody tr:hover td{background-image:linear-gradient(rgba(204,136,41,.10),rgba(204,136,41,.10))}
 
   /* ============================================================
+     DEAL PLANNER TABLE — same block system as the Decision Engine, so the
+     two read the same way: a faint wash per block and a hard rule on its
+     leading column.
+     ============================================================ */
+  #viewDPlan table td.d-id,  #viewDPlan table th.d-id  {background:rgba(255,255,255,.022)}
+  #viewDPlan table td.d-pr,  #viewDPlan table th.d-pr  {background:rgba(204,136,41,.095)}
+  #viewDPlan table td.d-pay, #viewDPlan table th.d-pay {background:rgba(46,168,106,.075)}
+  #viewDPlan table td.d-ltsf,#viewDPlan table th.d-ltsf{background:rgba(226,86,79,.070)}
+  #viewDPlan table td.d-sc,  #viewDPlan table th.d-sc  {background:rgba(155,90,217,.085)}
+  #viewDPlan table td.d-sv,  #viewDPlan table th.d-sv  {background:rgba(148,139,124,.075)}
+  #viewDPlan table .blk{border-left:2px solid rgba(255,255,255,.22)}
+  #viewDPlan table th.grp{font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;
+    font-weight:800;text-align:center;padding:7px 8px;color:var(--txt)}
+  #viewDPlan table th.grp.d-pr {color:var(--accent)}
+  #viewDPlan table th.grp.d-pay{color:#4fd894}
+  #viewDPlan table th.grp.d-ltsf{color:#f08078}
+  #viewDPlan table th.grp.d-sc {color:#b98ae6}
+  #viewDPlan table th.grp.d-sv {color:var(--muted)}
+  /* freeze the SKU while scrolling the block sideways */
+  #viewDPlan table th.d-id:first-child,#viewDPlan table td.d-id:first-child{
+    position:sticky;left:0;z-index:3;min-width:230px;box-shadow:2px 0 0 rgba(255,255,255,.10)}
+  #viewDPlan table thead th.d-id:first-child{z-index:6}
+  #viewDPlan table td.d-sv:last-child{padding:4px 10px}
+
+  /* ============================================================
      KPI TAB — the embedded tracker is a full application, so give it the
      full tab. It was sitting in a .panel inside .wrap's padding at a fixed
      82vh: a card inside a card, inset ~64px on every side, and tall enough
@@ -740,6 +765,7 @@
     <button class="tab" data-tab="proj">🧮 Decision Engine</button>
     <button class="tab" data-tab="track">📈 Sales Tracking</button>
     <button class="tab" data-tab="pulse">🖥️ Command Center</button>
+    <button class="tab" data-tab="deal">🏷️ Deal Planner</button>
     <button class="tab" data-tab="kpi">📊 KPI Metrics</button>
   </nav>
 
@@ -1042,6 +1068,75 @@
       One screen, no clicks — the numbers the other tabs compute, sized to be read from across the room. <b>Sold / cleared / pace</b> come from the tracking window in the workbook; <b>surcharge</b> figures are Amazon's own next-cycle estimate; the <b>cost statement</b> is the 12-month do-nothing total (aged-inventory surcharge + base storage) against the cost of removing the same units to 3PL (removal + freight + 3PL storage). Target pace follows the basis you set on the <b>Sales Tracking</b> tab, so both tabs always agree.
     </div>
   </div><!-- /viewPulse -->
+
+  <!-- ============ DPLAN PLANNER — upload an upcoming deal, see what it really costs ============ -->
+  <div id="viewDPlan" class="hide">
+
+    <div class="sectiontitle">Deal planner — what does this deal actually recover, and how much deeper can we go?</div>
+
+    <div class="panel" style="margin-bottom:14px">
+      <div class="filters" style="margin-bottom:0">
+        <button class="btn" id="dpPick">⤒ Upload deal CSV</button>
+        <input type="file" id="dpFile" accept=".csv,.txt" class="hide" />
+        <span class="chip" id="dpSrc">No deal loaded — upload the deal sheet for one parent.</span>
+        <span class="spacer"></span>
+        <label class="chip" title="Amazon's referral commission on the sale price.">Referral %&nbsp;
+          <input type="number" id="dpRef" value="15" min="0" max="100" step="0.5" style="width:56px" /></label>
+        <button class="ghost" id="dpDemo" title="Load the SS4 sheet already in the project, to see the layout">use SS4 sample</button>
+        <button class="ghost" id="dpExport">⤓ Export (CSV)</button>
+      </div>
+      <div class="footnote" style="margin-top:9px">
+        Expected columns: <code>Tag, Asin, Sku, Size, Current Deal Price</code> — the export Amazon gives you for an upcoming
+        Lightning Deal or Best Deal. Rows are matched to your LTSF workbook on <b>SKU</b>, falling back to <b>ASIN</b>,
+        so the parent tag in the sheet does not have to match the workbook's tag.
+      </div>
+    </div>
+
+    <div id="dpPlain" class="hide" style="margin:0 0 16px;padding:11px 14px;border-radius:10px;font-size:12.5px;line-height:1.7;
+         background:rgba(204,136,41,.08);border:1px solid rgba(204,136,41,.28);color:var(--txt)"></div>
+
+    <div class="kpis" id="dpKpis"></div>
+
+    <div class="panel" style="margin-bottom:20px">
+      <div class="filters">
+        <h3 style="margin:0">Per-SKU deal detail</h3>
+        <input type="search" id="dpSearch" placeholder="Search SKU…" />
+        <select id="dpZone">
+          <option value="">Any deal depth</option>
+          <option value="safe">🟢 At/above ceiling price — full product cost back</option>
+          <option value="thin">🟡 Between ceiling and floor</option>
+          <option value="oop">🔴 Below floor — paying out of pocket</option>
+        </select>
+        <select id="dpAged">
+          <option value="">All SKUs in the deal</option>
+          <option value="aged">Only SKUs carrying LTSF stock</option>
+          <option value="deep">Deal is shallower than Best % — room to go deeper</option>
+        </select>
+        <span class="spacer"></span>
+        <span class="chip" id="dpSummary"></span>
+      </div>
+      <div class="tablewrap" style="max-height:70vh;margin-top:8px">
+        <table>
+          <thead>
+            <tr id="dpGroupHead"></tr>
+            <tr id="dpHead"></tr>
+          </thead>
+          <tbody id="dpBody"></tbody>
+        </table>
+      </div>
+      <div class="footnote">
+        <b>% off</b> is the real discount your deal price represents against the current list price.
+        <b>Payout/unit</b> is what lands in your account at the deal price: deal − referral − FBA. <b>Margin/unit</b> subtracts
+        product cost on top, so it is the true profit per unit sold at this deal.<br/>
+        <b>Ceiling / Floor / Best</b> are the same three scenarios as the Decision Engine, shown here as the
+        <b>percentages</b> and the <b>prices</b> they imply — so you can see at a glance whether today's deal price is
+        leaving room on the table or already past the point where each unit costs you cash.
+        <b>Headroom</b> is Best % − your deal % : positive means the maths says you could go deeper and still recover more.<br/>
+        <b>SV now → at deal</b> is today's measured monthly pace and the pace this discount is expected to produce;
+        <b>Target</b> is what would be needed to clear the aged stock inside a year. The spark line is that SKU's real daily sales.
+      </div>
+    </div>
+  </div><!-- /viewDPlan -->
 
   <!-- ============ KPI METRICS (embedded standalone tracker) ============ -->
   <div id="viewKpi" class="hide">
@@ -3530,10 +3625,12 @@ document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
   document.getElementById('viewProj').classList.toggle('hide',tab!=='proj');
   document.getElementById('viewTrack').classList.toggle('hide',tab!=='track');
   document.getElementById('viewPulse').classList.toggle('hide',tab!=='pulse');
+  document.getElementById('viewDPlan').classList.toggle('hide',tab!=='deal');
   document.getElementById('viewKpi').classList.toggle('hide',tab!=='kpi');
   if(tab==='proj'){ renderSim(); reveal('simKpis'); }
   else if(tab==='track'){ renderTracking(); reveal('trkKpis'); }
   else if(tab==='pulse'){ renderPulse(); startPulseClock(); }
+  else if(tab==='deal'){ renderDp(); reveal('dpKpis'); }
   else if(tab==='kpi'){ /* self-contained iframe loads its own data */ }
   else { renderLtsfOverview(); reveal('kpis'); }
 });
@@ -3643,6 +3740,306 @@ document.addEventListener('pointerdown',e=>{
 
 /* ---- go ---- */
 initLTSF();
+
+/* ============================================================================
+   DPLAN PLANNER
+   Upload the sheet Amazon gives you for an upcoming deal and read it against
+   the LTSF workbook: what the deal price really discounts, what it pays out,
+   which SKUs in it carry aged stock, and how the deal % compares with the
+   three scenarios the Decision Engine already computes.
+   ============================================================================ */
+let DPLAN=[], dpSortKey='ais', dpSortDir=-1, dpView=[];
+
+/* Minimal RFC-4180-ish parser: quoted fields, embedded commas, doubled quotes. */
+function dpParseCSV(txt){
+  const rows=[]; let f='', row=[], q=false;
+  txt=String(txt).replace(/^﻿/,'').replace(/\r\n?/g,'\n');
+  for(let i=0;i<txt.length;i++){
+    const c=txt[i];
+    if(q){ if(c==='"'){ if(txt[i+1]==='"'){f+='"';i++;} else q=false; } else f+=c; }
+    else if(c==='"') q=true;
+    else if(c===','){ row.push(f); f=''; }
+    else if(c==='\n'){ row.push(f); f=''; if(row.some(v=>v.trim()!=='')) rows.push(row); row=[]; }
+    else f+=c;
+  }
+  row.push(f); if(row.some(v=>v.trim()!=='')) rows.push(row);
+  return rows;
+}
+const dpMoney=v=>{ const n=parseFloat(String(v).replace(/[^0-9.\-]/g,'')); return isFinite(n)?n:0; };
+
+function dpLoad(txt,srcName){
+  const rows=dpParseCSV(txt);
+  if(rows.length<2){ alert('That file has no data rows.'); return; }
+  const head=rows[0].map(h=>h.trim().toLowerCase());
+  const col=(...names)=>{ for(const n of names){ const i=head.indexOf(n); if(i>=0) return i; } return -1; };
+  const iSku=col('sku','seller sku','merchant sku'), iAsin=col('asin'),
+        iPrice=col('current deal price','deal price','price'),
+        iSize=col('size'), iTag=col('tag','parent');
+  if(iSku<0&&iAsin<0){ alert('That file needs a SKU or ASIN column.'); return; }
+  if(iPrice<0){ alert('That file needs a "Current Deal Price" column.'); return; }
+
+  const bySku={}, byAsin={};
+  DATA.forEach(x=>{ bySku[String(x.sku).trim().toUpperCase()]=x;
+    if(x.asin) byAsin[String(x.asin).trim().toUpperCase()]=x; });
+
+  const out=[]; let unmatched=0;
+  for(let i=1;i<rows.length;i++){
+    const r=rows[i];
+    const sk=iSku>=0?String(r[iSku]||'').trim().toUpperCase():'';
+    const an=iAsin>=0?String(r[iAsin]||'').trim().toUpperCase():'';
+    const x=bySku[sk]||byAsin[an];
+    const deal=dpMoney(r[iPrice]);
+    if(!x){ unmatched++; continue; }
+    if(!(deal>0)) continue;
+    out.push({x, deal, csvSize:iSize>=0?(r[iSize]||'').trim():'', csvTag:iTag>=0?(r[iTag]||'').trim():''});
+  }
+  DPLAN=out;
+  document.getElementById('dpSrc').innerHTML = out.length
+    ? '<b>'+srcName+'</b> — '+fmt(out.length)+' SKUs matched'+(unmatched?' · <span class="flag">'+unmatched+' not in the workbook</span>':'')
+    : '<span class="flag">Nothing in '+srcName+' matched the workbook.</span>';
+  renderDp();
+}
+
+/* One deal row = the uploaded price read against that SKU's own economics. */
+function dpCompute(){
+  const ref=clamp((num(document.getElementById('dpRef').value)||15)/100,0,0.99);
+  const rows=DPLAN.map(d=>{
+    const x=d.x, price=x.price||0, deal=d.deal;
+    const seed=skuSeed9(x), units=seed.reduce((s,v)=>s+v,0);
+    const rate=skuRates9(x), velHold=skuVelBase(x), m1=x.ais>0?x.ais:null;
+    const off = price>0 ? 1-deal/price : 0;
+    const payout = deal*(1-ref)-x.fba;
+    const marginU = payout-x.cogs;
+    const ceiling = price>0?Math.max(0,1-(x.cogs+x.fba)/((1-ref)*price)):0;
+    const floor   = price>0?Math.max(0,1-x.fba/((1-ref)*price)):0;
+    const best    = units>0?skuBest(x,seed,rate,velHold,m1,ref):{disc:0};
+    const zone = price<=0?'na':(off<=ceiling?'safe':(off<=floor?'thin':'oop'));
+    const svAtDeal = velHold*svMult(off);
+    const svTarget = units>0?units/12:0;
+    return {sku:x.sku,tag:x.tag,size:x.size||d.csvSize,asin:x.asin||'',
+      price,deal,off,cogs:x.cogs,fba:x.fba,payout,marginU,
+      marginPct: deal>0?marginU/deal:null,
+      totalPayout:payout*units, totalMargin:marginU*units,
+      units, ais:x.ais||0, aisYr:(x.ais||0)*12,
+      ceiling,floor,ceilPrice:(x.cogs+x.fba)/(1-ref),floorPrice:x.fba/(1-ref),
+      bestPct:best.disc, bestPrice:price*(1-best.disc), headroom:best.disc-off,
+      zone, svNow:velHold, svAtDeal, svTarget, svGap:svTarget-svAtDeal,
+      daily:(x.daily||[]).slice()};
+  });
+  const agg=rows.reduce((a,r)=>{
+    a.n++; a.units+=r.units; a.ais+=r.ais; if(r.units>0) a.aged++;
+    a.offW+=r.off*(r.units||1); a.wt+=(r.units||1);
+    a.payout+=r.totalPayout; a.margin+=r.totalMargin;
+    a.svNow+=r.svNow; a.svAtDeal+=r.svAtDeal; a.svTarget+=r.svTarget;
+    if(r.headroom>0.005) a.deeper++;
+    if(r.zone==='oop') a.oop++; else if(r.zone==='thin') a.thin++;
+    return a;
+  },{n:0,units:0,ais:0,aged:0,offW:0,wt:0,payout:0,margin:0,svNow:0,svAtDeal:0,svTarget:0,deeper:0,oop:0,thin:0});
+  return {rows,agg,ref};
+}
+
+/* tiny inline sparkline of that SKU's real daily sales */
+function dpSpark(d){
+  const v=(d||[]).map(n=>+n||0);
+  if(v.length<2) return '<span class="muted" style="font-size:10px">no history</span>';
+  const W=86,H=22,max=Math.max(1,...v),min=Math.min(...v),span=(max-min)||1;
+  const pts=v.map((n,i)=>[(i/(v.length-1))*W, H-2-((n-min)/span)*(H-5)]);
+  const line=pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+  const last=pts[pts.length-1], tot=v.reduce((s,n)=>s+n,0);
+  return '<svg viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" style="display:block" role="img" '+
+    'aria-label="daily sales, '+tot+' units over '+v.length+' days">'+
+    '<title>'+tot+' units over '+v.length+' days · peak '+max+'/day</title>'+
+    '<polygon points="0,'+H+' '+line+' '+W+','+H+'" fill="rgba(204,136,41,.16)"/>'+
+    '<polyline points="'+line+'" fill="none" stroke="var(--accent)" stroke-width="1.6" '+
+    'stroke-linejoin="round" stroke-linecap="round"/>'+
+    '<circle cx="'+last[0].toFixed(1)+'" cy="'+last[1].toFixed(1)+'" r="2.1" fill="#f5d547"/></svg>';
+}
+
+const DP_COLS=[
+  {k:'sku',t:'SKU',grp:'id',tip:'Seller SKU from the uploaded deal sheet, matched to the LTSF workbook.'},
+  {k:'tag',t:'Parent',grp:'id',tip:"The workbook's parent tag for this SKU."},
+  {k:'size',t:'Size',grp:'id',tip:'Variation size.'},
+  {k:'price',t:'Base price',cls:'num',grp:'pr',tip:'Current list price on Amazon, from the workbook.'},
+  {k:'deal',t:'Deal price',cls:'num',grp:'pr',tip:'The price in your uploaded deal sheet.'},
+  {k:'off',t:'% off',cls:'num',grp:'pr',tip:'The real discount this deal price represents against the base price.'},
+  {k:'payout',t:'Payout / unit',cls:'num',grp:'pay',tip:'Cash in hand per unit at the deal price = deal price − referral − FBA.'},
+  {k:'marginU',t:'Margin / unit',cls:'num',grp:'pay',tip:'Payout per unit minus product cost — true profit on each unit sold at this deal.'},
+  {k:'marginPct',t:'Margin %',cls:'num',grp:'pay',tip:'Margin per unit ÷ deal price.'},
+  {k:'units',t:'LTSF units',cls:'num',grp:'ltsf',tip:'Units of this SKU in long-term storage that the surcharge applies to. Blank = not an aged SKU.'},
+  {k:'ais',t:'AIS / mo',cls:'num',grp:'ltsf',tip:'Surcharge Amazon bills on this SKU next month.'},
+  {k:'aisYr',t:'AIS / yr',cls:'num',grp:'ltsf',tip:"Next month's surcharge run out over twelve months — the scale of what the deal is trying to escape."},
+  {k:'ceiling',t:'Ceiling %',cls:'num',grp:'sc',tip:'Deepest discount that still returns 100% of product cost.'},
+  {k:'ceilPrice',t:'Ceiling $',cls:'num',grp:'sc',tip:'The price ceiling % implies. A deal at or above this returns the full product cost.'},
+  {k:'floor',t:'Floor %',cls:'num',grp:'sc',tip:'The discount at which your payout hits exactly zero.'},
+  {k:'floorPrice',t:'Floor $',cls:'num',grp:'sc',tip:'The price floor % implies. Below this you pay Amazon to move the unit.'},
+  {k:'bestPct',t:'Best %',cls:'num',grp:'sc',tip:'The discount that recovers the most cash for this SKU over the life of its aged stock.'},
+  {k:'bestPrice',t:'Best $',cls:'num',grp:'sc',tip:'The price the best % implies.'},
+  {k:'headroom',t:'Headroom',cls:'num',grp:'sc',tip:'Best % − your deal %. Positive = the maths says you could go deeper and still recover more.'},
+  {k:'zone',t:'Deal sits',cls:'',grp:'sc',tip:'Where the deal price lands against this SKU’s ceiling and floor.'},
+  {k:'svNow',t:'SV now',cls:'num',grp:'sv',tip:'Units sold per month today, measured from real daily sales.'},
+  {k:'svAtDeal',t:'SV at deal',cls:'num',grp:'sv',tip:'Monthly pace this discount is expected to produce.'},
+  {k:'svTarget',t:'Target SV',cls:'num',grp:'sv',tip:'Pace needed to clear this SKU’s aged stock inside a year.'},
+  {k:'svGap',t:'Gap',cls:'num',grp:'sv',tip:'Target SV − SV at deal. Positive = this deal still will not clear the aged stock in a year.'},
+  {k:'daily',t:'Daily sales',cls:'',grp:'sv',tip:"This SKU's real daily units over the tracking window."},
+];
+const DP_GROUPS={id:'SKU',pr:'Deal pricing',pay:'What you keep',ltsf:'LTSF exposure',
+  sc:'How deep could we go?',sv:'Sales velocity'};
+(function(){ var g=null; DP_COLS.forEach(function(c){ c.cls=c.cls||''; c.blk=(c.grp!==g); g=c.grp; }); })();
+
+function dpCell(r,k){
+  switch(k){
+    case 'sku': return '<span class="sku">'+r.sku+'</span>';
+    case 'tag': return '<span class="tagchip">'+r.tag+'</span>';
+    case 'size': return r.size||dash;
+    case 'price': return money2(r.price);
+    case 'deal': return '<b style="color:var(--accent)">'+money2(r.deal)+'</b>';
+    case 'off': return '<b>'+pct1(r.off)+'</b>';
+    case 'payout': return r.payout<0?'<span class="neg">'+money2(r.payout)+'</span>':money2(r.payout);
+    case 'marginU': return '<span class="'+(r.marginU>=0?'pos':'neg')+'">'+money2(r.marginU)+'</span>';
+    case 'marginPct': return r.marginPct==null?dash:'<span class="'+(r.marginPct>=0?'pos':'neg')+'">'+pct0(r.marginPct)+'</span>';
+    case 'units': return r.units>0?'<b>'+fmt(r.units)+'</b>':'<span class="muted">—</span>';
+    case 'ais': return r.ais>0?money2(r.ais):dash;
+    case 'aisYr': return r.aisYr>0?money(r.aisYr):dash;
+    case 'ceiling': return pct1(r.ceiling);
+    case 'ceilPrice': return money2(r.ceilPrice);
+    case 'floor': return pct1(r.floor);
+    case 'floorPrice': return money2(r.floorPrice);
+    case 'bestPct': return r.units>0?'<b style="color:#4fd894">'+pct1(r.bestPct)+'</b>':dash;
+    case 'bestPrice': return r.units>0?money2(r.bestPrice):dash;
+    case 'headroom': return r.units<=0?dash
+      :'<span class="'+(r.headroom>0.005?'pos':(r.headroom<-0.005?'neg':'muted'))+'">'+(r.headroom>0?'+':'')+pct1(r.headroom)+'</span>';
+    case 'zone': { var M={safe:['v-run','🟢 above ceiling'],thin:['v-cost','🟡 ceiling→floor'],
+        oop:['v-skip','🔴 below floor'],na:['v-na','—']}, m=M[r.zone]||M.na;
+      return '<span class="badge '+m[0]+'">'+m[1]+'</span>'; }
+    case 'svNow': return fmtN1(r.svNow);
+    case 'svAtDeal': return '<b style="color:var(--accent)">'+fmtN1(r.svAtDeal)+'</b>';
+    case 'svTarget': return r.units>0?'<span style="color:var(--amber)">'+fmtN1(r.svTarget)+'</span>':dash;
+    case 'svGap': return r.units<=0?dash:'<span class="'+(r.svGap<=0?'pos':'neg')+'">'+(r.svGap>0?'+':'')+fmtN1(r.svGap)+'</span>';
+    case 'daily': return dpSpark(r.daily);
+  }
+  return dash;
+}
+
+function dpFiltered(S){
+  const q=(document.getElementById('dpSearch').value||'').toLowerCase().trim();
+  const z=document.getElementById('dpZone').value, a=document.getElementById('dpAged').value;
+  let rows=S.rows.filter(function(r){
+    return (!q||r.sku.toLowerCase().indexOf(q)>=0||(r.asin||'').toLowerCase().indexOf(q)>=0)
+      && (!z||r.zone===z)
+      && (a!=='aged'||r.units>0)
+      && (a!=='deep'||r.headroom>0.005);
+  });
+  rows.sort(function(x,y){ let A=x[dpSortKey],B=y[dpSortKey];
+    if(typeof A==='string'){A=A.toLowerCase();B=String(B||'').toLowerCase();return A<B?-dpSortDir:A>B?dpSortDir:0;}
+    return ((A||0)-(B||0))*dpSortDir; });
+  return rows;
+}
+
+function renderDpKpis(S){
+  const agg=S.agg, avgOff=agg.wt?agg.offW/agg.wt:0;
+  const cards=[
+    {label:'SKUs in this deal',val:fmt(agg.n),sub:agg.aged+' of them carry LTSF stock'},
+    {label:'Average discount',val:pct1(avgOff),sub:'units-weighted across the deal'},
+    {label:'LTSF units in the deal',val:fmt(agg.units),cls:agg.units?'warn':'',sub:'aged stock this deal can actually move'},
+    {label:'Surcharge on these SKUs',val:money(agg.ais),cls:agg.ais?'alert':'',sub:money(agg.ais*12)+' a year if nothing moves'},
+    {label:'Payout at deal price',val:money(agg.payout),cls:'good',sub:'after referral + FBA, across the aged units'},
+    {label:'Margin at deal price',val:money(agg.margin),cls:agg.margin>=0?'good':'alert',sub:'payout minus product cost'},
+    {label:'Pace: now → at deal',val:fmtN1(agg.svNow)+' → '+fmtN1(agg.svAtDeal),sub:'units/month · target '+fmtN1(agg.svTarget)+' to clear in a year'},
+    {label:'Could go deeper',val:fmt(agg.deeper),cls:agg.deeper?'warn':'',sub:'SKUs whose best % is deeper than this deal'},
+    {label:'Past the floor',val:fmt(agg.oop),cls:agg.oop?'alert':'good',sub:agg.oop?'these cost you cash per unit sold':'no SKU is priced below its floor'},
+  ];
+  document.getElementById('dpKpis').innerHTML=cards.map(function(c){
+    return '<div class="kpi '+(c.cls||'')+'"><div class="label">'+c.label+'</div><div class="val">'+c.val+'</div>'+
+      (c.sub?'<div class="sub">'+c.sub+'</div>':'')+'</div>'; }).join('');
+}
+
+function renderDpPlain(S){
+  const agg=S.agg, el=document.getElementById('dpPlain');
+  if(!agg.n){ el.classList.add('hide'); return; }
+  el.classList.remove('hide');
+  const avgOff=agg.wt?agg.offW/agg.wt:0;
+  el.innerHTML='This deal covers <b>'+fmt(agg.n)+' SKUs</b> at an average <b>'+pct1(avgOff)+' off</b>. '+
+    (agg.units>0
+      ? '<b>'+fmt(agg.aged)+'</b> of them carry <b>'+fmt(agg.units)+' units</b> of aged stock costing <b>'+money(agg.ais)+
+        '</b> a month — <b>'+money(agg.ais*12)+'</b> a year. '
+      : 'None of them carry aged stock, so this deal is about volume, not about escaping the surcharge. ')+
+    'At these prices you keep <b>'+money(agg.payout)+'</b> after Amazon’s cut, <b>'+money(agg.margin)+'</b> of it profit. '+
+    'The discount should lift the pace from <b>'+fmtN1(agg.svNow)+'</b> to <b>'+fmtN1(agg.svAtDeal)+'</b> units a month'+
+    (agg.svTarget>0?', against <b>'+fmtN1(agg.svTarget)+'</b> needed to clear the aged stock inside a year':'')+'. '+
+    (agg.deeper?'<b>'+fmt(agg.deeper)+'</b> SKUs are discounted <i>less</i> than their own best %, so there is still room on those. ':'')+
+    (agg.oop?'<span class="flag">⚠ '+fmt(agg.oop)+' SKUs are priced below their floor — every unit sold there costs you cash.</span>':'');
+}
+
+function renderDpTable(S){
+  const rows=dpView=dpFiltered(S);
+  let g='',run=null,span=0;
+  DP_COLS.forEach(function(c){ if(c.grp!==run){ if(run) g+='<th colspan="'+span+'" class="grp d-'+run+'">'+(DP_GROUPS[run]||'')+'</th>'; run=c.grp; span=0; } span++; });
+  if(run) g+='<th colspan="'+span+'" class="grp d-'+run+'">'+(DP_GROUPS[run]||'')+'</th>';
+  document.getElementById('dpGroupHead').innerHTML=g;
+  document.getElementById('dpHead').innerHTML=DP_COLS.map(function(c){
+    const arr=dpSortKey===c.k?'<span class="sortarrow">'+(dpSortDir<0?'▼':'▲')+'</span>':'';
+    return '<th class="'+(c.cls.indexOf('num')>=0?'num':'')+' d-'+c.grp+(c.blk?' blk':'')+'" data-k="'+c.k+'"'+
+      (c.tip?' data-tip="'+c.tip.replace(/"/g,'&quot;')+'"':'')+'>'+c.t+' '+arr+(c.tip?' <span class="hint">?</span>':'')+'</th>';
+  }).join('');
+  document.querySelectorAll('#dpHead th').forEach(function(th){ th.onclick=function(){
+    const k=th.dataset.k;
+    if(dpSortKey===k) dpSortDir*=-1; else { dpSortKey=k; dpSortDir=(k==='sku'||k==='tag'||k==='size')?1:-1; }
+    renderDpTable(S); }; });
+  document.getElementById('dpBody').innerHTML=rows.map(function(r){
+    return '<tr>'+DP_COLS.map(function(c){
+      return '<td class="'+(c.cls.indexOf('num')>=0?'num':'')+' d-'+c.grp+(c.blk?' blk':'')+'">'+dpCell(r,c.k)+'</td>'; }).join('')+'</tr>';
+  }).join('') || '<tr><td colspan="'+DP_COLS.length+'" class="muted" style="padding:24px;text-align:center">No SKUs match.</td></tr>';
+  document.getElementById('dpSummary').innerHTML='<b>'+fmt(rows.length)+'</b> of '+fmt(S.rows.length)+' SKUs shown';
+}
+
+function renderDp(){
+  if(!DPLAN.length){
+    document.getElementById('dpKpis').innerHTML='';
+    document.getElementById('dpPlain').classList.add('hide');
+    document.getElementById('dpGroupHead').innerHTML='';
+    document.getElementById('dpHead').innerHTML='';
+    document.getElementById('dpSummary').innerHTML='';
+    document.getElementById('dpBody').innerHTML='<tr><td class="muted" style="padding:34px;text-align:center">Upload a deal CSV to begin.</td></tr>';
+    return;
+  }
+  const S=window._dealState=dpCompute();
+  renderDpKpis(S); renderDpPlain(S); renderDpTable(S);
+}
+
+function exportDpCSV(){
+  if(!dpView.length){ alert('Nothing to export yet.'); return; }
+  const cols=DP_COLS.filter(function(c){ return c.k!=='daily'; });
+  const pctKeys=['off','ceiling','floor','bestPct','headroom','marginPct'];
+  const lines=[cols.map(function(c){ return c.t; }).join(',')].concat(dpView.map(function(r){
+    return cols.map(function(c){
+      const v=r[c.k];
+      if(typeof v==='number') return pctKeys.indexOf(c.k)>=0?(v*100).toFixed(2):v.toFixed(2);
+      return esc(v==null?'':v);
+    }).join(',');
+  }));
+  dl(lines.join('\n'),'deal-plan.csv');
+}
+
+/* ---- wireup ---- */
+document.getElementById('dpPick').onclick=function(){ document.getElementById('dpFile').click(); };
+document.getElementById('dpFile').onchange=function(e){
+  const f=e.target.files&&e.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=function(){ dpLoad(String(rd.result), f.name); };
+  rd.readAsText(f);
+};
+document.getElementById('dpDemo').onclick=function(){
+  fetch('SS4 Deal - Sheet1.csv')
+    .then(function(r){ if(!r.ok) throw 0; return r.text(); })
+    .then(function(t){ dpLoad(t,'SS4 Deal - Sheet1.csv'); })
+    .catch(function(){ alert('Sample sheet not found next to the dashboard. Use “Upload deal CSV”.'); });
+};
+document.getElementById('dpExport').onclick=exportDpCSV;
+['dpSearch','dpZone','dpAged'].forEach(function(id){
+  document.getElementById(id).addEventListener('input',function(){ if(DPLAN.length) renderDpTable(window._dealState); });
+});
+document.getElementById('dpRef').addEventListener('input',function(){ if(DPLAN.length) renderDp(); });
+renderDp();
 </script>
 </body>
 </html>

@@ -856,6 +856,84 @@
       </div>
       <div id="simPlain" style="margin-top:9px;padding:10px 13px;border-radius:9px;font-size:12.5px;line-height:1.65;
            background:rgba(204,136,41,.08);border:1px solid rgba(204,136,41,.28);color:var(--txt)"></div>
+
+      <!-- ============ FBA LIQUIDATIONS ASSUMPTIONS ============ -->
+      <details class="liqdrawer" id="liqDrawer">
+        <summary>
+          💵 <b>FBA Liquidations</b> — what the stock is worth if we hand it to a liquidator
+          <span class="chip" id="liqSummaryChip" style="margin-left:8px"></span>
+        </summary>
+        <div class="liqbody">
+          <p class="liqnote">
+            Amazon sells the units to a wholesale liquidator and pays us what survives two deductions:
+            <b>gross recovery value</b> (the liquidator's bid) less a <b>liquidations referral fee</b> charged on that
+            gross value, less a per-unit <b>processing fee</b> banded on size tier and weight.
+            <code>net = GRV − referral − processing</code>, floored at zero — if the fees swallow the bid there is no
+            payment, but Amazon does not bill the difference back.
+          </p>
+          <div class="optgrid">
+            <label data-tip="Gross recovery value as a share of the current selling price. Amazon does not publish a formula — the bid tracks the ASIN's sales history and average FBA selling price, and Seller Central describes the result as typically 5–10% of that price. Set it to what your own liquidation settlements have actually paid.">
+              Recovery % of price <span class="hint">?</span>
+              <input type="number" id="liqRec" value="7.5" min="0" max="100" step="0.5" />
+            </label>
+            <label data-tip="Liquidations referral fee. Charged on the GROSS recovery value, not on your selling price.">
+              Referral % on GRV <span class="hint">?</span>
+              <input type="number" id="liqRef" value="15" min="0" max="100" step="0.5" />
+            </label>
+            <label data-tip="How each SKU is classified for the processing-fee card. Auto reads unit weight and cu ft; the two overrides force every SKU into one tier, which is the quick way to sanity-check the spread.">
+              Size tier <span class="hint">?</span>
+              <select id="liqTier" style="width:auto">
+                <option value="auto" selected>Auto (weight + cu ft)</option>
+                <option value="std">Force standard</option>
+                <option value="ovr">Force oversize</option>
+              </select>
+            </label>
+            <label data-tip="Auto-classify threshold: above this unit weight the SKU is priced as oversize.">
+              Oversize above lb <span class="hint">?</span>
+              <input type="number" id="liqMaxLb" value="20" min="0" step="1" />
+            </label>
+            <label data-tip="Auto-classify threshold: above this unit volume the SKU is priced as oversize. 1.167 cu ft is 18×14×8 in — the largest box that still counts as standard-size.">
+              Oversize above cu ft <span class="hint">?</span>
+              <input type="number" id="liqMaxCuft" value="1.167" min="0" step="0.001" />
+            </label>
+            <label data-tip="Auto-classify threshold on Amazon's own removal fee — the strongest tier signal in the workbook, because it is Amazon's classification already priced. No standard-size unit carries a removal fee near $3, so anything above this is treated as large bulky. Set to 0 to switch this test off.">
+              Oversize above removal $ <span class="hint">?</span>
+              <input type="number" id="liqOvrRemoval" value="3.00" min="0" step="0.25" />
+            </label>
+          </div>
+
+          <div class="liqcard">
+            <div class="liqcardhead">Processing fee per unit — published US rate card</div>
+            <table class="optmx liqrate">
+              <thead><tr><th>Size tier</th><th>Shipping weight</th><th>Fee / unit</th></tr></thead>
+              <tbody>
+                <tr><td>Standard</td><td>0 – 0.5 lb</td><td><input type="number" id="liq_s1" value="0.25" min="0" step="0.05" /></td></tr>
+                <tr><td>Standard</td><td>0.5+ – 1.0 lb</td><td><input type="number" id="liq_s2" value="0.30" min="0" step="0.05" /></td></tr>
+                <tr><td>Standard</td><td>1.0+ – 2.0 lb</td><td><input type="number" id="liq_s3" value="0.35" min="0" step="0.05" /></td></tr>
+                <tr><td>Standard</td><td>over 2 lb</td><td><input type="number" id="liq_s4" value="0.40" min="0" step="0.05" /><span class="liqplus">+ per-lb over 2</span></td></tr>
+                <tr><td>Large bulky / XL / special handling</td><td>0 – 4.0 lb</td><td><input type="number" id="liq_o1" value="0.60" min="0" step="0.05" /></td></tr>
+                <tr><td>Large bulky / XL / special handling</td><td>4.0+ – 10.0 lb</td><td><input type="number" id="liq_o2" value="0.90" min="0" step="0.05" /></td></tr>
+                <tr><td>Large bulky / XL / special handling</td><td>over 10 lb</td><td><input type="number" id="liq_o3" value="1.90" min="0" step="0.05" /><span class="liqplus">+ per-lb over 10</span></td></tr>
+                <tr><td colspan="2">Surcharge per lb above the band</td><td><input type="number" id="liq_perLb" value="0.20" min="0" step="0.05" /></td></tr>
+              </tbody>
+            </table>
+            <div class="footnote" style="margin-top:8px">
+              Every rate here is an input, not a constant — the rate card lives behind a Seller Central login, so paste
+              the live numbers in and the whole Engine reprices on the spot. Defaults are the published US card
+              ($0.25 at the smallest standard band up to $1.90 + $0.20/lb over 10 lb, with a 15% referral fee on gross
+              recovery value). Weight comes from column K of <i>1 Year Projections</i>; SKUs with no weight on file are
+              priced at their tier's opening band and flagged in the table, so treat those as a floor.
+            </div>
+            <div class="footnote" style="margin-top:7px">
+              <b>One caveat on REMOVE.</b> This model prices removal the way the rest of the workbook always has — as a
+              pure cost, with no value credited to the goods once they are back in the warehouse. Liquidation pays cash
+              instead of charging a fee, so on this book <b>REMOVE can only ever win when the liquidation bid nets
+              below zero</b>, and the ACTION column will rarely show it. If you have a genuine resale channel for
+              pulled stock, that residual value is not in here and removal is worth more than the table says.
+            </div>
+          </div>
+        </div>
+      </details>
     </div>
 
     <div class="kpis" id="simKpis"></div>
@@ -883,6 +961,140 @@
       </div>
     </div>
 
+    <!-- ============ DISCOUNT OPTIMIZER ============ -->
+    <style>
+      /* ---- liquidation drawer ---- */
+      .liqdrawer{margin-top:11px;border:1px solid var(--line);border-radius:10px;background:var(--panel2)}
+      .liqdrawer>summary{cursor:pointer;padding:9px 13px;font-size:12.5px;list-style:none;
+        display:flex;align-items:center;gap:2px;flex-wrap:wrap}
+      .liqdrawer>summary::-webkit-details-marker{display:none}
+      .liqdrawer>summary::before{content:'▸';margin-right:7px;color:var(--accent);font-weight:700}
+      .liqdrawer[open]>summary::before{content:'▾'}
+      .liqdrawer[open]>summary{border-bottom:1px solid var(--line)}
+      .liqbody{padding:12px 14px}
+      .liqnote{margin:0 0 11px;font-size:12.5px;line-height:1.7;color:var(--txt)}
+      .liqnote code{background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:12px}
+      .liqcard{margin-top:12px;padding:11px 13px;border-radius:9px;background:var(--panel);border:1px solid var(--line)}
+      .liqcardhead{font-size:12px;font-weight:700;color:var(--accent);margin-bottom:7px;
+        text-transform:uppercase;letter-spacing:.04em}
+      table.liqrate td:first-child,table.liqrate th:first-child{white-space:nowrap}
+      table.liqrate input{width:76px;text-align:right;background:var(--panel2);border:1px solid var(--line);
+        border-radius:6px;padding:2px 6px;font-size:12.5px;font-weight:700;color:var(--accent)}
+      table.liqrate input:focus{outline:none;border-color:var(--accent)}
+      .liqplus{margin-left:7px;font-size:11.5px;color:var(--mut)}
+      /* the liquidation column block in the per-SKU table */
+      #viewProj table td.g-liq, #viewProj table th.g-liq{background:rgba(46,168,106,.10)}
+      #viewProj table th.g-liq.blk, #viewProj table td.g-liq.blk{border-left:2px solid rgba(255,255,255,.22)}
+      #viewProj table th.grp.g-liq{color:#4fd894}
+      /* the optimizer's own column block, coloured like the scenario blocks */
+      #viewProj table td.g-opt, #viewProj table th.g-opt{background:rgba(39,162,162,.10)}
+      #viewProj table th.g-opt.blk, #viewProj table td.g-opt.blk{border-left:2px solid rgba(255,255,255,.22)}
+      #viewProj table th.grp.g-opt{color:var(--accent3)}
+      #viewProj input.optsel{width:62px;font-size:12.5px;font-weight:700;color:var(--accent);
+        background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:2px 4px;text-align:right}
+      #viewProj input.optsel:focus{outline:none;border-color:var(--accent)}
+      .optdrawer{margin-top:11px;padding:12px 14px;border-radius:10px;background:var(--panel2);
+        border:1px solid var(--line)}
+      .optdrawer .filters{margin-bottom:0}
+      .optgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:9px}
+      .optgrid label{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;
+        background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+      .optgrid input{width:78px;text-align:right}
+      /* scenario matrix */
+      table.optmx{width:100%;border-collapse:collapse;font-size:12.5px}
+      table.optmx th,table.optmx td{padding:6px 10px;border-bottom:1px solid var(--line);text-align:right}
+      table.optmx th:first-child,table.optmx td:first-child{text-align:left}
+      table.optmx tr.selrow{outline:2px solid var(--accent);outline-offset:-2px}
+      table.optmx td.argmax{background:rgba(46,168,106,.18);font-weight:700;color:#4fd894}
+      /* waterfall */
+      .optwf{display:flex;flex-direction:column;gap:3px;font-size:12px}
+      .optwf .r{display:flex;align-items:center;gap:9px}
+      .optwf .r .lab{flex:0 0 152px;color:var(--muted)}
+      .optwf .r .bar{height:15px;border-radius:3px;min-width:2px}
+      .optwf .r .v{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:600}
+      .optwf .r.tot{border-top:1px solid var(--line);margin-top:4px;padding-top:5px;font-weight:700}
+      .optjust{padding:11px 13px;border-radius:9px;font-size:12.5px;line-height:1.75;
+        background:rgba(204,136,41,.08);border:1px solid rgba(204,136,41,.28)}
+    </style>
+
+    <div class="sectiontitle">Discount optimizer — the percentage is solved for, not chosen</div>
+
+    <div class="panel" style="margin-bottom:14px">
+      <div class="filters">
+        <label class="chip" data-tip="Which boundary caps the search. The floor is the hard cap — the optimiser is never allowed past it.">Cap at&nbsp;
+          <select id="optCap">
+            <option value="floor" selected>Out-of-pocket FLOOR (hard cap)</option>
+            <option value="ceiling">Full-COGS CEILING (100% recovery goal)</option>
+          </select>
+        </label>
+        <label class="chip">Window&nbsp;<input type="number" id="optWindow" value="6" min="1" max="24" step="1" style="width:52px" />&nbsp;mo</label>
+        <label class="chip" data-tip="ON: brackets shift as months pass, so a SKU crossing 271 days gets charged $5.45/cu ft from that month on. OFF: the current bracket rate is held constant — the setting the reference workbook uses.">
+          <input type="checkbox" id="optAgeFwd" checked style="margin-right:6px" />Age-forward LTSF rates</label>
+        <span class="spacer"></span>
+        <button class="ghost" id="optAssumBtn">⚙ Assumptions</button>
+        <button class="ghost" id="optCalBtn">🎯 Elasticity &amp; k</button>
+        <button class="ghost" id="optResetSel" title="Discard every manual Selected % and snap them all back to Rec %">↺ Reset to Rec</button>
+        <button class="ghost" id="optExport">⤓ Optimizer CSV</button>
+      </div>
+
+      <!-- every assumption, visible and editable, per spec §9.3 -->
+      <div class="optdrawer hide" id="optAssum">
+        <div class="optgrid">
+          <label>Ad rate while discounting <input type="number" id="oaAdPromo" value="8" min="0" max="50" step="0.5" />%</label>
+          <label>Ad rate at 0% off <input type="number" id="oaAdBase" value="4" min="0" max="50" step="0.5" />%</label>
+          <label>Coupon clip / unit <input type="number" id="oaClip" value="0.60" min="0" max="10" step="0.05" />$</label>
+          <label title="Conservative">k — Conservative <input type="number" id="oaKlo" value="0.6" min="0.1" max="3" step="0.05" /></label>
+          <label title="Base / canon">k — Base <input type="number" id="oaKbase" value="1.0" min="0.1" max="3" step="0.05" /></label>
+          <label title="Aggressive">k — Aggressive <input type="number" id="oaKhi" value="1.4" min="0.1" max="3" step="0.05" /></label>
+          <label title="v(d) can never exceed this multiple of base velocity">Velocity cap <input type="number" id="oaVelCap" value="6" min="1" max="20" step="0.5" />×</label>
+          <label title="Grid resolution for the search">Grid step <input type="number" id="oaStep" value="1" min="0.5" max="5" step="0.5" />%</label>
+          <label title="Totals within this band of the max take the SHALLOWEST discount">Tie-break band <input type="number" id="oaTie" value="2" min="0" max="10" step="0.5" />%</label>
+        </div>
+        <div class="footnote" style="margin-top:9px">
+          Referral % is the one on the control row at the top of this tab, so the optimizer and the scenarios always agree.
+          Elasticity is <b>m(d) = 1 + 5d</b> below 20% off and <b>10d</b> at or above it, with k scaling the <i>uplift only</i>
+          — so 0% off is always exactly 1× base, whatever k is.
+          <button class="ghost" id="optResetAssum" style="margin-left:8px;padding:3px 9px">↺ spec defaults</button>
+        </div>
+      </div>
+
+      <!-- per-parent elasticity calibration (spec §2.3 / §8) -->
+      <div class="optdrawer hide" id="optCal">
+        <div class="filters" style="margin-bottom:8px">
+          <h3 style="margin:0;font-size:13px">Elasticity calibration — measured k per parent</h3>
+          <span class="spacer"></span>
+          <span class="chip" id="optCalNote"></span>
+        </div>
+        <div class="tablewrap" style="max-height:340px">
+          <table><thead><tr>
+            <th data-tip="k is stored per parent and applied to all its children. Child-level 14-day data is too noisy to calibrate on.">Parent <span class="hint">?</span></th>
+            <th class="num">SKUs</th>
+            <th class="num" data-tip="Base velocity pooled across the parent's children = Σ max(L30/mo, Base v/mo).">v0 pooled /mo <span class="hint">?</span></th>
+            <th class="num" data-tip="Measured pace pooled across the same children, from real daily sales history.">v observed /mo <span class="hint">?</span></th>
+            <th class="num" data-tip="Days of daily history behind the observed figure. Fewer than 14 and the reading is not usable yet.">Days <span class="hint">?</span></th>
+            <th class="num" data-tip="The discount actually live on this parent during the window. Type it in to calibrate.">Live % off <span class="hint">?</span></th>
+            <th class="num" data-tip="k = (v_observed / v0 − 1) ÷ (m(d_live) − 1).">k measured <span class="hint">?</span></th>
+            <th data-tip="Amber = running on the canon assumption k = 1.0. Green = calibrated from real data.">Status <span class="hint">?</span></th>
+            <th></th>
+          </tr></thead><tbody id="optCalBody"></tbody></table>
+        </div>
+        <div class="footnote">
+          Measurement hygiene: at least <b>14 days</b> of units/day, stockout and badge-off days excluded, and
+          <b>PPC held constant</b> across the window — otherwise the uplift is jointly caused and k comes out overstated.
+          A calibrated k replaces Base for that parent, and the Conservative/Aggressive band re-centres to ±40% of it.
+        </div>
+      </div>
+
+      <div class="subtotals" id="optStrip" style="margin-top:11px"></div>
+      <div id="optPlain" style="margin-top:9px;padding:10px 13px;border-radius:9px;font-size:12.5px;line-height:1.7;
+           background:rgba(39,162,162,.08);border:1px solid rgba(39,162,162,.30);color:var(--txt)"></div>
+      <div class="footnote">
+        Rec % is the discount that <b>maximises total recovered cash</b> = unit cash × units sold − LTSF drag while clearing
+        + exit value of whatever is left, found by testing every percentage on the grid up to the cap. It is a solved number,
+        not a judgement call. Click any row in the table below to see why that number won.
+      </div>
+    </div>
+
     <!-- the one table -->
     <div class="panel" style="margin-bottom:20px">
       <div class="filters">
@@ -891,7 +1103,8 @@
         <select id="simAction">
           <option value="">All actions</option>
           <option value="discount">🏷️ Discount — worth doing</option>
-          <option value="remove">🚚 Remove / liquidate — cannot be discounted out</option>
+          <option value="liquidate">💵 Liquidate — take the recovery cheque</option>
+          <option value="remove">🚚 Remove — pull it out, removal beats the bid</option>
           <option value="hold">⏳ Hold — leave it alone</option>
         </select>
         <select id="simReach">
@@ -920,6 +1133,20 @@
         Every column header explains itself on hover. <b>Ceiling</b> = the deepest discount that still returns 100% of product cost. <b>Floor</b> = the point where your payout is exactly zero; past it you pay Amazon out of pocket to move the unit.
         <b>Payout/unit</b> = deal price − Amazon referral − FBA fee (product cost is already spent, so it is not deducted twice). <b>Target SV</b> = the monthly pace needed to clear this SKU's aged stock within a year.
         <b>To clear</b> figures run the surcharge all the way until the stock is gone — the honest number for SKUs that need more than a year, and the reason holding usually loses.
+      </div>
+    </div>
+
+    <!-- ============ "why this number" panel, opens on row click ============ -->
+    <div class="modal-overlay" id="optModal">
+      <div class="modal" style="max-width:1080px">
+        <div class="modal-head">
+          <h3 id="optModalTitle"></h3>
+          <span class="chip" id="optModalSub"></span>
+          <span class="badge" id="optModalChip"></span>
+          <button class="ghost" id="optModalCopy" style="margin-left:auto;padding:6px 12px">⧉ Copy justification</button>
+          <button class="x" id="optModalClose" title="Close" style="margin-left:8px">✕</button>
+        </div>
+        <div class="modal-body" style="padding:16px 18px" id="optModalBody"></div>
       </div>
     </div>
   </div><!-- /viewProj -->
@@ -2306,7 +2533,7 @@ function buildFromLTSF(){
       a0_30:0,a31_60:0,a61_90:0,a91_180:s.soon90_180||0,
       a181_270:(q[0]||0)+(q[1]||0)+(q[2]||0), a271_365:(q[3]||0)+(q[4]||0)+(q[5]||0), a366_455:q[6]||0, a456:q[7]||0,
       price:s.price||0, cogs:s.cogs||0, fba:s.fba||0, referral:s.referral||0, margin:s.margin||0,
-      volume:s.volume||0, value:0, storage:0, action:'',
+      volume:s.volume||0, weight:s.weight||0, value:0, storage:0, action:'',
       velocity:s.velocity||0, origMonthly:s.origMonthly||0, svDay:s.svDay||0, removalRate:s.removalRate||0,
       avgDaily:s.avgDaily||0, svMonthly:s.svMonthly||0, svSource:s.svSource||'none',
       svDays:s.svDays||0, svWindow:s.svWindow||'',
@@ -2316,6 +2543,9 @@ function buildFromLTSF(){
       storage3pl:s.storage3pl||0, total3pl:s.total3pl||0, totalAmz:s.totalAmz||0,
       removalStatus:(s.removalStatus||''), variance3pl:s.variance3pl||0,
       targetUnits:s.targetUnits||0, totalSold:s.totalSold||0, trackStatus:s.trackStatus||'', daily:s.daily||[],
+      /* Discount Optimizer inputs — "SKU Cash Action Tracker" sheet, or null when
+         that SKU is not on it. Read only by the optimizer block; nothing else. */
+      cash:s.cash||null,
     };
   });
 }
@@ -2544,6 +2774,101 @@ function rollFIFO(seed,rate,vel,m1Charge){
   if(HOR1>=HORMAX) left1=leftL;
   return {tot1,totL,sold1,soldL,left1,leftL,monthsToClear};
 }
+/* ===========================================================================
+   FBA LIQUIDATIONS — what a unit is actually worth if we hand it to a liquidator
+   ---------------------------------------------------------------------------
+   Amazon sells the stock to a wholesale liquidator and pays us what is left of
+   that sale after two deductions:
+
+     gross recovery value (GRV) = recovery % x current selling price
+     liquidations referral fee  = 15% of GRV
+     processing fee             = per-unit, banded on size tier and weight
+     NET RECOVERY               = GRV - referral - processing      (floored at 0)
+
+   Amazon does not publish a GRV formula. It is the liquidator's bid, driven by
+   the ASIN's sales history and average FBA selling price, and Seller Central
+   describes the outcome as typically 5-10% of that price — which is why the
+   recovery % is a control here rather than a constant. The processing-fee bands
+   below are the published US rate card; they are editable in the drawer so the
+   live card can be pasted in without touching this file.
+
+   Liquidation is NOT removal. Removal costs a fee per unit and hands the stock
+   back; liquidation pays cash and the stock is gone. Both stop the surcharge,
+   so the engine now prices all three exits (hold / remove / liquidate) instead
+   of assuming a pull-out is the only way off the surcharge.
+   =========================================================================== */
+const LIQ_DEF={
+  rec:0.075,          // GRV as a share of selling price — Seller Central's 5-10% band, mid
+  ref:0.15,           // liquidations referral fee, charged on GRV
+  tier:'auto',        // auto | std | ovr
+  maxLb:20, maxCuft:1.167,   // auto-classify: past either one, the unit is oversize
+  ovrRemoval:3.00,           // ...as is a removal fee no standard-size unit could carry
+  s1:0.25, s2:0.30, s3:0.35, s4:0.40,   // standard: <=0.5 / <=1 / <=2 lb, then s4 + per-lb over 2
+  o1:0.60, o2:0.90, o3:1.90,            // oversize: <=4 / <=10 lb, then o3 + per-lb over 10
+  perLb:0.20,
+};
+/* Reads the drawer when it exists, defaults when it does not — the optimizer and
+   the KPI strip both call this before the Engine tab has ever been opened. */
+function liqParams(){
+  const L={}, g=id=>document.getElementById(id);
+  for(const k in LIQ_DEF) L[k]=LIQ_DEF[k];
+  const pctIn=(id,d)=>{const e=g(id); if(!e) return d; const v=num(e.value); return isFinite(v)?clamp(v/100,0,1):d;};
+  const dolIn=(id,d)=>{const e=g(id); if(!e) return d; const v=num(e.value); return isFinite(v)&&v>=0?v:d;};
+  L.rec=pctIn('liqRec',LIQ_DEF.rec);
+  L.ref=pctIn('liqRef',LIQ_DEF.ref);
+  const t=g('liqTier'); if(t&&t.value) L.tier=t.value;
+  L.maxLb=dolIn('liqMaxLb',LIQ_DEF.maxLb);
+  L.maxCuft=dolIn('liqMaxCuft',LIQ_DEF.maxCuft);
+  L.ovrRemoval=dolIn('liqOvrRemoval',LIQ_DEF.ovrRemoval);
+  ['s1','s2','s3','s4','o1','o2','o3','perLb'].forEach(k=>{ L[k]=dolIn('liq_'+k,LIQ_DEF[k]); });
+  return L;
+}
+/* Standard vs oversize. Amazon classifies on the three dimensions, which we do
+   not hold, so "auto" triangulates from three things we do:
+     - unit weight past the 20 lb standard-size ceiling,
+     - unit volume past what a standard-size box can physically hold
+       (18x14x8in = 1.167 cu ft), and
+     - the REMOVAL FEE Amazon already charges us. That one is the strongest
+       signal in the file: it is Amazon's own tier verdict, priced. No
+       standard-size unit carries a removal fee anywhere near $3, so a SKU
+       billed $8.90 to remove is a large-bulky unit whatever its cu ft says.
+   The third test is what stops a dense, compact item being mispriced as
+   standard — which matters, because the standard card's per-lb escalator above
+   2 lb makes it the DEARER of the two tiers for a heavy item. */
+function liqTierOf(x,L){
+  if(L.tier==='std') return 'std';
+  if(L.tier==='ovr') return 'ovr';
+  const w=x.weight||0, v=x.volume||0, rm=x.removalRate||0;
+  return (w>L.maxLb||v>L.maxCuft||(L.ovrRemoval>0&&rm>L.ovrRemoval))?'ovr':'std';
+}
+function liqProcFee(w,tier,L){
+  if(tier==='ovr'){
+    if(w<=4)  return L.o1;
+    if(w<=10) return L.o2;
+    return L.o3+L.perLb*(w-10);
+  }
+  if(w<=0.5) return L.s1;
+  if(w<=1)   return L.s2;
+  if(w<=2)   return L.s3;
+  return L.s4+L.perLb*(w-2);
+}
+/* Per-unit liquidation economics for one SKU. */
+function liqUnit(x,L){
+  L=L||liqParams();
+  const price=x.price||0;
+  const tier=liqTierOf(x,L);
+  const wKnown=(x.weight||0)>0;
+  /* No weight on file: charge the tier's opening band and flag it, rather than
+     silently pricing a heavy item at the cheapest rate. */
+  const w=wKnown?x.weight:(tier==='ovr'?4:2);
+  const gross=Math.max(0,L.rec*price);
+  const ref=gross*L.ref;
+  const proc=price>0?liqProcFee(w,tier,L):0;
+  const raw=gross-ref-proc;
+  return {tier, w, wKnown, gross, ref, proc, fees:ref+proc,
+          net:Math.max(0,raw), raw, underwater:raw<0,
+          pctOfPrice:price>0?Math.max(0,raw)/price:0};
+}
 function simParams(){
   return {
     parent:document.getElementById('simParent').value,
@@ -2551,6 +2876,7 @@ function simParams(){
     basis:(document.getElementById('simBasis')||{value:'flat'}).value,
     disc:clamp((num(document.getElementById('simDisc').value)||0)/100,0,0.95),
     ref:(num(document.getElementById('engRef').value)||15)/100,
+    liq:liqParams(),
   };
 }
 function simScopeSkus(p){
@@ -2599,6 +2925,8 @@ function computeSim(){
     payout:0,payoutW:0,cogsW:0,ceilW:0,floorW:0,bestW:0,appliedW:0,gw:0,
     discGiven:0,net1Hold:0,net1Disc:0,netLHold:0,netLDisc:0,
     nRemove:0,removeUnits:0,removeCost:0,removeGain:0,removeAis:0,
+    nLiq:0,liqUnits:0,liqNet:0,liqGain:0,liqAis:0,
+    liqAllGross:0,liqAllFees:0,liqAllNet:0,
     cleared1:0,clearedL:0,left1:0,svNow:0,svTarget:0,
     /* the four levers, totalled for the comparison panel */
     cmp:{none:{net:0,cash:0,ais:0,disc:0,w:0,pw:0},ceiling:{net:0,cash:0,ais:0,disc:0,w:0,pw:0},
@@ -2636,10 +2964,24 @@ function computeSim(){
     const canDiscount=(reach==='onpace'||reach==='ok'||reach==='stretch');
     const removalCost=x.removalRate>0?x.removalRate*units:(x.removalCost||0);
     const removeGain=(-removalCost)-hold.netL;
+
+    /* ---- the liquidation exit, priced per SKU ----
+       Removal is a cost and liquidation is a receipt, so they are two different
+       exits and the better one wins. Both end the surcharge immediately, which
+       is why each is compared against HOLD's net-to-clear rather than against
+       zero. */
+    const lq=liqUnit(x,p.liq);
+    const liqTotal=lq.net*units;
+    const liqGain=liqTotal-hold.netL;          // liquidate now vs leave it sitting
+    const liqVsRemove=liqTotal+removalCost;    // liquidate vs pay to pull it out
+    const exitBest=Math.max(liqTotal,-removalCost);
+    const exitKind=liqTotal>=-removalCost?'liquidate':'remove';
+
     let action;
     if(reach==='onpace')  action='hold';
-    else if(canDiscount)  action=(disc.netL>hold.netL)?'discount':'hold';
-    else                  action=(removeGain>0)?'remove':'hold';
+    else if(canDiscount)  action=(disc.netL>=hold.netL&&disc.netL>=exitBest)?'discount'
+                               :(exitBest>hold.netL?exitKind:'hold');
+    else                  action=(exitBest>hold.netL)?exitKind:'hold';
 
     const dealP=price*(1-dApp);
     const totalPayout=disc.pay*disc.r.soldL;
@@ -2691,6 +3033,11 @@ function computeSim(){
       netAtBest:best.netL,bestGain:best.netL-hold.netL,
       verdict:(disc.netL>hold.netL)?'disc':'hold',
       upliftX,reach,canDiscount,removalCost,removeGain,action,
+      /* liquidation block */
+      liqTier:lq.tier, liqW:lq.w, liqWKnown:lq.wKnown, liqGross:lq.gross, liqRef:lq.ref,
+      liqProc:lq.proc, liqNet:lq.net, liqPct:lq.pctOfPrice, liqUnderwater:lq.underwater,
+      liqGrossTotal:lq.gross*units, liqFeesTotal:lq.fees*units, liqTotal, liqGain,
+      liqVsRemove, exitBest, exitKind,
     };
     rows.push(r);
 
@@ -2716,19 +3063,31 @@ function computeSim(){
       agg.bestW+=best.disc*units; agg.appliedW+=dApp*units; agg.gw+=units; }
     if(r.action==='remove'){ agg.nRemove++; agg.removeUnits+=units; agg.removeCost+=removalCost;
       agg.removeGain+=removeGain; agg.removeAis+=r.aisLHold; }
+    /* liquidation totals: the recommended set, plus the whole-book figure so the
+       "what if we liquidated everything" question has an answer on screen. */
+    if(r.action==='liquidate'){ agg.nLiq++; agg.liqUnits+=units; agg.liqNet+=liqTotal;
+      agg.liqGain+=liqGain; agg.liqAis+=r.aisLHold; }
+    agg.liqAllGross+=r.liqGrossTotal; agg.liqAllFees+=r.liqFeesTotal; agg.liqAllNet+=liqTotal;
   });
   return {p,rows,agg};
 }
-/* the four levers, side by side — each SKU priced at its own percentage */
+/* the levers, side by side — each SKU priced at its own percentage.
+   Liquidation joins them as a genuine option rather than a footnote: it collects
+   cash today and pays zero further surcharge, which is exactly the shape the
+   other four rows are measured in, so it belongs in the same comparison. */
 function renderCompare(S){
   const el=document.getElementById('simCompare'); if(!el) return;
   const {agg,p}=S, gw=agg.gw||agg.units||1, C=agg.cmp;
+  /* liquidate-everything, priced into the same columns: no discount is "given"
+     (the stock never lists again) and the surcharge stops on the spot. */
+  C.liq={net:agg.liqAllNet, cash:agg.liqAllNet, ais:0, disc:0, w:0, pw:0, liq:1};
   const base=C.none.net;
   const rowsDef=[
     ['none','Do nothing',        'leave prices as they are'],
     ['ceiling','At the ceiling', 'deepest cut that still returns 100% of product cost'],
     ['best','★ At the best %','the level that leaves the most cash after surcharge'],
     ['floor','At the floor',     'payout hits zero — shown for reference, not advice'],
+    ['liq','💵 Liquidate it all','hand every aged unit to the liquidator today — surcharge stops immediately'],
   ];
   let bestKey='none', bestNet=-Infinity;
   rowsDef.forEach(([k])=>{ if(C[k].net>bestNet){bestNet=C[k].net;bestKey=k;} });
@@ -2737,11 +3096,11 @@ function renderCompare(S){
     return `<tr${win?' style="background:rgba(204,136,41,.10)"':''}>
       <td><b${win?' style="color:var(--accent)"':''}>${label}</b>${win?' <span class="badge v-run">BEST</span>':''}
         <div class="muted" style="font-size:11px;font-weight:400">${note}</div></td>
-      <td class="num">${k==='none'?'<span class=muted>—</span>':pct1(c.w/gw)}</td>
-      <td class="num">${money2(c.pw/gw)}</td>
+      <td class="num">${(k==='none'||c.liq)?'<span class=muted>—</span>':pct1(c.w/gw)}</td>
+      <td class="num">${c.liq?`<span class="muted" title="liquidation is not a listing price — the liquidator bids a share of it">${pct1(p.liq.rec)} of price</span>`:money2(c.pw/gw)}</td>
       <td class="num">${money(c.cash)}</td>
-      <td class="num"><span class="${c.ais>0?'neg':''}">${money(c.ais)}</span></td>
-      <td class="num">${k==='none'?'<span class=muted>—</span>':money(c.disc)}</td>
+      <td class="num">${c.liq?'<span class="pos" title="the surcharge stops the moment the stock goes">$0</span>':`<span class="${c.ais>0?'neg':''}">${money(c.ais)}</span>`}</td>
+      <td class="num">${(k==='none'||c.liq)?'<span class=muted>—</span>':money(c.disc)}</td>
       <td class="num"><b class="${c.net>=0?'pos':'neg'}">${moneyS(c.net)}</b></td>
       <td class="num">${k==='none'?'<span class=muted>—</span>':`<b class="${d>=0?'pos':'neg'}">${(d>=0?'+':'−')+money(Math.abs(d))}</b>`}</td>
     </tr>`;
@@ -2813,7 +3172,13 @@ function renderSimPlain(S){
     (agg.nRemove?`<br/><b style="color:var(--red)">⚠ Reality check:</b> on <b>${fmt(agg.nRemove)}</b> of them the required pace is out of reach — `+
       `they hold <b>${fmt(Math.round(agg.removeUnits))}</b> units with <b>${money(agg.removeAis)}</b> of surcharge still ahead, and no realistic discount clears them. `+
       `Pulling that stock out of Amazon costs <b>${money(agg.removeCost)}</b> and stops the bleed — <b>${moneyS(agg.removeGain)}</b> better than holding. `+
-      `Filter <b>ACTION = REMOVE</b> to see them.`:'');
+      `Filter <b>ACTION = REMOVE</b> to see them.`:'')+
+    (agg.nLiq?`<br/><b style="color:#4fd894">💵 Liquidation:</b> on <b>${fmt(agg.nLiq)}</b> SKUs the liquidator's cheque is the best exit — `+
+      `<b>${fmt(Math.round(agg.liqUnits))}</b> units returning <b>${money(agg.liqNet)}</b> net of the referral and processing fees, `+
+      `<b>${moneyS(agg.liqGain)}</b> better than holding and it stops <b>${money(agg.liqAis)}</b> of surcharge dead. `+
+      `Filter <b>ACTION = LIQUIDATE</b> to see them.`:'')+
+    ` Liquidating <i>everything</i> in scope would return <b>${money(agg.liqAllNet)}</b> `+
+    `(${money(agg.liqAllGross)} gross less ${money(agg.liqAllFees)} in fees) — the floor under every other option here.`;
 }
 /* ---------- the single table ---------- */
 /* ============================================================================
@@ -2869,12 +3234,24 @@ const SIM_COLS=[
   {k:'bestZone',t:'Best % zone',cls:'',grp:'ver',tip:"Where Scenario 3's percentage sits. SAFE = at or under the ceiling, all product cost comes back. THIN = past the ceiling but above the floor. OUT-OF-POCKET = past the floor, every sale costs you cash — the optimiser goes there when escaping the surcharge is worth more than the loss per unit."},
   {k:'removalCost',t:'Cost to remove',cls:'num',grp:'ver',tip:"Amazon's removal fee × units — cost to pull the stock out and stop the surcharge now."},
   {k:'removeGain',t:'Remove vs hold',cls:'num',grp:'ver',tip:'(−removal fee) − HOLD net. Positive = pulling the stock out beats leaving it there. Compare against Gain vs HOLD.'},
-  {k:'action',t:'ACTION',cls:'',grp:'ver',tip:'DISCOUNT when the lift is achievable and it pays. REMOVE when no realistic discount clears it and pulling out beats holding. HOLD otherwise.'},
+  {k:'action',t:'ACTION',cls:'',grp:'ver',tip:'DISCOUNT when the lift is achievable and it out-earns both exits. LIQUIDATE when the net recovery beats holding and beats paying removal. REMOVE only when the liquidation bid nets below zero — removal is priced as a pure cost here, with no value credited to the returned goods, so it rarely wins. HOLD otherwise.'},
+  /* ---- FBA Liquidations: the priced exit that sits behind LIQUIDATE ---- */
+  {k:'liqTier',t:'Tier',cls:'',grp:'liq',tip:'Size tier used to price the liquidation processing fee. Auto-classified from unit weight and cu ft: past 20 lb or past 1.167 cu ft (the volume a standard-size box can hold) it is oversize. Override in the Liquidation assumptions drawer.'},
+  {k:'liqW',t:'Weight lb',cls:'num',grp:'liq',tip:'Unit shipping weight, which is what the processing fee is banded on. Shown in amber when the workbook has no weight for this SKU — the tier’s opening band is assumed and the fee is a floor, not a quote.'},
+  {k:'liqGross',t:'Gross rec /unit',cls:'num',grp:'liq',tip:'Gross recovery value = recovery % × current selling price. This is what the liquidator pays Amazon before any fee comes off.'},
+  {k:'liqRef',t:'Referral /unit',cls:'num',grp:'liq',tip:'Liquidations referral fee, charged as a percentage of the GROSS recovery value — not of your selling price.'},
+  {k:'liqProc',t:'Processing /unit',cls:'num',grp:'liq',tip:'Per-unit liquidation processing fee from the published rate card, banded on size tier and shipping weight.'},
+  {k:'liqNet',t:'Net rec /unit',cls:'num',grp:'liq',tip:'Gross recovery − referral − processing. Floored at zero: when the fees exceed the gross value there is simply no payment, Amazon does not bill you the difference.'},
+  {k:'liqPct',t:'% of price',cls:'num',grp:'liq',tip:'Net recovery per unit as a share of the selling price. The published expectation for this programme is roughly 5–10% gross, so this lands lower once fees come off.'},
+  {k:'liqTotal',t:'Net rec TOTAL',cls:'num',grp:'liq',tip:'Net recovery per unit × aged units — the cash this SKU actually returns if it is liquidated.'},
+  {k:'liqGain',t:'Liquidate vs hold',cls:'num',grp:'liq',tip:'Liquidation cash − HOLD net to clear. Positive = taking the liquidator’s cheque today beats leaving the stock on the surcharge. This is the honest exit comparison; removal alone understates it because removal ignores the recovery.'},
+  {k:'liqVsRemove',t:'Liquidate vs remove',cls:'num',grp:'liq',tip:'Liquidation cash − (−removal fee). Positive = liquidating beats paying to pull the stock out, which is almost always true unless the goods are worth reselling elsewhere.'},
 ];
 const SIM_GROUPS={id:'SKU · aged stock',hold:'Baseline — HOLD (no discount)',
   ceil:'Scenario 1 — Ceiling % off  (recovers 100% of COGS)',
   flr:'Scenario 2 — Floor % off  (payout falls to zero)',
   best:'Scenario 3 — Best % off  (max net recovery)',
+  liq:'Exit — FBA Liquidations',
   ver:'Verdict'};
 /* mark each block's leading column so the divider rule lands on it */
 (()=>{let _g=null;SIM_COLS.forEach(c=>{c.blk=(c.grp!==_g);_g=c.grp;});})();
@@ -2953,8 +3330,25 @@ function simCell(r,k){
       const [c,t]=M[r.reach]||M.no; return `<span class="badge ${c}">${t}</span>`; }
     case 'removalCost': return r.removalCost>0?money2(r.removalCost):dash;
     case 'removeGain': return r.removalCost>0?`<span class="${r.removeGain>0?'pos':'neg'}">${m2(r.removeGain)}</span>`:dash;
-    case 'action': { const M={discount:['v-run','🏷️ DISCOUNT'],remove:['v-cost','🚚 REMOVE / LIQUIDATE'],hold:['v-na','⏳ HOLD']};
+    case 'action': { const M={discount:['v-run','🏷️ DISCOUNT'],liquidate:['v-cost','💵 LIQUIDATE'],
+        remove:['v-skip','🚚 REMOVE'],hold:['v-na','⏳ HOLD']};
       const [c,t]=M[r.action]||M.hold; return `<span class="badge ${c}">${t}</span>`; }
+    /* ---- liquidation block ---- */
+    case 'liqTier': return r.price>0
+      ?`<span class="badge ${r.liqTier==='ovr'?'v-cost':'v-na'}">${r.liqTier==='ovr'?'oversize':'standard'}</span>`:dash;
+    case 'liqW': return r.price<=0?dash:(r.liqWKnown
+      ?`${r.liqW.toFixed(2)}`
+      :`<span class="flag" title="no weight on file — priced at the ${r.liqTier==='ovr'?'oversize':'standard'} tier's opening band, so the processing fee is a floor">~${r.liqW.toFixed(2)}</span>`);
+    case 'liqGross': return r.price>0?money2(r.liqGross):dash;
+    case 'liqRef': return r.price>0?`<span class="neg">−${money2(r.liqRef)}</span>`:dash;
+    case 'liqProc': return r.price>0?`<span class="neg">−${money2(r.liqProc)}</span>`:dash;
+    case 'liqNet': return r.price<=0?dash:(r.liqUnderwater
+      ?`<span class="flag" title="fees exceed the gross recovery value — the liquidator’s cheque is zero">$0.00</span>`
+      :`<b class="pos">${money2(r.liqNet)}</b>`);
+    case 'liqPct': return r.price>0?`<span class="${r.liqPct>0?'':'neg'}">${pct1(r.liqPct)}</span>`:dash;
+    case 'liqTotal': return r.price>0?`<b class="${r.liqTotal>0?'pos':'neg'}">${money(r.liqTotal)}</b>`:dash;
+    case 'liqGain': return r.price>0?`<span class="${r.liqGain>=0?'pos':'neg'}">${m2(r.liqGain)}</span>`:dash;
+    case 'liqVsRemove': return r.price>0?`<span class="${r.liqVsRemove>=0?'pos':'neg'}">${m2(r.liqVsRemove)}</span>`:dash;
   }
   return '';
 }
@@ -2996,6 +3390,9 @@ function renderSubtotals(rows){
     ['Discount wins',fmt(wins)+' of '+fmt(rows.length),'pos'],
     ['⚠ Must remove',fmt(rows.filter(r=>r.action==='remove').length),'neg'],
     ['Removal cost',money(t(r=>r.action==='remove'?r.removalCost:0)),''],
+    ['💵 Liquidate',fmt(rows.filter(r=>r.action==='liquidate').length),''],
+    ['Liquidation cash',money(t(r=>r.action==='liquidate'?r.liqTotal:0)),'pos'],
+    ['If liquidated ALL',money(t(r=>r.liqTotal)),'pos'],
   ];
   document.getElementById('simSubtotals').innerHTML=cells.map(([k,v,c])=>
     `<div class="st"><div class="k">${k}</div><div class="v ${c}">${v}</div></div>`).join('');
@@ -3022,7 +3419,7 @@ function renderSimSoon(){ if(_simRaf) return; _simRaf=requestAnimationFrame(()=>
 function renderSim(){
   const S=_lastSim=computeSim();
   window._simState=S;
-  renderSimKpis(S); renderCompare(S); renderSimPlain(S); renderSimTable(S);
+  renderSimKpis(S); renderCompare(S); renderSimPlain(S); renderLiqChip(S); renderSimTable(S);
   const {p,agg}=S;
   document.getElementById('simScopeChip').innerHTML=
     (p.parent?`<b>${p.parent}</b>`:'all parents')+(p.size?' · '+p.size:'')+' — '+fmt(agg.units)+' aged units';
@@ -3050,6 +3447,16 @@ function populateSimFilters(){
   document.getElementById('simParent').innerHTML=
     '<option value="">All parents (ranked by AIS ↓)</option>'+parentOptionHTML(aged);
   populateSimSizes();
+}
+/* One line on the closed drawer, so the liquidation number is visible without
+   opening it: what the whole filtered book is worth if every unit goes today. */
+function renderLiqChip(S){
+  const el=document.getElementById('liqSummaryChip'); if(!el) return;
+  const {agg,p}=S, L=p.liq;
+  const gross=agg.liqAllGross, net=agg.liqAllNet, fees=agg.liqAllFees;
+  const eff=gross>0?net/gross:0;
+  el.innerHTML=`${pct1(L.rec)} of price → <b class="pos">${money(net)}</b> net on ${fmt(agg.units)} units `
+    +`<span class="muted">(${money(gross)} gross − ${money(fees)} fees · keeps ${pct0(eff)})</span>`;
 }
 function exportSimCSV(){
   if(!simView.length){ alert('Nothing to export yet.'); return; }
@@ -3649,7 +4056,10 @@ document.getElementById('exportSkus').onclick=exportSkusCSV;
 
 /* ---- decision engine wireup (one control row, no duplicates) ---- */
 document.getElementById('simParent').addEventListener('change',()=>{ populateSimSizes(); renderSimSoon(); });
-['simSize','simDisc','engRef','simSearch','simAction','simReach','simZone','simBasis'].forEach(id=>{
+['simSize','simDisc','engRef','simSearch','simAction','simReach','simZone','simBasis',
+ /* liquidation assumptions — every one of them reprices the whole table */
+ 'liqRec','liqRef','liqTier','liqMaxLb','liqMaxCuft','liqOvrRemoval',
+ 'liq_s1','liq_s2','liq_s3','liq_s4','liq_o1','liq_o2','liq_o3','liq_perLb'].forEach(id=>{
   const el=document.getElementById(id); if(!el) return;
   el.addEventListener('input',renderSimSoon); el.addEventListener('change',renderSimSoon);
 });
@@ -4046,6 +4456,906 @@ document.getElementById('dpExport').onclick=exportDpCSV;
 });
 document.getElementById('dpRef').addEventListener('input',function(){ if(DPLAN.length) renderDp(); });
 renderDp();
+
+/* ============================================================================
+   DISCOUNT OPTIMIZER                              (Discount_Optimizer_Spec.md)
+
+   The selected discount per SKU stops being a judgement call. For every SKU
+   this block answers four things: what the total payout is, why that number
+   won, what happens under slower/faster demand, and what the current setting
+   is costing versus the recommendation.
+
+   Deliberately ADDITIVE. The Ceiling / Floor / Best scenarios above are
+   untouched and still use their own elasticity curve and 12/36-month horizons,
+   so the two can be read side by side and the difference is visible rather
+   than silently baked in. Everything this block computes lives under keys
+   prefixed `opt`, in its own column group.
+
+   Core principle: the ceiling and the floor are BOUNDARIES, not targets. The
+   target d* maximises recovered cash = unit cash × units sold − LTSF drag
+   while clearing + exit value of the unsold tail. Found by grid search.
+   ============================================================================ */
+
+/* ---------------------------------------------------------------------------
+   §9.3 — every constant in one visible place. The huddle must be able to see
+   and change each of these, so each one is bound to a control in the drawer.
+   --------------------------------------------------------------------------- */
+const OPT_DEFAULTS = {
+  adPromo: 0.08,     // ad rate carried while a discount is live
+  adBase:  0.04,     // baseline ad rate at 0% off
+  clip:    0.60,     // coupon clip fee per unit
+  kLo:     0.6,      // Conservative
+  kBase:   1.0,      // Base / canon
+  kHi:     1.4,      // Aggressive
+  velCapX: 6,        // v(d) <= 6 x v0
+  step:    0.01,     // grid resolution
+  tie:     0.02,     // totals within 2% of max -> take the shallowest d
+  window:  6,        // months in one wave
+  capBasis:'floor',
+  ageFwd:  true,
+};
+/* Official aged-inventory rate card, $/cu ft, charged on the 15th.
+   Index matches the 8 aged bands the workbook reports.
+     181-210  211-240  241-270  271-300*  301-330  331-365  366-455  456+
+   *the cliff. Read from the workbook when it carries the same card. */
+const OPT_CARD_SPEC = [0.50, 1.00, 1.50, 5.45, 5.70, 5.90, 6.90, 7.90];
+function optCard(){
+  const wb = Object.values((typeof LT!=='undefined' && LT.rateCard) || {}).map(Number);
+  return (wb.length === 8 && wb.every(v => isFinite(v) && v > 0)) ? wb : OPT_CARD_SPEC.slice();
+}
+/* the band a bucket index sits in — bucket 0 is 91-180, not yet chargeable */
+const OPT_BANDS = ['91–180','181–210','211–240','241–270','271–300','301–330','331–365','366–455','456+'];
+const OPT_CLIFF_BUCKET = 4;                       // 271-300, where the rate jumps to $5.45
+
+/* ---------------------------------------------------------------------------
+   persistence (§9.4) — Selected % per SKU and calibrated k per parent
+   --------------------------------------------------------------------------- */
+const OPT_STORE_KEY = 'ltsf.optimizer.v1';
+let OPT_STORE = {sel:{}, k:{}, assum:{}};
+function optLoadStore(){
+  try{ const raw = localStorage.getItem(OPT_STORE_KEY);
+       if(raw){ const o = JSON.parse(raw);
+         OPT_STORE = {sel:o.sel||{}, k:o.k||{}, assum:o.assum||{}}; } }
+  catch(e){ /* private mode / disabled storage — run in memory */ }
+}
+function optSaveStore(){
+  try{ localStorage.setItem(OPT_STORE_KEY, JSON.stringify(OPT_STORE)); }
+  catch(e){ /* nothing to do; the session still works, it just will not persist */ }
+}
+optLoadStore();
+
+/* ---------------------------------------------------------------------------
+   assumptions, read live off the controls
+   --------------------------------------------------------------------------- */
+const optEl = id => document.getElementById(id);
+const optNum = (id, dflt) => { const e = optEl(id); const v = e ? parseFloat(e.value) : NaN;
+                               return isFinite(v) ? v : dflt; };
+function optAssum(){
+  const D = OPT_DEFAULTS;
+  return {
+    ref:     (num(optEl('engRef') ? optEl('engRef').value : 15) || 15)/100,
+    adPromo: optNum('oaAdPromo', D.adPromo*100)/100,
+    adBase:  optNum('oaAdBase',  D.adBase*100)/100,
+    clip:    optNum('oaClip',    D.clip),
+    kLo:     optNum('oaKlo',     D.kLo),
+    kBase:   optNum('oaKbase',   D.kBase),
+    kHi:     optNum('oaKhi',     D.kHi),
+    velCapX: optNum('oaVelCap',  D.velCapX),
+    step:    Math.max(0.005, optNum('oaStep', D.step*100)/100),
+    tie:     optNum('oaTie',     D.tie*100)/100,
+    window:  Math.max(1, Math.round(optNum('optWindow', D.window))),
+    capBasis:(optEl('optCap')||{value:D.capBasis}).value,
+    ageFwd:  optEl('optAgeFwd') ? optEl('optAgeFwd').checked : D.ageFwd,
+    card:    optCard(),
+  };
+}
+
+/* ---------------------------------------------------------------------------
+   §2 elasticity. k scales the UPLIFT, never the multiplier, so d = 0 pins to
+   exactly 1x base for every k — a zero discount can never change velocity.
+   --------------------------------------------------------------------------- */
+function optM(d){ return d < 0.20 ? 1 + 5*d : 10*d; }
+function optMk(d, k){ return 1 + k*(optM(d) - 1); }
+/* calibrated k for a parent, else the canon Base */
+function optKFor(tag, A){
+  const c = OPT_STORE.k[tag];
+  return (c && isFinite(c.k) && c.k > 0) ? c.k : A.kBase;
+}
+/* the +/-40% band re-centres on a calibrated k (§2.3.3) */
+function optKBand(tag, A){
+  const c = OPT_STORE.k[tag];
+  if(c && isFinite(c.k) && c.k > 0) return {lo: c.k*0.6, base: c.k, hi: c.k*1.4, cal: c};
+  return {lo: A.kLo, base: A.kBase, hi: A.kHi, cal: null};
+}
+
+/* ---------------------------------------------------------------------------
+   §3 cash per unit. LTSF is NOT deducted per unit — it is simulated explicitly
+   below, which is what makes the cliff price correctly.
+   --------------------------------------------------------------------------- */
+function optNC(inp, d, A){
+  const net = (1 - A.ref)*inp.P*(1 - d) - inp.F;
+  const promo = d > 0 ? A.adPromo*inp.P*(1 - d) + A.clip : A.adBase*inp.P;
+  return net - promo;
+}
+
+/* ---------------------------------------------------------------------------
+   per-SKU inputs (§1). The cash tracker is the authority; SKUs missing from it
+   fall back to the figures the rest of the site already uses.
+   --------------------------------------------------------------------------- */
+function optInputs(x, A){
+  if(!x) return null;
+  const seed = skuSeed9(x);
+  const c = x.cash || null;
+  const P = (c && c.price > 0) ? c.price : (x.price || 0);
+  const C = (c && c.cogs  > 0) ? c.cogs  : (x.cogs  || 0);
+  const F = (c && c.fba   > 0) ? c.fba   : (x.fba   || 0);
+  if(!(P > 0)) return null;
+
+  let U = c ? c.u : 0;
+  const seedTot = seed.reduce((s,v) => s+v, 0);
+  if(!(U > 0)) U = seedTot;
+  if(!(U > 0)) return null;
+
+  /* v0 — max of the two velocity readings per Assumption 5's haircut rule */
+  let v0 = c ? Math.max(c.l30 || 0, c.basev || 0) : 0;
+  if(!(v0 > 0)) v0 = skuVelBase(x) || 0;
+
+  /* boundaries: the tracker's own, recomputed at the live referral when absent */
+  const dCeil = (c && c.ceil  > 0) ? c.ceil  : Math.max(0, 1 - (C + F)/((1 - A.ref)*P));
+  const dFloor= (c && c.floor > 0) ? c.floor : Math.max(0, 1 -  F     /((1 - A.ref)*P));
+
+  /* Exit cash per unit — the tracker's own settled figure (col W) when it has one,
+     otherwise the FBA Liquidations calculation: gross recovery value less the
+     liquidations referral fee and the per-unit processing fee. That replaces the
+     flat 7.5%-of-price stand-in this used to carry, which quietly overstated the
+     exit because it deducted neither fee. */
+  const lq = (typeof liqUnit === 'function') ? liqUnit(x) : null;
+  const xu = (c && c.exitU > 0) ? c.exitU : (lq ? lq.net : Math.max(0, 0.075*P));
+
+  /* LTSF per unit at the CURRENT bracket, and the cu ft it implies. Dividing the
+     charge by the current blended rate recovers volume, which then re-prices
+     correctly as the stock ages into the next bracket. */
+  let Lu = (c && c.ltsfU > 0) ? c.ltsfU : (U > 0 ? (x.ais || 0)/U : 0);
+  let wq = 0, wr = 0;
+  for(let i = 1; i < 9; i++){ const q = seed[i] || 0; wq += q; wr += q*A.card[i-1]; }
+  const rNow = wq > 0 ? wr/wq : 0;
+  let cuft = (rNow > 0 && Lu > 0) ? Lu/rNow : (x.volume || 0);
+  if(!(cuft > 0)) cuft = 0;
+
+  /* the ladder the simulation walks. When the tracker's aged-unit count and the
+     band quantities disagree, scale the bands so the ladder totals U. */
+  const ladder = seed.slice();
+  if(seedTot > 0 && Math.abs(seedTot - U) > 0.5){
+    const f = U/seedTot; for(let i = 0; i < 9; i++) ladder[i] *= f;
+  } else if(seedTot <= 0){
+    ladder[OPT_CLIFF_BUCKET] = U;                 // no band detail: assume at the cliff
+  }
+
+  /* months until the next tranche crosses 271 days (§1.9). Units in 241-270
+     cross next month, 211-240 the month after, and so on. */
+  const tCliff   = ladder[3] > 0 ? 1 : (ladder[2] > 0 ? 2 : (ladder[1] > 0 ? 3 : Infinity));
+  const cliffQty = ladder[3] || 0;
+  let past = 0; for(let i = OPT_CLIFF_BUCKET; i < 9; i++) past += ladder[i];
+
+  return {sku:x.sku, tag:x.tag||'—', size:x.size||'', U, v0, P, C, F,
+          dCeil, dFloor, xu, Lu, cuft, seed:ladder, tCliff, cliffQty, pastCliff:past,
+          hasCash:!!c, plan:(c&&c.plan)||'', arch:(c&&c.arch)||'', gate:(c&&c.gate)||''};
+}
+
+/* ---------------------------------------------------------------------------
+   §4 month-by-month simulation. Charge on the 15th on whatever is still
+   sitting, then sell, then age one bracket — so a SKU crossing 271 days mid
+   window pays $5.45/cu ft from that month on. That is what makes a shallow
+   discount on a near-cliff SKU correctly look expensive.
+   --------------------------------------------------------------------------- */
+const _optRem = new Float64Array(9), _optNxt = new Float64Array(9);
+function optSim(inp, d, k, A){
+  const v = Math.min(inp.v0 * optMk(d, k), A.velCapX * inp.v0, inp.U);
+  let rem = _optRem, nxt = _optNxt;
+  for(let i = 0; i < 9; i++) rem[i] = inp.seed[i];
+  let sold = 0, drag = 0, cleared = Infinity;
+
+  for(let m = 1; m <= A.window; m++){
+    let tot = 0; for(let i = 0; i < 9; i++) tot += rem[i];
+    if(tot <= 1e-9){ cleared = Math.min(cleared, m - 1); break; }
+
+    /* bucket 0 is 91-180 days — aged, but not yet chargeable, so it never
+       carries drag in either mode. */
+    if(A.ageFwd){ for(let i = 1; i < 9; i++) drag += rem[i]*inp.cuft*A.card[i-1]; }
+    else { let aged = 0; for(let i = 1; i < 9; i++) aged += rem[i]; drag += aged*inp.Lu; }
+
+    let s = Math.min(v, tot), left = s;
+    for(let i = 8; i >= 0 && left > 1e-9; i--){
+      const t = rem[i] < left ? rem[i] : left; rem[i] -= t; left -= t;
+    }
+    sold += s - left;
+
+    let after = 0; for(let i = 0; i < 9; i++) after += rem[i];
+    if(after <= 1e-9){ cleared = m; break; }
+
+    nxt[0] = 0;
+    for(let i = 1; i <= 7; i++) nxt[i] = rem[i-1];
+    nxt[8] = rem[7] + rem[8];
+    const sw = rem; rem = nxt; nxt = sw;
+  }
+  let tail = 0; for(let i = 0; i < 9; i++) tail += rem[i];
+
+  const nc = optNC(inp, d, A);
+  const total = sold*nc - drag + tail*inp.xu;
+  return {d, v, sold, tail, drag, nc, total,
+          months: v > 0 ? inp.U/v : Infinity,
+          cleared,
+          cogsRec: (inp.U*inp.C) > 0 ? total/(inp.U*inp.C) : null};
+}
+
+/* ---------------------------------------------------------------------------
+   §5 optimizer + guardrails
+   --------------------------------------------------------------------------- */
+function optSolve(inp, k, A, wantCurve){
+  const cap = Math.max(0, Math.min(0.95, A.capBasis === 'ceiling' ? inp.dCeil : inp.dFloor));
+  const steps = Math.max(1, Math.round(cap/A.step));
+  const curve = wantCurve ? [] : null;
+
+  let best = null, anyEligible = false, atZero = null;
+  for(let i = 0; i <= steps; i++){
+    const d = Math.min(cap, i*A.step);
+    const r = optSim(inp, d, k, A);
+    if(curve) curve.push(r);
+    if(i === 0) atZero = r;
+    /* §5.5 marginal-unit stop — selling below exit value destroys cash */
+    if(r.nc < inp.xu) continue;
+    anyEligible = true;
+    if(!best || r.total > best.total) best = r;
+  }
+  if(!best) best = atZero || optSim(inp, 0, k, A);
+
+  /* the raw argmax, kept so the tie-break stays visible rather than silent */
+  const raw = best;
+
+  /* §5.6 tie-break: inside the band, the shallowest discount wins — it protects
+     price integrity and post-flush margin for the same money.
+     Only meaningful when there IS recovered cash to protect. On a stack whose
+     every outcome is a loss the band widens downward instead of narrowing, and
+     the shallowest discount wins trivially — which would report "do nothing" on
+     dead stock whose real optimum is a deep cut. So the guardrail is skipped
+     when the best the SKU can do is still negative; those SKUs are an exit
+     decision anyway and the argmax is the honest number to show. */
+  if(anyEligible && best.total > 0){
+    const bar = best.total - Math.abs(best.total)*A.tie;
+    for(let i = 0; i <= steps; i++){
+      const d = Math.min(cap, i*A.step);
+      if(d >= best.d) break;
+      const r = optSim(inp, d, k, A);
+      if(r.nc >= inp.xu && r.total >= bar){ best = r; break; }
+    }
+  }
+
+  /* §5.3 exit-cash gate */
+  const liqNow = inp.U * inp.xu;
+  let verdict = best.total < liqNow ? 'LIQUIDATE' : 'SELL';
+
+  /* §5.4 cliff race — beat the next 15th or admit it cannot be outrun */
+  let cliff = null;
+  if(inp.tCliff <= 1 && inp.cliffQty > 0){
+    let need = null;
+    for(let i = 0; i <= steps; i++){
+      const d = Math.min(cap, i*A.step);
+      const v = Math.min(inp.v0*optMk(d, k), A.velCapX*inp.v0, inp.U);
+      if(v >= inp.cliffQty){ need = d; break; }
+    }
+    if(need == null){ cliff = {ok:false, d:null, qty:inp.cliffQty}; verdict = 'CLIFF-LOSS'; }
+    else if(need > best.d){
+      cliff = {ok:true, d:need, qty:inp.cliffQty, was:best.d, wasTotal:best.total};
+      best = optSim(inp, need, k, A);
+      verdict = 'CLIFF-RACE';
+    } else {
+      cliff = {ok:true, d:need, qty:inp.cliffQty, was:best.d, wasTotal:best.total, already:true};
+    }
+  }
+  /* CLIFF-RACE is still a sell decision (a forced-deeper one) and CLIFF-LOSS is
+     still an exit decision — `side` keeps the portfolio counts on two buckets
+     while the row keeps the more specific label. */
+  const side = (verdict === 'LIQUIDATE' || verdict === 'CLIFF-LOSS') ? 'exit' : 'sell';
+  return {best, raw, curve, cap, liqNow, verdict, side, cliff, k};
+}
+
+/* ---------------------------------------------------------------------------
+   attach the optimizer to the rows the Decision Engine already built
+   --------------------------------------------------------------------------- */
+let OPT_BY_SKU = {};
+function optIndexData(){
+  OPT_BY_SKU = {};
+  (typeof DATA !== 'undefined' ? DATA : []).forEach(x => { OPT_BY_SKU[x.sku] = x; });
+}
+
+/* A full solve of all 517 SKUs across three k scenarios costs ~200ms, which is
+   too slow to sit behind every keystroke in the flat-% box. Nothing in the
+   search depends on the flat %, the parent filter or the size filter, so the
+   results are cached against a signature of the assumptions that DO move them.
+   Change an assumption and the cache drops; type in a filter and it does not. */
+let _optCache = {sig: null, inp: {}, sol: {}};
+function optSig(A){
+  return [A.ref, A.adPromo, A.adBase, A.clip, A.velCapX, A.step, A.tie,
+          A.window, A.capBasis, A.ageFwd, A.card.join('|')].join(',');
+}
+function optCacheFor(A){
+  const sig = optSig(A);
+  if(_optCache.sig !== sig) _optCache = {sig, inp: {}, sol: {}};
+  return _optCache;
+}
+function optInputsC(x, A, C){
+  const k = x.sku;
+  if(!(k in C.inp)) C.inp[k] = optInputs(x, A);
+  return C.inp[k];
+}
+function optSolveC(inp, kv, A, C){
+  const key = inp.sku + '@' + kv.toFixed(4);
+  if(!(key in C.sol)) C.sol[key] = optSolve(inp, kv, A, false);
+  return C.sol[key];
+}
+function optSelected(sku, rec){
+  const v = OPT_STORE.sel[sku];
+  return (v == null || !isFinite(v)) ? rec : Math.max(0, Math.min(0.95, v));
+}
+function optAttach(S){
+  const A = optAssum(), C = optCacheFor(A);
+  S.opt = {A, tot:0, totRec:0, liq:0, drift:0, sell:0, liquidate:0, cliff:0, na:0, flat:0, units:0};
+
+  S.rows.forEach(r => {
+    const inp = optInputsC(OPT_BY_SKU[r.sku], A, C);
+    if(!inp){ r.optNA = true; S.opt.na++; return; }
+    r._optInp = inp;
+
+    const band = optKBand(r.tag, A);
+    const sol  = optSolveC(inp, band.base, A, C);
+    const rec  = sol.best.d;
+
+    /* the band: same search under Conservative and Aggressive demand */
+    const lo = optSolveC(inp, band.lo, A, C).best.d;
+    const hi = optSolveC(inp, band.hi, A, C).best.d;
+
+    const sel  = optSelected(r.sku, rec);
+    const at   = optSim(inp, sel, band.base, A);
+
+    r.optRec     = rec;
+    r.optLo      = Math.min(lo, hi);
+    r.optHi      = Math.max(lo, hi);
+    r.optSel     = sel;
+    r.optTotal   = at.total;
+    r.optTotalRec= sol.best.total;
+    r.optDelta   = at.total - sol.best.total;
+    r.optMo      = at.months;
+    r.optCogs    = at.cogsRec;
+    r.optVerdict = sol.verdict;
+    r.optLiq     = sol.liqNow;
+    r.optCap     = sol.cap;
+    r.optNc      = at.nc;
+    r.optDrag    = at.drag;
+    r.optSold    = at.sold;
+    r.optTail    = at.tail;
+    r.optV       = at.v;
+    r.optK       = band.base;
+    r.optCal     = !!band.cal;
+    r.optCliff   = sol.cliff;
+    r.optTCliff  = inp.tCliff;
+    r.optDrift   = Math.abs(sel - rec) > 1e-9;
+    r.optExitU   = inp.xu;
+    r.optWindow  = A.window;
+    /* the raw argmax before the shallowest-wins tie-break, so the guardrail is
+       visible in the drill-down instead of silently moving the number */
+    r.optArgmax  = sol.raw.d;
+    r.optArgmaxTot = sol.raw.total;
+    r.optTieBroke = Math.abs(sol.raw.d - rec) > 1e-9;
+
+    S.opt.tot    += at.total;
+    S.opt.totRec += sol.best.total;
+    S.opt.liq    += sol.liqNow;
+    S.opt.units  += inp.U;
+    if(r.optDrift) S.opt.drift++;
+    if(sol.side === 'sell') S.opt.sell++; else S.opt.liquidate++;
+    if(sol.cliff) S.opt.cliff++;
+    /* the flat-discount comparison, at whatever flat % the tab is set to */
+    S.opt.flat += optSim(inp, Math.min(S.p.disc, sol.cap), band.base, A).total;
+  });
+}
+
+/* ---------------------------------------------------------------------------
+   §6.1 the new column block
+   --------------------------------------------------------------------------- */
+const OPT_COLS = [
+  {k:'optRec',   t:'Rec %',            cls:'num', grp:'opt', tip:"The discount that maximises total recovered cash under Base elasticity, found by testing every percentage on the grid up to the cap. Sub-text is the band across Conservative and Aggressive demand — when it is tight, act; when it is wide, the call is elasticity-sensitive and worth a test first."},
+  {k:'optSel',   t:'Selected %',       cls:'num', grp:'opt', tip:'Editable, 1% steps, capped at the applicable cap. Defaults to Rec %. Saved in this browser, so it survives a refresh.'},
+  {k:'optTotal', t:'Total payout @ Sel',cls:'num',grp:'opt', tip:'Total recovered cash at the selected discount = unit cash × units sold − LTSF drag while clearing + exit value of the unsold tail.'},
+  {k:'optDelta', t:'Δ vs Rec',         cls:'num', grp:'opt', tip:'What the selected discount gives up against the recommendation. Negative means the manual override is costing money.'},
+  {k:'optMo',    t:'Mo to clear',      cls:'num', grp:'opt', tip:'Aged units ÷ velocity at the selected discount. Flagged when it runs past the simulation window, because the tail then exits at liquidation value instead of selling.'},
+  {k:'optCogs',  t:'%COGS rec @ Sel',  cls:'num', grp:'opt', tip:'Total recovered cash ÷ (aged units × product cost). 100% means the whole product cost came back.'},
+  {k:'optVerdict',t:'Verdict',         cls:'',    grp:'opt', tip:'SELL when discounting beats liquidating now. LIQUIDATE when it does not — the exit-cash gate fired. CLIFF-RACE when the stock crosses 271 days next month and the discount has been forced deep enough to clear it first. CANNOT OUTRUN CLIFF when no allowed discount can.'},
+];
+(function optInstallCols(){
+  if(typeof SIM_COLS === 'undefined') return;
+  const at = SIM_COLS.findIndex(c => c.grp !== 'id');          // straight after SKU · aged stock
+  SIM_COLS.splice(at < 0 ? SIM_COLS.length : at, 0, ...OPT_COLS);
+  SIM_GROUPS.opt = 'Discount optimizer — solved d*';
+  let g = null; SIM_COLS.forEach(c => { c.blk = (c.grp !== g); g = c.grp; });
+})();
+
+const optPctS = v => (v == null || !isFinite(v)) ? '—' : (v*100).toFixed(v*100 < 10 ? 1 : 0) + '%';
+function optCell(r, k){
+  if(r.optNA) return '<span class="muted" title="not on the SKU Cash Action Tracker">—</span>';
+  switch(k){
+    case 'optRec':
+      return `<b style="color:var(--accent3)">${optPctS(r.optRec)}</b>`
+           + `<div class="muted" style="font-size:10.5px;font-weight:400">${optPctS(r.optLo)}–${optPctS(r.optHi)}</div>`;
+    case 'optSel':
+      return `<input class="optsel" type="number" min="0" step="1" `
+           + `max="${(r.optCap*100).toFixed(0)}" value="${(r.optSel*100).toFixed(0)}" `
+           + `data-optsku="${r.sku}" title="Capped at ${optPctS(r.optCap)}" />`;
+    case 'optTotal':
+      return `<b class="${r.optTotal >= 0 ? 'pos' : 'neg'}">${moneyS(r.optTotal)}</b>`;
+    case 'optDelta':
+      return Math.abs(r.optDelta) < 0.5 ? '<span class="muted">—</span>'
+           : `<span class="${r.optDelta >= 0 ? 'pos' : 'neg'}">${moneyS(r.optDelta)}</span>`;
+    case 'optMo':
+      return !isFinite(r.optMo) ? '<span class="flag" title="no velocity at all">∞</span>'
+           : `<span class="${r.optMo > r.optWindow ? 'neg' : 'pos'}"${r.optMo > r.optWindow
+               ? ` title="runs past the ${r.optWindow}-month window — the tail exits at liquidation value"` : ''}>`
+             + `${r.optMo.toFixed(1)}${r.optMo > r.optWindow ? ' ⚠' : ''}</span>`;
+    case 'optCogs':
+      return r.optCogs == null ? dash
+           : `<span class="${r.optCogs >= 1 ? 'pos' : (r.optCogs >= 0.5 ? '' : 'neg')}">${pct0(r.optCogs)}</span>`;
+    case 'optVerdict': {
+      const M = {SELL:['v-run','SELL @ '+optPctS(r.optRec)],
+                 LIQUIDATE:['v-skip','LIQUIDATE'],
+                 'CLIFF-RACE':['v-cost','CLIFF-RACE'],
+                 'CLIFF-LOSS':['v-skip','CANNOT OUTRUN CLIFF']};
+      const [c, t] = M[r.optVerdict] || M.SELL;
+      return `<span class="badge ${c}">${t}</span>`;
+    }
+  }
+  return '';
+}
+
+/* ---------------------------------------------------------------------------
+   §6.2 "why this number" — scenario matrix, waterfall, justification string
+   --------------------------------------------------------------------------- */
+let OPT_MODAL_SKU = null, OPT_JUST = '';
+const OPT_TIERS = [0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30];
+
+function optWaterfall(inp, d, A, k){
+  const r = optSim(inp, d, k, A);
+  const gross = r.sold * inp.P * (1 - d);
+  const refFee = r.sold * inp.P*(1 - d) * A.ref;
+  const fba = r.sold * inp.F;
+  const promo = r.sold * (d > 0 ? A.adPromo*inp.P*(1 - d) + A.clip : A.adBase*inp.P);
+  const tail = r.tail * inp.xu;
+  const rows = [
+    ['Gross proceeds',  gross,   '#27a2a2'],
+    ['− referral',     -refFee,  '#e2564f'],
+    ['− FBA',          -fba,     '#e2564f'],
+    ['− promo / ads',  -promo,   '#e2564f'],
+    ['− LTSF drag',    -r.drag,  '#e2564f'],
+    ['+ tail exit cash', tail,   '#2ea86a'],
+  ];
+  const max = Math.max(1, ...rows.map(x => Math.abs(x[1])));
+  const body = rows.map(([lab, v, col]) =>
+    `<div class="r"><span class="lab">${lab}</span>`
+    + `<span class="bar" style="width:${Math.max(2, Math.abs(v)/max*180)}px;background:${col}"></span>`
+    + `<span class="v ${v < 0 ? 'neg' : ''}">${moneyS(v)}</span></div>`).join('');
+  return {html: body + `<div class="r tot"><span class="lab">Total payout</span>`
+                     + `<span class="v ${r.total >= 0 ? 'pos' : 'neg'}">${moneyS(r.total)}</span></div>`,
+          r};
+}
+
+function optJustify(r, inp, A, band){
+  const d = r.optSel;
+  const at = optSim(inp, d, band.base, A);
+  const at10 = optSim(inp, Math.min(0.10, r.optCap), band.base, A);
+  const hold = optSim(inp, 0, band.base, A);
+  const dragSaved = hold.drag - at.drag;
+  const ncDelta = at10.nc - at.nc;
+
+  /* be precise about the cliff: already past it, crossing inside the window,
+     clearing before it, or simply not exposed within the window */
+  const cliffTxt =
+    inp.pastCliff > 0.5
+      ? `${fmt(Math.round(inp.pastCliff))}u are already past the 271-day cliff`
+      : (!isFinite(inp.tCliff) || inp.tCliff > A.window
+          ? 'no cliff exposure inside the window'
+          : (at.months > inp.tCliff
+              ? `crosses the 271-day cliff in ${inp.tCliff} mo`
+              : `clears before the 271-day cliff at ${inp.tCliff} mo`));
+
+  /* the recommendation is only "the max" when the selection IS the recommendation */
+  const onRec = Math.abs(d - r.optRec) < 1e-9;
+  const recTxt = onRec
+    ? ` — the max across the 0–${optPctS(r.optCap)} grid under `
+      + `${band.cal ? 'calibrated' : 'Base'} elasticity (k = ${band.base.toFixed(2)})`
+    : `. Rec is ${optPctS(r.optRec)} (${moneyS(r.optTotalRec)}), the max across the `
+      + `0–${optPctS(r.optCap)} grid under ${band.cal ? 'calibrated' : 'Base'} elasticity `
+      + `(k = ${band.base.toFixed(2)}); this selection gives up ${moneyS(Math.abs(r.optDelta))} against it`;
+
+  return `Selected ${optPctS(d)} (ceiling ${optPctS(inp.dCeil)}, floor ${optPctS(inp.dFloor)}): `
+    + `clears ${fmt(Math.round(inp.U))}u in ${isFinite(at.months) ? at.months.toFixed(1) : '∞'} mo `
+    + `vs ${isFinite(at10.months) ? at10.months.toFixed(1) : '∞'} mo at 10%`
+    + (at.months > A.window ? ` (past the ${A.window}-month window, so `
+        + `${fmt(Math.round(at.tail))}u exit at liquidation value)` : '') + '; '
+    + `LTSF drag falls ${moneyS(dragSaved)} (${cliffTxt}); `
+    + `gives up ${m2(ncDelta)}/u vs the 10% tier; `
+    + `net total payout ${moneyS(at.total)}, ${at.cogsRec == null ? '—' : pct0(at.cogsRec)} of COGS`
+    + recTxt
+    + `; band ${optPctS(r.optLo)}–${optPctS(r.optHi)} across Conservative/Aggressive. `
+    + `Liquidate-now alternative: ${moneyS(inp.U*inp.xu)}`
+    + (r.optVerdict === 'LIQUIDATE' ? ' — which wins, so the verdict is LIQUIDATE.' : '.');
+}
+
+function optOpenModal(sku){
+  const S = window._simState; if(!S) return;
+  const r = S.rows.find(x => x.sku === sku); if(!r || r.optNA) return;
+  const A = optAssum(), inp = r._optInp || optInputs(OPT_BY_SKU[sku], A);
+  if(!inp) return;
+  OPT_MODAL_SKU = sku;
+  const band = optKBand(r.tag, A);
+
+  optEl('optModalTitle').textContent = sku;
+  optEl('optModalSub').textContent =
+    `${r.tag}${r.size ? ' · ' + r.size : ''} · ${fmt(Math.round(inp.U))} aged units · `
+    + `${money2(inp.P)} → cap ${optPctS(r.optCap)}`;
+  const chip = optEl('optModalChip');
+  chip.className = 'badge ' + (band.cal ? 'v-run' : 'v-cost');
+  chip.textContent = band.cal
+    ? `Calibrated ${band.cal.date} · k = ${band.base.toFixed(2)}`
+    : `Canon assumption (k = ${band.base.toFixed(2)})`;
+
+  /* --- scenario matrix: tiers x Conservative/Base/Aggressive (§6.2.1) --- */
+  const tiers = OPT_TIERS.filter(t => t <= r.optCap).concat([inp.dCeil, r.optCap])
+    .filter((v, i, a) => v <= r.optCap && a.indexOf(v) === i)
+    .sort((a, b) => a - b);
+  if(tiers.indexOf(r.optSel) < 0) tiers.push(r.optSel);
+  tiers.sort((a, b) => a - b);
+  const ks = [['Conservative', band.lo], ['Base', band.base], ['Aggressive', band.hi]];
+  const grid = tiers.map(t => ks.map(([, k]) => optSim(inp, t, k, A).total));
+  const argmax = ks.map((_, ci) => {
+    let bi = 0; grid.forEach((row, ri) => { if(row[ci] > grid[bi][ci]) bi = ri; }); return bi;
+  });
+  const mx = `<table class="optmx"><thead><tr><th>Discount tier</th>`
+    + ks.map(([n, k]) => `<th>${n}<div class="muted" style="font-weight:400;font-size:10.5px">k = ${k.toFixed(2)}</div></th>`).join('')
+    + `</tr></thead><tbody>`
+    + tiers.map((t, ri) => `<tr class="${Math.abs(t - r.optSel) < 1e-9 ? 'selrow' : ''}">`
+        + `<td>${optPctS(t)}${Math.abs(t - inp.dCeil) < 1e-9 ? ' <span class="muted">ceiling</span>' : ''}`
+        + `${Math.abs(t - r.optRec) < 1e-9 ? ' <b style="color:var(--accent3)">← Rec</b>' : ''}</td>`
+        + ks.map((_, ci) => `<td class="${argmax[ci] === ri ? 'argmax' : ''}">${moneyS(grid[ri][ci])}</td>`).join('')
+        + `</tr>`).join('')
+    + `</tbody></table>`;
+
+  /* --- waterfalls: selected vs doing nothing (§6.2.2) --- */
+  const wSel = optWaterfall(inp, r.optSel, A, band.base);
+  const wNil = optWaterfall(inp, 0, A, band.base);
+
+  /* --- justification (§6.2.3) --- */
+  OPT_JUST = optJustify(r, inp, A, band);
+
+  const gateNote = r.optVerdict === 'LIQUIDATE'
+    ? `<div class="optjust" style="background:rgba(226,86,79,.10);border-color:rgba(226,86,79,.35)">
+         <b>Exit-cash gate fired.</b> The best sell path recovers ${moneyS(r.optTotalRec)}, but liquidating now
+         is worth ${moneyS(r.optLiq)} — ${moneyS(r.optLiq - r.optTotalRec)} more. Under Aggressive demand the sell
+         path reaches ${moneyS(optSolve(inp, band.hi, A, false).best.total)}; if that is the call, run a 14-day
+         test with a hard stop and calibrate k before committing.</div>`
+    : (r.optCliff && !r.optCliff.ok
+       ? `<div class="optjust" style="background:rgba(226,86,79,.10);border-color:rgba(226,86,79,.35)">
+            <b>Cannot outrun the cliff.</b> ${fmt(Math.round(r.optCliff.qty))} units cross 271 days at the next
+            charge and no discount up to the ${optPctS(r.optCap)} cap moves them in time. This is a
+            removal / liquidation decision, not a discount one.</div>`
+       : (r.optCliff && r.optCliff.ok && !r.optCliff.already
+          ? `<div class="optjust" style="background:rgba(245,213,71,.10);border-color:rgba(245,213,71,.35)">
+               <b>Cliff race.</b> ${fmt(Math.round(r.optCliff.qty))} units cross into the $5.45/cu ft bracket at the
+               next charge. The discount has been forced from ${optPctS(r.optCliff.was)} up to
+               ${optPctS(r.optCliff.d)} to clear them first.</div>`
+          : ''));
+
+  optEl('optModalBody').innerHTML = `
+    ${gateNote}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:${gateNote ? '14px' : '0'} 0 16px">
+      <div>
+        <div style="font-size:12px;font-weight:650;margin-bottom:7px">At ${optPctS(r.optSel)} — selected</div>
+        <div class="optwf">${wSel.html}</div>
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:650;margin-bottom:7px;color:var(--muted)">At 0% — do nothing</div>
+        <div class="optwf">${wNil.html}</div>
+      </div>
+    </div>
+    <div style="font-size:12px;font-weight:650;margin:16px 0 7px">
+      Total recovered cash by discount tier × demand scenario
+      <span class="muted" style="font-weight:400">— highlighted cell is the winner in that column; outlined row is what is selected</span>
+    </div>
+    ${mx}
+    ${r.optTieBroke ? `<div class="footnote" style="margin-top:9px">
+      The raw peak of the curve is <b>${optPctS(r.optArgmax)}</b> (${moneyS(r.optArgmaxTot)}). Rec is held back to
+      <b>${optPctS(r.optRec)}</b> (${moneyS(r.optTotalRec)}) by the tie-break rule: when totals sit within
+      ${pct0(A.tie)} of the maximum, the shallowest discount wins, because it recovers the same money while
+      protecting price integrity and post-flush margin.</div>` : ''}
+    <div style="font-size:12px;font-weight:650;margin:16px 0 7px">Justification</div>
+    <div class="optjust" id="optJustText">${OPT_JUST}</div>
+    <div class="footnote" style="margin-top:12px">
+      Velocity at the selected discount is <b>${(inp.v0*optMk(r.optSel, band.base)).toFixed(1)}/mo</b>
+      against a base of <b>${inp.v0.toFixed(1)}/mo</b> (capped at ${A.velCapX}× base and at the units on hand).
+      Exit cash is <b>${money2(inp.xu)}/u</b>. LTSF is <b>${money2(inp.Lu)}/u/mo</b> at the current bracket
+      (${inp.cuft.toFixed(2)} cu ft/u), re-priced each month as the stock ages
+      ${A.ageFwd ? 'through the official rate card' : '— currently held FLAT, matching the reference workbook'}.
+    </div>`;
+  optEl('optModal').classList.add('show');
+}
+function optCloseModal(){ const m = optEl('optModal'); if(m) m.classList.remove('show'); }
+
+/* ---------------------------------------------------------------------------
+   §6.3 portfolio strip
+   --------------------------------------------------------------------------- */
+function optRenderStrip(S){
+  const el = optEl('optStrip'); if(!el || !S.opt) return;
+  const o = S.opt;
+  const gain = o.tot - o.flat;
+  const cells = [
+    ['Total payout @ Selected', money(o.tot), 'pos'],
+    ['At Rec % everywhere',     money(o.totRec), ''],
+    [`Flat ${pct0(S.p.disc)} comparison`, money(o.flat), ''],
+    ['Optimizer vs flat',       (gain >= 0 ? '+' : '−') + money(Math.abs(gain)), gain >= 0 ? 'pos' : 'neg'],
+    ['Liquidate everything',    money(o.liq), ''],
+    ['SELL',                    fmt(o.sell), 'pos'],
+    ['LIQUIDATE',               fmt(o.liquidate), o.liquidate ? 'neg' : ''],
+    ['Cliff flags',             fmt(o.cliff), o.cliff ? 'neg' : ''],
+    ['Selected ≠ Rec',          fmt(o.drift), o.drift ? 'neg' : 'pos'],
+  ];
+  el.innerHTML = cells.map(([k, v, c]) =>
+    `<div class="st"><div class="k">${k}</div><div class="v ${c}">${v}</div></div>`).join('');
+
+  const p = optEl('optPlain');
+  if(p){
+    const A = S.opt.A;
+    p.innerHTML =
+      /* sell + liquidate is the whole population; the cliff flag is an overlay on
+         those two, not a third bucket, so it is never added into the count */
+      `Across <b>${fmt(o.sell + o.liquidate)}</b> SKUs on the cash tracker, the optimizer recommends `
+      + `<b>${fmt(o.sell)} SELL</b> and <b>${fmt(o.liquidate)} LIQUIDATE</b>`
+      + (o.cliff ? `, of which <b>${fmt(o.cliff)}</b> carry a cliff flag` : '')
+      + `, recovering <b>${money(o.tot)}</b> at the current selections — `
+      + (gain >= 0
+          ? `<b>${money(gain)} more</b> than pricing everything at a flat ${pct0(S.p.disc)}`
+          : `<b>${money(-gain)} less</b> than a flat ${pct0(S.p.disc)}, which means the manual overrides are costing money`)
+      + `, against <b>${money(o.liq)}</b> for liquidating the lot today. `
+      + `Every figure is a ${A.window}-month wave with LTSF charged monthly on what is still sitting`
+      + (A.ageFwd ? ', re-priced as the stock ages through the rate card' : ' at a flat current-bracket rate')
+      + `. ` + (o.drift
+          ? `<b>${fmt(o.drift)}</b> SKUs are set away from their recommendation — the drift number for the daily huddle.`
+          : `Nothing is overridden: every SKU sits on its recommendation.`)
+      + (o.na ? ` <span class="muted">${fmt(o.na)} SKUs in view are not on the cash tracker and are skipped.</span>` : '');
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   §2.3 / §8 calibration table
+   --------------------------------------------------------------------------- */
+function optCalRows(){
+  const A = optAssum(), m = {};
+  (typeof DATA !== 'undefined' ? DATA : []).forEach(x => {
+    if(!x.cash) return;
+    const t = x.tag || '—';
+    const p = m[t] || (m[t] = {tag:t, skus:0, v0:0, vObs:0, days:0, win:''});
+    p.skus++;
+    p.v0   += Math.max(x.cash.l30 || 0, x.cash.basev || 0);
+    p.vObs += x.svMonthly || 0;
+    if((x.svDays || 0) > p.days){ p.days = x.svDays; p.win = x.svWindow || ''; }
+  });
+  return Object.values(m).sort((a, b) => b.v0 - a.v0).map(p => {
+    const st = OPT_STORE.k[p.tag] || null;
+    const dLive = st && isFinite(st.d) ? st.d : 0;
+    const lift = p.v0 > 0 ? p.vObs/p.v0 - 1 : 0;
+    const denom = optM(dLive) - 1;
+    p.dLive = dLive;
+    p.kMeas = (dLive > 0 && denom > 1e-9) ? lift/denom : null;
+    p.k = st && isFinite(st.k) ? st.k : null;
+    p.date = st ? st.date : '';
+    p.kBase = p.k == null ? A.kBase : p.k;
+    return p;
+  });
+}
+function optRenderCal(){
+  const body = optEl('optCalBody'); if(!body) return;
+  const rows = optCalRows();
+  body.innerHTML = rows.map(p => {
+    const usable = p.days >= 14;
+    const chip = p.k != null
+      ? `<span class="badge v-run">Calibrated ${p.date} · k = ${p.k.toFixed(2)}</span>`
+      : `<span class="badge v-cost">Canon assumption (k = 1.00)</span>`;
+    return `<tr>
+      <td><span class="tagchip">${p.tag}</span></td>
+      <td class="num">${fmt(p.skus)}</td>
+      <td class="num">${p.v0.toFixed(1)}</td>
+      <td class="num">${p.vObs.toFixed(1)}</td>
+      <td class="num"><span class="${usable ? 'pos' : 'neg'}"${usable ? '' : ' title="fewer than 14 days — not usable for calibration yet"'}>${fmt(p.days)}${usable ? '' : ' ⚠'}</span></td>
+      <td class="num"><input class="optsel" type="number" min="0" max="90" step="1"
+            value="${(p.dLive*100).toFixed(0)}" data-optkd="${p.tag}" title="The discount live on this parent during the window" /></td>
+      <td class="num">${p.kMeas == null ? '<span class="muted">—</span>'
+            : (p.kMeas > 0
+                ? `<b class="${p.kMeas >= 1 ? 'pos' : ''}">${p.kMeas.toFixed(2)}</b>`
+                : `<b class="neg" title="Measured pace is at or below base velocity, so the live discount produced no uplift at all. That is a finding, not a calibration — nothing to apply.">${p.kMeas.toFixed(2)} ⚠</b>`)}</td>
+      <td>${p.kMeas != null && p.kMeas <= 0
+            ? '<span class="badge v-skip">No uplift measured</span>' : chip}</td>
+      <td class="num">
+        ${(p.kMeas == null || p.kMeas <= 0) ? ''
+            : `<button class="ghost" data-optkapply="${p.tag}" data-k="${p.kMeas.toFixed(4)}" style="padding:3px 9px">Apply</button>`}
+        ${p.k == null ? '' : `<button class="ghost" data-optkclear="${p.tag}" style="padding:3px 9px">Clear</button>`}
+      </td></tr>`;
+  }).join('') || '<tr><td colspan="9" class="muted" style="padding:18px;text-align:center">No parents on the cash tracker.</td></tr>';
+
+  const n = optEl('optCalNote');
+  if(n){
+    const cal = rows.filter(p => p.k != null).length;
+    n.innerHTML = `${cal} of ${rows.length} parents calibrated`;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   §9.5 export
+   --------------------------------------------------------------------------- */
+function optExportCSV(){
+  const S = window._simState;
+  if(!S || !simView.length){ alert('Nothing to export yet.'); return; }
+  const A = optAssum();
+  const head = ['SKU','Parent','Size','Aged units','Rec %','Band lo %','Band hi %','Selected %',
+                'Total payout','Delta vs Rec','Mo to clear','%COGS rec','Verdict','Liquidate now','k','Justification'];
+  const lines = [head.join(',')];
+  simView.forEach(r => {
+    if(r.optNA) return;
+    const inp = r._optInp || optInputs(OPT_BY_SKU[r.sku], A);
+    if(!inp) return;
+    const band = optKBand(r.tag, A);
+    lines.push([r.sku, r.tag, r.size, Math.round(inp.U),
+      (r.optRec*100).toFixed(0), (r.optLo*100).toFixed(0), (r.optHi*100).toFixed(0),
+      (r.optSel*100).toFixed(0), r.optTotal.toFixed(2), r.optDelta.toFixed(2),
+      isFinite(r.optMo) ? r.optMo.toFixed(1) : '', r.optCogs == null ? '' : (r.optCogs*100).toFixed(1),
+      r.optVerdict, r.optLiq.toFixed(2), band.base.toFixed(2),
+      optJustify(r, inp, A, band)].map(esc).join(','));
+  });
+  dl(lines.join('\n'), 'ltsf-discount-optimizer.csv');
+}
+
+/* ---------------------------------------------------------------------------
+   wire the optimizer into the tab the Decision Engine already renders
+   --------------------------------------------------------------------------- */
+const _optBaseComputeSim = computeSim;
+computeSim = function(){
+  const S = _optBaseComputeSim();
+  try{ optAttach(S); }
+  catch(e){ console.error('optimizer:', e); S.opt = null; }
+  return S;
+};
+const _optBaseSimCell = simCell;
+simCell = function(r, k){
+  return k.indexOf('opt') === 0 ? optCell(r, k) : _optBaseSimCell(r, k);
+};
+const _optBaseRenderSim = renderSim;
+renderSim = function(){
+  _optBaseRenderSim();
+  const S = window._simState;
+  if(S && S.opt) optRenderStrip(S);
+};
+
+/* the editable Selected % cell, and the row click that explains it */
+document.getElementById('simBody').addEventListener('change', e => {
+  const i = e.target.closest && e.target.closest('input[data-optsku]');
+  if(!i) return;
+  const sku = i.dataset.optsku;
+  const S = window._simState, r = S && S.rows.find(x => x.sku === sku);
+  const cap = r ? r.optCap : 0.95;
+  let v = parseFloat(i.value);
+  if(!isFinite(v)) v = r ? r.optRec*100 : 0;
+  v = Math.max(0, Math.min(cap*100, v));
+  i.value = v.toFixed(0);
+  OPT_STORE.sel[sku] = v/100;
+  optSaveStore();
+  renderSimSoon();
+});
+document.getElementById('simBody').addEventListener('click', e => {
+  if(e.target.closest('input')) return;                    // editing, not drilling in
+  const tr = e.target.closest('tr'); if(!tr) return;
+  const cell = tr.querySelector('input[data-optsku]');
+  if(cell) optOpenModal(cell.dataset.optsku);
+});
+
+/* drawers */
+function optToggle(id, btn){
+  const d = optEl(id); if(!d) return;
+  const open = d.classList.toggle('hide') === false;
+  if(btn) btn.style.borderColor = open ? 'var(--accent)' : '';
+  if(open && id === 'optCal') optRenderCal();
+}
+optEl('optAssumBtn').onclick = function(){ optToggle('optAssum', this); };
+optEl('optCalBtn').onclick   = function(){ optToggle('optCal', this); };
+
+/* every assumption re-runs the whole search */
+['optCap','optWindow','optAgeFwd','oaAdPromo','oaAdBase','oaClip','oaKlo','oaKbase','oaKhi',
+ 'oaVelCap','oaStep','oaTie'].forEach(id => {
+  const el = optEl(id); if(!el) return;
+  el.addEventListener('input',  renderSimSoon);
+  el.addEventListener('change', renderSimSoon);
+});
+optEl('optResetAssum').onclick = () => {
+  const D = OPT_DEFAULTS;
+  const set = (id, v) => { const e = optEl(id); if(e) e.value = v; };
+  set('oaAdPromo', D.adPromo*100); set('oaAdBase', D.adBase*100); set('oaClip', D.clip.toFixed(2));
+  set('oaKlo', D.kLo); set('oaKbase', D.kBase); set('oaKhi', D.kHi);
+  set('oaVelCap', D.velCapX); set('oaStep', D.step*100); set('oaTie', D.tie*100);
+  set('optWindow', D.window);
+  const c = optEl('optCap'); if(c) c.value = D.capBasis;
+  const a = optEl('optAgeFwd'); if(a) a.checked = D.ageFwd;
+  renderSimSoon();
+};
+optEl('optResetSel').onclick = () => {
+  const n = Object.keys(OPT_STORE.sel).length;
+  if(!n){ alert('Nothing is overridden — every SKU is already on its recommendation.'); return; }
+  if(!confirm(`Discard ${n} manual Selected % override${n === 1 ? '' : 's'} and snap them all back to Rec %?`)) return;
+  OPT_STORE.sel = {}; optSaveStore(); renderSimSoon();
+};
+optEl('optExport').onclick = optExportCSV;
+
+/* calibration table */
+document.getElementById('optCalBody').addEventListener('change', e => {
+  const i = e.target.closest && e.target.closest('input[data-optkd]');
+  if(!i) return;
+  const tag = i.dataset.optkd;
+  const d = Math.max(0, Math.min(90, parseFloat(i.value) || 0))/100;
+  const cur = OPT_STORE.k[tag] || {};
+  OPT_STORE.k[tag] = Object.assign({}, cur, {d});
+  optSaveStore();
+  optRenderCal();
+  /* the re-render replaces every row, which would otherwise drop the caret and
+     abandon any other half-typed live % — put focus back where it was */
+  const back = [...document.querySelectorAll('#optCalBody input[data-optkd]')]
+    .find(el => el.dataset.optkd === tag);
+  if(back) back.focus();
+});
+document.getElementById('optCalBody').addEventListener('click', e => {
+  const ap = e.target.closest && e.target.closest('button[data-optkapply]');
+  if(ap){
+    const tag = ap.dataset.optkapply, k = parseFloat(ap.dataset.k);
+    const row = optCalRows().find(p => p.tag === tag) || {};
+    if(!(k > 0)) return;                       // no Apply is offered in that state
+    if((row.days || 0) < 14 &&
+       !confirm(`Only ${row.days || 0} days of history behind this reading — the protocol wants 14.\n\nApply k = ${k.toFixed(2)} anyway?`)) return;
+    OPT_STORE.k[tag] = {k, d: row.dLive || 0, date: new Date().toISOString().slice(0, 10),
+                        n: Math.round(row.vObs || 0), days: row.days || 0};
+    optSaveStore(); optRenderCal(); renderSimSoon();
+    return;
+  }
+  const cl = e.target.closest && e.target.closest('button[data-optkclear]');
+  if(cl){
+    delete OPT_STORE.k[cl.dataset.optkclear];
+    optSaveStore(); optRenderCal(); renderSimSoon();
+  }
+});
+
+/* modal */
+optEl('optModalClose').onclick = optCloseModal;
+optEl('optModal').addEventListener('click', e => { if(e.target.id === 'optModal') optCloseModal(); });
+document.addEventListener('keydown', e => { if(e.key === 'Escape') optCloseModal(); });
+optEl('optModalCopy').onclick = () => {
+  const b = optEl('optModalCopy');
+  const done = ok => { b.textContent = ok ? '✓ Copied' : '⚠ Copy failed';
+                       setTimeout(() => { b.textContent = '⧉ Copy justification'; }, 1600); };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(OPT_JUST).then(() => done(true), () => done(false));
+  } else {
+    const t = document.createElement('textarea');
+    t.value = OPT_JUST; document.body.appendChild(t); t.select();
+    let ok = false; try{ ok = document.execCommand('copy'); }catch(err){}
+    t.remove(); done(ok);
+  }
+};
+
+/* go — DATA is already built by initLTSF(), so index it and re-render the tab
+   with the optimizer block now in place. */
+optIndexData();
+if(typeof DATA !== 'undefined' && DATA.length) renderSimSoon();
 </script>
 </body>
 </html>

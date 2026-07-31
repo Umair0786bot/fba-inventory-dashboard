@@ -2479,6 +2479,12 @@ function renderLtsfOverview(){ renderLtsfKpis(); renderBandBreakdown(); renderPa
    prices the outcome of achieving it. FIFO roll validated against the workbook to 0.000%. */
 const BUCKET_LABELS=['91–180','181–210','211–240','241–270','271–300','301–330','331–365','366–455','456+'];
 const moneyS=v=>(v<0?'−$':'$')+Math.abs(Math.round(v)).toLocaleString('en-US');
+/* The FIFO model steps by MONTH, so every velocity in these tabs is stored as
+   units/month. The UI speaks units/DAY — same unit as Sales Tracking — so it
+   is converted here at render time only. Never divide the stored value. */
+const SV_DAYS_PER_MONTH=30;
+const svDay=v=>{ if(v==null||!isFinite(v)) return '—'; const d=v/SV_DAYS_PER_MONTH;
+  return d.toLocaleString('en-US',{maximumFractionDigits:Math.abs(d)<10?2:1}); };
 const fmtN1=v=>(v==null||!isFinite(v))?'—':v.toLocaleString('en-US',{maximumFractionDigits:1});
 const HOR1=12;        // the 1-year view
 const HORMAX=36;      // "to full clearance", capped at 3 years — stock that hasn't moved by then never will
@@ -2758,8 +2764,8 @@ function renderSimKpis(S){
     {label:'Payout / unit',val:money2(agg.payoutW/u),cls:'good',sub:'after referral + FBA'},
     {label:'Total payout',val:money(agg.payout),cls:'good',sub:'cash in hand across units sold'},
     {label:'% of COGS recovered',val:rec==null?'—':pct0(rec),cls:rec==null?'':(rec>=1?'good':'warn'),sub:'payout ÷ product cost'},
-    {label:'Current SV /mo',val:fmtN1(agg.svNow)+'/mo',sub:'measured from daily sales'},
-    {label:'Target SV /mo',val:fmtN1(agg.svTarget)+'/mo',cls:'warn',sub:'pace needed to clear within a year'},
+    {label:'Current SV /day',val:svDay(agg.svNow)+'/day',sub:'measured from real daily sales'},
+    {label:'Target SV /day',val:svDay(agg.svTarget)+'/day',cls:'warn',sub:'pace needed to clear within a year'},
     {label:'AIS saved — 1 year',val:money(agg.ais1Hold-agg.ais1Disc),cls:'good',
       sub:'hold '+money(agg.ais1Hold)+' → '+money(agg.ais1Disc)},
     {label:'AIS saved — to clear',val:money(agg.aisLHold-agg.aisLDisc),cls:'good',
@@ -2796,7 +2802,7 @@ function renderSimPlain(S){
     `Priced ${basisTxt} across these ${fmt(agg.skus)} SKUs (${fmt(agg.units)} aged units): you collect `+
     `<b>${money2(agg.payoutW/(agg.units||1))} per unit</b> after Amazon's referral and FBA, `+
     `<b>${money(agg.payout)} in total</b>, and give up <b>${money(agg.discGiven)}</b> in discount. `+
-    `To clear this stock inside a year you must sell <b>${fmtN1(agg.svTarget)}/month</b> versus <b>${fmtN1(agg.svNow)}/month</b> today. `+
+    `To clear this stock inside a year you must sell <b>${svDay(agg.svTarget)}/day</b> versus <b>${svDay(agg.svNow)}/day</b> today. `+
     `Doing that avoids <b>${money(agg.ais1Hold-agg.ais1Disc)}</b> of surcharge in year one and <b>${money(savedL)}</b> by the time the stock is gone. `+
     `<b>${dL>=0?'Net, discounting recovers '+moneyS(Math.abs(dL))+' more than holding':'Net, holding recovers '+moneyS(Math.abs(dL))+' more than discounting'}</b> `+
     `— it wins on <b>${fmt(wins)} of ${fmt(agg.skus)}</b> SKUs. `+
@@ -2844,8 +2850,8 @@ const SIM_COLS=[
   {k:'alreadySold',t:'Already sold',cls:'num',grp:'id',tip:'Units sold so far in the tracking window.'},
   {k:'price',t:'Price',cls:'num',grp:'id',tip:'Current selling price on Amazon.'},
   /* ---- baseline: do nothing ---- */
-  {k:'svNow',t:'Current SV /mo',cls:'num',grp:'hold',tip:'Units sold per month today, from real daily sales history.'},
-  {k:'svTarget',t:'Target SV /mo',cls:'num',grp:'hold',tip:"Monthly pace needed to clear this SKU's aged stock inside a year."},
+  {k:'svNow',t:'Current SV /day',cls:'num',grp:'hold',tip:'Units sold per day today, measured from real daily sales history.'},
+  {k:'svTarget',t:'Target SV /day',cls:'num',grp:'hold',tip:"Daily pace needed to clear this SKU's aged stock inside a year."},
   {k:'upliftX',t:'Lift needed ×',cls:'num',grp:'hold',tip:'Target SV ÷ current SV. 2× is a normal promotion; past 4× no discount realistically gets there.'},
   {k:'reach',t:'Realistic?',cls:'',grp:'hold',tip:'onpace / ok / stretch / unlikely / no / dead — can any discount up to 90% actually reach the target pace?'},
   {k:'moClearHold',t:'Mo to clear',cls:'num',grp:'hold',tip:"Months to clear at today's pace. Blank = never clears inside 36 months."},
@@ -2923,8 +2929,8 @@ function simCell(r,k){
     case 'payout': return `<b class="${r.payout<0?'neg':'pos'}">${m2(r.payout)}</b>`;
     case 'totalPayout': return `<b class="${r.totalPayout<0?'neg':'pos'}">${m2(r.totalPayout)}</b>`;
     case 'recovery': return r.recovery==null?dash:`<span class="${r.recovery<0?'neg':(r.recovery>=1?'pos':'')}">${pct0(r.recovery)}</span>`;
-    case 'svNow': return fmtN1(r.svNow);
-    case 'svTarget': return `<b style="color:var(--amber)">${fmtN1(r.svTarget)}</b>`;
+    case 'svNow': return svDay(r.svNow);
+    case 'svTarget': return `<b style="color:var(--amber)">${svDay(r.svTarget)}</b>`;
     case 'moClearHold': return !isFinite(r.moClearHold)?'<span class="flag" title="never clears at today’s pace">∞</span>'
       :`<span class="${r.moClearHold>12?'neg':'pos'}">${fmt(r.moClearHold)}</span>`;
     case 'ais1Hold': case 'ais1Disc': case 'aisLDisc': return money2(r[k]);
@@ -3876,10 +3882,10 @@ const DP_COLS=[
   {k:'bestPrice',t:'Best $',cls:'num',grp:'sc',tip:'The price the best % implies.'},
   {k:'headroom',t:'Headroom',cls:'num',grp:'sc',tip:'Best % − your deal %. Positive = the maths says you could go deeper and still recover more.'},
   {k:'zone',t:'Deal sits',cls:'',grp:'sc',tip:'Where the deal price lands against this SKU’s ceiling and floor.'},
-  {k:'svNow',t:'SV now /mo',cls:'num',grp:'sv',tip:'Units sold per month today, measured from real daily sales.'},
-  {k:'svAtDeal',t:'SV at deal /mo',cls:'num',grp:'sv',tip:'Monthly pace this discount is expected to produce.'},
-  {k:'svTarget',t:'Target SV /mo',cls:'num',grp:'sv',tip:'Pace needed to clear this SKU’s aged stock inside a year.'},
-  {k:'svGap',t:'Gap /mo',cls:'num',grp:'sv',tip:'Target SV − SV at deal. Positive = this deal still will not clear the aged stock in a year.'},
+  {k:'svNow',t:'SV now /day',cls:'num',grp:'sv',tip:'Units sold per day today, measured from real daily sales.'},
+  {k:'svAtDeal',t:'SV at deal /day',cls:'num',grp:'sv',tip:'Daily pace this discount is expected to produce.'},
+  {k:'svTarget',t:'Target SV /day',cls:'num',grp:'sv',tip:'Daily pace needed to clear this SKU’s aged stock inside a year.'},
+  {k:'svGap',t:'Gap /day',cls:'num',grp:'sv',tip:'Target SV − SV at deal, per day. Positive = this deal still will not clear the aged stock in a year.'},
   {k:'daily',t:'Daily sales',cls:'',grp:'sv',tip:"This SKU's real daily units over the tracking window."},
 ];
 const DP_GROUPS={id:'SKU',pr:'Deal pricing',pay:'What you keep',ltsf:'LTSF exposure',
@@ -3911,10 +3917,10 @@ function dpCell(r,k){
     case 'zone': { var M={safe:['v-run','🟢 above ceiling'],thin:['v-cost','🟡 ceiling→floor'],
         oop:['v-skip','🔴 below floor'],na:['v-na','—']}, m=M[r.zone]||M.na;
       return '<span class="badge '+m[0]+'">'+m[1]+'</span>'; }
-    case 'svNow': return fmtN1(r.svNow);
-    case 'svAtDeal': return '<b style="color:var(--accent)">'+fmtN1(r.svAtDeal)+'</b>';
-    case 'svTarget': return r.units>0?'<span style="color:var(--amber)">'+fmtN1(r.svTarget)+'</span>':dash;
-    case 'svGap': return r.units<=0?dash:'<span class="'+(r.svGap<=0?'pos':'neg')+'">'+(r.svGap>0?'+':'')+fmtN1(r.svGap)+'</span>';
+    case 'svNow': return svDay(r.svNow);
+    case 'svAtDeal': return '<b style="color:var(--accent)">'+svDay(r.svAtDeal)+'</b>';
+    case 'svTarget': return r.units>0?'<span style="color:var(--amber)">'+svDay(r.svTarget)+'</span>':dash;
+    case 'svGap': return r.units<=0?dash:'<span class="'+(r.svGap<=0?'pos':'neg')+'">'+(r.svGap>0?'+':'')+svDay(r.svGap)+'</span>';
     case 'daily': return dpSpark(r.daily);
   }
   return dash;
@@ -3944,7 +3950,7 @@ function renderDpKpis(S){
     {label:'Surcharge on these SKUs',val:money(agg.ais),cls:agg.ais?'alert':'',sub:money(agg.ais*12)+' a year if nothing moves'},
     {label:'Payout at deal price',val:money(agg.payout),cls:'good',sub:'after referral + FBA, across the aged units'},
     {label:'Margin at deal price',val:money(agg.margin),cls:agg.margin>=0?'good':'alert',sub:'payout minus product cost'},
-    {label:'Pace: now → at deal',val:fmtN1(agg.svNow)+' → '+fmtN1(agg.svAtDeal),sub:'units/month · target '+fmtN1(agg.svTarget)+' to clear in a year'},
+    {label:'Pace: now → at deal',val:svDay(agg.svNow)+' → '+svDay(agg.svAtDeal),sub:'units/day · target '+svDay(agg.svTarget)+' to clear in a year'},
     {label:'Could go deeper',val:fmt(agg.deeper),cls:agg.deeper?'warn':'',sub:'SKUs whose best % is deeper than this deal'},
     {label:'Past the floor',val:fmt(agg.oop),cls:agg.oop?'alert':'good',sub:agg.oop?'these cost you cash per unit sold':'no SKU is priced below its floor'},
   ];
@@ -3964,8 +3970,8 @@ function renderDpPlain(S){
         '</b> a month — <b>'+money(agg.ais*12)+'</b> a year. '
       : 'None of them carry aged stock, so this deal is about volume, not about escaping the surcharge. ')+
     'At these prices you keep <b>'+money(agg.payout)+'</b> after Amazon’s cut, <b>'+money(agg.margin)+'</b> of it profit. '+
-    'The discount should lift the pace from <b>'+fmtN1(agg.svNow)+'</b> to <b>'+fmtN1(agg.svAtDeal)+'</b> units a month'+
-    (agg.svTarget>0?', against <b>'+fmtN1(agg.svTarget)+'</b> needed to clear the aged stock inside a year':'')+'. '+
+    'The discount should lift the pace from <b>'+svDay(agg.svNow)+'</b> to <b>'+svDay(agg.svAtDeal)+'</b> units a day'+
+    (agg.svTarget>0?', against <b>'+svDay(agg.svTarget)+'</b> needed to clear the aged stock inside a year':'')+'. '+
     (agg.deeper?'<b>'+fmt(agg.deeper)+'</b> SKUs are discounted <i>less</i> than their own best %, so there is still room on those. ':'')+
     (agg.oop?'<span class="flag">⚠ '+fmt(agg.oop)+' SKUs are priced below their floor — every unit sold there costs you cash.</span>':'');
 }

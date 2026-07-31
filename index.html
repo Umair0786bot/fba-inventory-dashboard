@@ -2758,8 +2758,8 @@ function renderSimKpis(S){
     {label:'Payout / unit',val:money2(agg.payoutW/u),cls:'good',sub:'after referral + FBA'},
     {label:'Total payout',val:money(agg.payout),cls:'good',sub:'cash in hand across units sold'},
     {label:'% of COGS recovered',val:rec==null?'—':pct0(rec),cls:rec==null?'':(rec>=1?'good':'warn'),sub:'payout ÷ product cost'},
-    {label:'Current SV',val:fmtN1(agg.svNow)+'/mo',sub:'measured from daily sales'},
-    {label:'Target SV',val:fmtN1(agg.svTarget)+'/mo',cls:'warn',sub:'pace needed to clear within a year'},
+    {label:'Current SV /mo',val:fmtN1(agg.svNow)+'/mo',sub:'measured from daily sales'},
+    {label:'Target SV /mo',val:fmtN1(agg.svTarget)+'/mo',cls:'warn',sub:'pace needed to clear within a year'},
     {label:'AIS saved — 1 year',val:money(agg.ais1Hold-agg.ais1Disc),cls:'good',
       sub:'hold '+money(agg.ais1Hold)+' → '+money(agg.ais1Disc)},
     {label:'AIS saved — to clear',val:money(agg.aisLHold-agg.aisLDisc),cls:'good',
@@ -3129,8 +3129,8 @@ let trkSortKey='remaining', trkSortDir=-1, trkView=[];
 const TRK_COLS=[
   {k:'name',t:'Name',cls:'',tip:'SKU (or parent, when grouped) being tracked against its clearance target.'},{k:'skus',t:'SKUs',cls:'num',tip:'Number of SKUs included in this row.'},
   {k:'target',t:'Target',cls:'num',tip:'Aged units this row needs to sell through.'},{k:'sold',t:'Sold',cls:'num',tip:'Units actually sold during the tracking window.'},{k:'remaining',t:'Remaining',cls:'num',tip:'Target − sold: units still to clear.'},
-  {k:'curSV',t:'Current SV',cls:'num',tip:'Current sell velocity = units sold ÷ days elapsed (your actual daily pace).'},{k:'curDOH',t:'Current DOH',cls:'num',tip:'Current days on hand = remaining ÷ current SV — how long clearing takes at today’s pace.'},
-  {k:'tgtSV',t:'Target SV',cls:'num',tip:'Daily pace REQUIRED to hit the target, per the Target-basis selector above.'},{k:'tgtDOH',t:'Target DOH',cls:'num',tip:'Days the target implies for clearing the remaining units.'},
+  {k:'curSV',t:'Current SV /day',cls:'num',tip:'Current sell velocity = units sold ÷ days elapsed (your actual daily pace).'},{k:'curDOH',t:'Current DOH',cls:'num',tip:'Current days on hand = remaining ÷ current SV — how long clearing takes at today’s pace.'},
+  {k:'tgtSV',t:'Target SV /day',cls:'num',tip:'Daily pace REQUIRED to hit the target, per the Target-basis selector above.'},{k:'tgtDOH',t:'Target DOH',cls:'num',tip:'Days the target implies for clearing the remaining units.'},
   {k:'upAbs',t:'Uplift/day',cls:'num',tip:'Extra units per day needed: target SV − current SV.'},{k:'upPct',t:'Uplift %',cls:'num',tip:'That uplift as a % increase over your current pace.'},{k:'status',t:'Status',cls:'',tip:'🔴 behind = today’s pace won’t clear in the window · 🟢 on track · ✅ target met.'},
 ];
 function coverageDays(){ return Math.max(1, num(document.getElementById('trkCoverage').value)||TRK.coverageDays||30); }
@@ -3876,10 +3876,10 @@ const DP_COLS=[
   {k:'bestPrice',t:'Best $',cls:'num',grp:'sc',tip:'The price the best % implies.'},
   {k:'headroom',t:'Headroom',cls:'num',grp:'sc',tip:'Best % − your deal %. Positive = the maths says you could go deeper and still recover more.'},
   {k:'zone',t:'Deal sits',cls:'',grp:'sc',tip:'Where the deal price lands against this SKU’s ceiling and floor.'},
-  {k:'svNow',t:'SV now',cls:'num',grp:'sv',tip:'Units sold per month today, measured from real daily sales.'},
-  {k:'svAtDeal',t:'SV at deal',cls:'num',grp:'sv',tip:'Monthly pace this discount is expected to produce.'},
-  {k:'svTarget',t:'Target SV',cls:'num',grp:'sv',tip:'Pace needed to clear this SKU’s aged stock inside a year.'},
-  {k:'svGap',t:'Gap',cls:'num',grp:'sv',tip:'Target SV − SV at deal. Positive = this deal still will not clear the aged stock in a year.'},
+  {k:'svNow',t:'SV now /mo',cls:'num',grp:'sv',tip:'Units sold per month today, measured from real daily sales.'},
+  {k:'svAtDeal',t:'SV at deal /mo',cls:'num',grp:'sv',tip:'Monthly pace this discount is expected to produce.'},
+  {k:'svTarget',t:'Target SV /mo',cls:'num',grp:'sv',tip:'Pace needed to clear this SKU’s aged stock inside a year.'},
+  {k:'svGap',t:'Gap /mo',cls:'num',grp:'sv',tip:'Target SV − SV at deal. Positive = this deal still will not clear the aged stock in a year.'},
   {k:'daily',t:'Daily sales',cls:'',grp:'sv',tip:"This SKU's real daily units over the tracking window."},
 ];
 const DP_GROUPS={id:'SKU',pr:'Deal pricing',pay:'What you keep',ltsf:'LTSF exposure',

@@ -1119,6 +1119,10 @@
           <option value="thin">🟡 Between ceiling and floor</option>
           <option value="oop">🔴 Past floor — paying out of pocket</option>
         </select>
+        <label class="chip" id="simAllScenWrap"
+               data-tip="Off (default): the table shows only the scenario the basis dropdown is running, so one decision reads straight across. On: the three fixed scenarios come back side by side for comparison. The CSV export always matches whatever is on screen.">
+          <input type="checkbox" id="simAllScen" style="margin-right:6px" />Compare all scenarios <span class="hint">?</span>
+        </label>
         <span class="spacer"></span>
         <button class="ghost" id="exportSim">⤓ Export (CSV)</button>
       </div>
@@ -3006,7 +3010,11 @@ function computeSim(){
         ais1:a.r.tot1, aisL:a.r.totL, saved:hold.r.totL-a.r.totL,
         net1:a.net1, netL:a.netL, vsHold:a.netL-hold.netL};
     };
-    const sc={ceil:scen(sCeil,ceiling), flr:scen(sFlr,floor), best:scen(sBest,best.disc)};
+    /* A fourth block in the same 14-measure shape: whatever the basis dropdown is
+       actually applying. On a flat %, this is the only block that answers "what
+       does the number I just typed do?" — the three fixed scenarios cannot, since
+       none of them is at the typed percentage. */
+    const sc={appl:scen(disc,dApp), ceil:scen(sCeil,ceiling), flr:scen(sFlr,floor), best:scen(sBest,best.disc)};
 
     /* verdict block: which of the four leaves the most cash to clear */
     const cands=[['HOLD',hold.netL],['CEILING',sc.ceil.netL],['FLOOR',sc.flr.netL],['BEST',sc.best.netL]];
@@ -3224,6 +3232,7 @@ const SIM_COLS=[
   {k:'aisLHold',t:'AIS to clear',cls:'num',grp:'hold',tip:"Surcharge paid until the stock is gone at today's pace — the real cost of holding."},
   {k:'netLHold',t:'Net to clear',cls:'num',grp:'hold',tip:'Cash from full-price sales minus all surcharge until the stock is gone.'},
   /* ---- the three scenarios ---- */
+  ...scenCols('appl'),
   ...scenCols('ceil'),
   ...scenCols('flr'),
   ...scenCols('best'),
@@ -3248,14 +3257,42 @@ const SIM_COLS=[
   {k:'liqVsRemove',t:'Liquidate vs remove',cls:'num',grp:'liq',tip:'Liquidation cash − (−removal fee). Positive = liquidating beats paying to pull the stock out, which is almost always true unless the goods are worth reselling elsewhere.'},
 ];
 const SIM_GROUPS={id:'SKU · aged stock',hold:'Baseline — HOLD (no discount)',
+  appl:'Applied — the % this dropdown is running',
   ceil:'Scenario 1 — Ceiling % off  (recovers 100% of COGS)',
   flr:'Scenario 2 — Floor % off  (payout falls to zero)',
   best:'Scenario 3 — Best % off  (max net recovery)',
   liq:'Exit — FBA Liquidations',
   ver:'Verdict'};
+const SCEN_GRPS=['appl','ceil','flr','best'];
+const BASIS_GRP={flat:'appl',ceiling:'ceil',floor:'flr',best:'best'};
+/* Which scenario blocks the table shows. The default is ONE — the block the
+   basis dropdown is actually running — because three 14-column blocks side by
+   side is a comparison view, not a reading view, and you cannot follow a single
+   decision across it. The checkbox puts the comparison back when that is what
+   you want. Only whole groups are dropped, so the block-divider flags computed
+   above stay correct without recomputing. */
+function visibleSimCols(p){
+  const all=(document.getElementById('simAllScen')||{}).checked;
+  const pick=BASIS_GRP[p.basis]||'appl';
+  /* In compare mode the three fixed scenarios are the point; "Applied" only
+     earns a slot on a flat %, where it is the sole block at the typed number.
+     On any other basis it would duplicate whichever scenario is selected. */
+  const keep=all?(p.basis==='flat'?SCEN_GRPS:['ceil','flr','best']):[pick];
+  return SIM_COLS.filter(c=>SCEN_GRPS.indexOf(c.grp)<0||keep.indexOf(c.grp)>=0);
+}
+/* The applied block's header names the percentage it is running, so the table
+   says what it is showing rather than making you look back at the control. */
+function simGroupLabel(grp,p){
+  if(grp!=='appl') return SIM_GROUPS[grp]||'';
+  const b=p.basis;
+  return b==='ceiling' ? 'Applied — each SKU at its own CEILING %'
+       : b==='floor'   ? 'Applied — each SKU at its own FLOOR %'
+       : b==='best'    ? 'Applied — each SKU at its own BEST %'
+       : `Applied — flat ${pct0(p.disc)} off`;
+}
 /* mark each block's leading column so the divider rule lands on it */
 (()=>{let _g=null;SIM_COLS.forEach(c=>{c.blk=(c.grp!==_g);_g=c.grp;});})();
-let simSortKey='aisLHold', simSortDir=-1, simView=[];
+let simSortKey='aisLHold', simSortDir=-1, simView=[], _simCols=null;
 function simCell(r,k){
   /* Scenario blocks (ceil.* / flr.* / best.*) share one renderer, because they
      share one shape — that is what lets the three read straight across. */
@@ -3400,19 +3437,23 @@ function renderSubtotals(rows){
 function renderSimTable(S){
   const rows=simView=simFiltered(S);
   renderSubtotals(rows);
+  const COLS=_simCols=visibleSimCols(S.p);
+  /* Sorting by a column that the basis just hid would silently order the table
+     on something invisible, so fall back to the default when that happens. */
+  if(!COLS.some(c=>c.k===simSortKey)){ simSortKey='aisLHold'; simSortDir=-1; }
   let g='',run=null,span=0;
-  SIM_COLS.forEach(c=>{ if(c.grp!==run){ if(run) g+=`<th colspan="${span}" class="grp g-${run}">${SIM_GROUPS[run]||''}</th>`; run=c.grp; span=0; } span++; });
-  if(run) g+=`<th colspan="${span}" class="grp g-${run}">${SIM_GROUPS[run]||''}</th>`;
+  COLS.forEach(c=>{ if(c.grp!==run){ if(run) g+=`<th colspan="${span}" class="grp g-${run}">${simGroupLabel(run,S.p)}</th>`; run=c.grp; span=0; } span++; });
+  if(run) g+=`<th colspan="${span}" class="grp g-${run}">${simGroupLabel(run,S.p)}</th>`;
   document.getElementById('simGroupHead').innerHTML=g;
-  document.getElementById('simHead').innerHTML=SIM_COLS.map(c=>{
+  document.getElementById('simHead').innerHTML=COLS.map(c=>{
     const arr=simSortKey===c.k?`<span class="sortarrow">${simSortDir<0?'▼':'▲'}</span>`:'';
     return `<th class="${c.cls.includes('num')?'num':''} g-${c.grp}${c.blk?" blk":""}" data-k="${c.k}"${c.tip?` data-tip="${c.tip.replace(/"/g,'&quot;')}"`:''}>${c.t} ${arr}${c.tip?' <span class="hint">?</span>':''}</th>`;
   }).join('');
   document.querySelectorAll('#simHead th').forEach(th=>th.onclick=()=>{
     const k=th.dataset.k; if(simSortKey===k) simSortDir*=-1; else {simSortKey=k; simSortDir=(k==='sku'||k==='tag'||k==='size'||k==='verdict')?1:-1;}
     renderSimTable(_lastSim);});
-  document.getElementById('simBody').innerHTML=rows.map(r=>'<tr>'+SIM_COLS.map(c=>`<td class="${c.cls.includes('num')?'num':''} g-${c.grp}${c.blk?" blk":""}">${simCell(r,c.k)}</td>`).join('')+'</tr>').join('')
-    ||`<tr><td colspan="${SIM_COLS.length}" class="muted" style="padding:24px;text-align:center">No SKUs match.</td></tr>`;
+  document.getElementById('simBody').innerHTML=rows.map(r=>'<tr>'+COLS.map(c=>`<td class="${c.cls.includes('num')?'num':''} g-${c.grp}${c.blk?" blk":""}">${simCell(r,c.k)}</td>`).join('')+'</tr>').join('')
+    ||`<tr><td colspan="${COLS.length}" class="muted" style="padding:24px;text-align:center">No SKUs match.</td></tr>`;
 }
 let _lastSim=null, _simRaf=0;
 function renderSimSoon(){ if(_simRaf) return; _simRaf=requestAnimationFrame(()=>{ _simRaf=0; renderSim(); }); }
@@ -3460,9 +3501,15 @@ function renderLiqChip(S){
 }
 function exportSimCSV(){
   if(!simView.length){ alert('Nothing to export yet.'); return; }
-  const head=SIM_COLS.map(c=>c.t);
-  const val=r=>SIM_COLS.map(c=>{
-    const v=r[c.k];
+  /* Export what is on screen, not the full column set — otherwise the file
+     disagrees with the table you exported it from. Scenario blocks use dotted
+     keys (ceil.netL), which do not exist on the row, so read them off sc. */
+  const cols=_simCols||SIM_COLS;
+  const head=cols.map(c=>c.t);
+  const cellVal=(r,k)=>{ const d=k.indexOf('.'); if(d<0) return r[k];
+    const s=r.sc&&r.sc[k.slice(0,d)]; return s?s[k.slice(d+1)]:undefined; };
+  const val=r=>cols.map(c=>{
+    const v=cellVal(r,c.k);
     if(c.k==='verdict') return r.verdict==='disc'?'DISCOUNT':'HOLD';
     if(typeof v==='number') return isFinite(v)?(Math.abs(v)<1&&v!==0?v.toFixed(4):v.toFixed(2)):'';
     return v==null?'':v;
@@ -4056,7 +4103,7 @@ document.getElementById('exportSkus').onclick=exportSkusCSV;
 
 /* ---- decision engine wireup (one control row, no duplicates) ---- */
 document.getElementById('simParent').addEventListener('change',()=>{ populateSimSizes(); renderSimSoon(); });
-['simSize','simDisc','engRef','simSearch','simAction','simReach','simZone','simBasis',
+['simSize','simDisc','engRef','simSearch','simAction','simReach','simZone','simBasis','simAllScen',
  /* liquidation assumptions — every one of them reprices the whole table */
  'liqRec','liqRef','liqTier','liqMaxLb','liqMaxCuft','liqOvrRemoval',
  'liq_s1','liq_s2','liq_s3','liq_s4','liq_o1','liq_o2','liq_o3','liq_perLb'].forEach(id=>{

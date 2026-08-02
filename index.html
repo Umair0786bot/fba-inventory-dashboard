@@ -952,6 +952,15 @@
                  style="width:64px;font-size:15px;font-weight:700;color:var(--accent)" />
         </label>
         <label class="chip">Referral %&nbsp;<input type="number" id="engRef" value="15" min="0" max="100" step="0.5" style="width:56px" /></label>
+        <label class="chip" data-tip="How far forward the surcharge is counted. TO CLEARANCE runs until the stock is actually gone — the honest lifetime cost. CAPPED AT 36 stops at three years and drops whatever is still sitting, which is what this tab used to do; it understated the book by $1.9M and made HOLD look like the winning plan. Kept so the two can be compared.">Horizon&nbsp;
+          <select id="simHorizon">
+            <option value="clear" selected>To full clearance</option>
+            <option value="cap36">Capped at 36 months (old)</option>
+          </select> <span class="hint">?</span>
+        </label>
+        <label class="chip" data-tip="Assume every SKU sells at least this fast. Dead stock has no measurable velocity, so it never clears and its lifetime surcharge is unbounded — true, but useless for planning. Set a floor here (0.1/day is a reasonable trickle) and those SKUs get a finite months-on-hand you control. SKUs already selling faster are untouched. 0 = off.">Assume min SV&nbsp;
+          <input type="number" id="simMinSv" value="0" min="0" max="50" step="0.05" style="width:58px" />&nbsp;/day <span class="hint">?</span>
+        </label>
         <span class="spacer"></span>
         <span class="chip" id="simScopeChip"></span>
       </div>
@@ -1155,7 +1164,7 @@
       <div class="horizonbox">
         <span class="hz hzL">Everything decides on lifetime</span>
         <span>Every verdict here — Winner, ACTION, Liquidate, Remove, Rec % — is solved on
-        <b>Net lifetime</b>: cash minus surcharge until this stock is sold through, capped at 36 months.
+        <b>Net lifetime</b>: cash minus surcharge until this stock is actually sold through — run to true clearance, not truncated at 36 months.
         <b>AIS 1yr</b> is shown for budgeting only and decides nothing.</span>
       </div>
       <div class="footnote">
@@ -2838,7 +2847,17 @@ const svDay=v=>{ if(v==null||!isFinite(v)) return '—'; const d=v/SV_DAYS_PER_M
   return d.toLocaleString('en-US',{maximumFractionDigits:Math.abs(d)<10?2:1}); };
 const fmtN1=v=>(v==null||!isFinite(v))?'—':v.toLocaleString('en-US',{maximumFractionDigits:1});
 const HOR1=12;        // the 1-year view
-const HORMAX=36;      // "to full clearance", capped at 3 years — stock that hasn't moved by then never will
+/* "Lifetime" used to stop dead at 36 months, which quietly truncated the
+   surcharge on exactly the stock that is worst to keep: the roll simply halted
+   and whatever was still sitting vanished from the arithmetic. Book-wide that
+   hid $1.87M of charge and made HOLD look like the winning plan.
+
+   Lifetime now means lifetime — the roll runs until the stock is actually gone.
+   HOR_ABS is a safety stop, not a modelling horizon; a SKU that needs longer
+   than this is not slow, it is dead, and gets said so rather than scored. */
+const HOR_ABS=600;    // hard stop: 50 years
+const DEAD_MO=120;    // past 10 years to clear, it is dead stock, not slow stock
+let HORMAX=HOR_ABS;   // set per render from the horizon control
 let _simR8=null;
 function simRate8(){
   if(_simR8) return _simR8;
@@ -2997,6 +3016,14 @@ function simParams(){
     basis:(document.getElementById('simBasis')||{value:'flat'}).value,
     disc:clamp((num(document.getElementById('simDisc').value)||0)/100,0,0.95),
     ref:(num(document.getElementById('engRef').value)||15)/100,
+    /* 'clear' = run to true clearance. 'cap36' reproduces the old truncated
+       numbers, kept so the change is auditable rather than asserted. */
+    horizon:(document.getElementById('simHorizon')||{value:'clear'}).value,
+    /* Assumed floor on daily sales, units/day. Dead stock has no velocity, so
+       it never clears and carries an unbounded charge — which is true but
+       unusable. Setting a floor here says "assume it moves at least this fast"
+       and gives that stock a finite, tunable months-on-hand. 0 = off. */
+    minSv:Math.max(0,num((document.getElementById('simMinSv')||{value:0}).value)||0),
     liq:liqParams(),
   };
 }
@@ -3027,9 +3054,13 @@ function skuAt(x,seed,rate,velHold,m1,disc,ref){
 /* The best discount for ONE SKU: the level that maximises net recovery over the full
    life of the stock. It is not tied to the ceiling — it lands wherever the maths says,
    which is often shallower than the ceiling when a smaller cut already clears the stock. */
+/* Cache signature covers the horizon too — the winning discount depends on how
+   far forward the surcharge is counted, so a stale entry from the capped run
+   would silently survive a switch to full clearance. */
 let _optRef=null, _optMap={};
 function skuBest(x,seed,rate,velHold,m1,ref){
-  if(_optRef!==ref){ _optRef=ref; _optMap={}; }
+  const sig=ref+'|'+HORMAX;
+  if(_optRef!==sig){ _optRef=sig; _optMap={}; }
   const hit=_optMap[x.sku]; if(hit) return hit;
   let best={disc:0,netL:-Infinity,net1:0,vel:velHold};
   for(let d=0;d<=90;d+=2){
@@ -3040,6 +3071,11 @@ function skuBest(x,seed,rate,velHold,m1,ref){
 }
 function computeSim(){
   const p=simParams();
+  /* One place sets the horizon for every roll in this pass. rollFIFO has a
+     single caller (skuAt) and skuAt has eleven, so threading it through the
+     signatures would touch a lot for no gain — the render path is synchronous
+     and single-threaded, like the caches already in this file. */
+  HORMAX = p.horizon==='cap36' ? 36 : HOR_ABS;
   const rows=[];
   const agg={units:0,skus:0,sold:0,
     ais1Hold:0,ais1Disc:0,aisLHold:0,aisLDisc:0,
@@ -3051,13 +3087,17 @@ function computeSim(){
     cleared1:0,clearedL:0,left1:0,svNow:0,svTarget:0,nSlow:0,
     /* where the APPLIED discount sits against each SKU's OWN ceiling/floor */
     nSafe:0,nThin:0,nOop:0,
+    /* dead = will not clear inside DEAD_MO even at today's pace */
+    nDead:0,deadUnits:0,deadAis:0,
     /* the four levers, totalled for the comparison panel */
     cmp:{none:{net:0,cash:0,ais:0,disc:0,w:0,pw:0},ceiling:{net:0,cash:0,ais:0,disc:0,w:0,pw:0},
          floor:{net:0,cash:0,ais:0,disc:0,w:0,pw:0},best:{net:0,cash:0,ais:0,disc:0,w:0,pw:0}}};
   simScopeSkus(p).forEach(x=>{
     const seed=skuSeed9(x), units=seed.reduce((s,v)=>s+v,0);
     const rate=skuRates9(x);
-    const velHold=skuVelBase(x);
+    /* The assumed floor lifts only the SKUs selling slower than it; anything
+       already moving faster keeps its measured pace. */
+    const velHold=Math.max(skuVelBase(x), p.minSv*SV_DAYS_PER_MONTH);
     const velTarget=Math.max(velHold, units/HOR1);      // pace that clears inside a year
     const m1=x.ais>0?x.ais:null;
     const price=x.price;
@@ -3141,8 +3181,19 @@ function computeSim(){
     const bestZone = price<=0 ? ''
       : (best.disc<=ceiling+1e-9 ? 'SAFE' : (best.disc<=floor+1e-9 ? 'THIN' : 'OUT-OF-POCKET'));
 
+    /* Dead stock: at today's pace it does not clear inside DEAD_MO, so any
+       "lifetime" figure on it is a decades-long extrapolation of a rate card
+       that will not survive the decade. Name it rather than score it — and the
+       assumed-SV floor above is the lever for putting a usable number back.
+
+       Only meaningful when the roll actually ran to clearance: under the
+       36-month cap every slow SKU comes back as Infinity, so "dead" and "merely
+       slow" are indistinguishable and the label would be a guess. */
+    const dead = p.horizon!=='cap36'
+              && (!isFinite(hold.r.monthsToClear) || hold.r.monthsToClear>DEAD_MO);
+
     const r={
-      sc, winner:win[0], bestNet:win[1], gainVsHold:win[1]-hold.netL, bestZone,
+      sc, winner:win[0], bestNet:win[1], gainVsHold:win[1]-hold.netL, bestZone, dead,
       sku:x.sku,tag:x.tag,size:x.size,units,alreadySold:x.totalSold||0,
       price,cogs:x.cogs,fba:x.fba,
       ceiling,floor,ceilPrice,floorPrice,bestPct:best.disc,bestPrice:price*(1-best.disc),
@@ -3195,6 +3246,7 @@ function computeSim(){
        blended average hides which individual SKUs are underwater. */
     if(r.zone==='oop') agg.nOop++; else if(r.zone==='thin') agg.nThin++;
     else if(r.zone==='safe') agg.nSafe++;
+    if(r.dead){ agg.nDead++; agg.deadUnits+=units; agg.deadAis+=r.aisLHold; }
     if(price>0){ agg.ceilW+=ceiling*units; agg.floorW+=floor*units;
       agg.bestW+=best.disc*units; agg.appliedW+=dApp*units; agg.gw+=units; }
     if(r.action==='remove'){ agg.nRemove++; agg.removeUnits+=units; agg.removeCost+=removalCost;
@@ -3271,6 +3323,13 @@ function renderSimKpis(S){
     {label:'⚠ Cannot clear in 1 year',val:fmt(agg.nSlow),cls:agg.nSlow?'alert':'',
       sub:agg.nSlow?"at today's pace — read “Mo to clear”, not the 1-year figures"
                    :'every SKU clears inside a year at the pace it is selling now'},
+    {label:'💀 Dead stock',
+      val:S.p.horizon==='cap36'?'—':fmt(agg.nDead),
+      cls:S.p.horizon==='cap36'?'':(agg.nDead?'alert':''),
+      sub:S.p.horizon==='cap36'
+            ? 'not measurable under the 36-month cap — switch Horizon to full clearance'
+            : (agg.nDead?fmt(Math.round(agg.deadUnits))+' units · '+money(agg.deadAis)+' of the surcharge below is theirs'
+                        :'every SKU clears inside '+DEAD_MO+' months')},
     /* ---- what the selected plan does to that position ---- */
     {label:'Total payout',val:money(agg.payout),cls:'good',sub:'cash in hand across units sold'},
     {label:'Discount given',val:money(agg.discGiven),cls:'warn',sub:'(price − deal) × units sold'},
@@ -3368,12 +3427,12 @@ const SCEN_SUB=[
   ['sell',  'Sell price',        'Price under this scenario = price × (1 − disc %).'],
   ['pay',   'Payout / unit',     'Cash in hand per unit = sell price − referral − FBA. COGS is not deducted (already spent).'],
   ['rec',   '% COGS back',       'Payout per unit ÷ product cost. 100% = the whole product cost comes back.'],
-  ['sold',  'Units sold',        'Units this scenario sells before the aged stock is gone (capped at 36 months).'],
-  ['mo',    'Mo to clear',       'Months to sell through the aged stock. Blank = does not clear inside 36 months.'],
+  ['sold',  'Units sold',        'Units this scenario sells before the aged stock is gone.'],
+  ['mo',    'Mo to clear',       'Months to sell through the aged stock, run to true clearance. Blank = no measurable velocity.'],
   ['payout','Total payout',      'Payout per unit × units sold — total cash this SKU puts back in your hand.'],
   ['given', 'Discount given',    'Revenue given up = (price − sell price) × units sold.'],
   ['ais1',  'AIS 1yr',           'Surcharge over the next 12 months only. Budget figure — decides nothing.'],
-  ['aisL',  'AIS lifetime',      'Surcharge until this stock is sold through, capped at 36 months. Equal to AIS 1yr = it clears inside a year. Bigger = the difference lands in year two and beyond.'],
+  ['aisL',  'AIS lifetime',      'Surcharge until this stock is sold through — run to TRUE clearance, not truncated at 36 months. Equal to AIS 1yr = it clears inside a year. Bigger = the difference lands in year two and beyond.'],
   ['saved', 'AIS saved vs hold', "Surcharge escaped versus doing nothing = HOLD's AIS lifetime − this scenario's."],
   ['net1',  'Net 1yr',           'Cash from units sold in year one minus the surcharge paid in year one.'],
   ['netL',  'Net lifetime',      'THE HEADLINE — every verdict is decided on this. Cash from all units sold minus all surcharge, until the stock is gone.'],
@@ -3394,9 +3453,9 @@ const SIM_COLS=[
   {k:'svTarget',t:'Target SV /day',cls:'num',grp:'hold',tip:"Daily pace needed to clear this SKU's aged stock inside a year."},
   {k:'upliftX',t:'Lift needed ×',cls:'num',grp:'hold',tip:'Target SV ÷ current SV. 2× is a normal promotion; past 4× no discount realistically gets there.'},
   {k:'reach',t:'Realistic?',cls:'',grp:'hold',tip:'onpace / ok / stretch / unlikely / no / dead — can any discount up to 90% actually reach the target pace?'},
-  {k:'moClearHold',t:'Mo to clear',cls:'num',grp:'hold',tip:"Months to clear at today's pace. Blank = never clears inside 36 months."},
+  {k:'moClearHold',t:'Mo to clear',cls:'num',grp:'hold',tip:"Months to clear at today's pace, run to true clearance rather than truncated at 36 months. DEAD = will not shift inside 120 months, so a lifetime figure on it would be a decades-long extrapolation — use the assumed SV floor to model those."},
   {k:'ais1Hold',t:'AIS 1yr',cls:'num',grp:'hold',tip:'Surcharge over the next 12 months if you change nothing. Budget figure — decides nothing.'},
-  {k:'aisLHold',t:'AIS if we HOLD',cls:'num',grp:'hold',tip:"Surcharge until the stock is gone at today's pace, capped at 36 months — the real cost of doing nothing."},
+  {k:'aisLHold',t:'AIS if we HOLD',cls:'num',grp:'hold',tip:"Surcharge until the stock is gone at today's pace, run to true clearance — the real cost of doing nothing."},
   {k:'netLHold',t:'Net if we HOLD',cls:'num',grp:'hold',tip:'Cash from full-price sales minus all surcharge until the stock is gone, if you change nothing. This is the baseline every verdict is measured against.'},
   /* ---- the three scenarios ---- */
   ...scenCols('appl'),
@@ -3489,7 +3548,7 @@ function simCell(r,k){
       case 'rec':    return s.rec==null?dash
                        :`<span class="${s.rec>=1?'pos':(s.rec>=.5?'':'neg')}">${pct0(s.rec)}</span>`;
       case 'sold':   return fmt(Math.round(s.sold));
-      case 'mo':     return !isFinite(s.mo)?'<span class="muted" title="does not clear inside 36 months">—</span>':fmt(s.mo);
+      case 'mo':     return !isFinite(s.mo)?'<span class="muted" title="no measurable velocity — never clears">—</span>':fmt(s.mo);
       case 'payout': return money(s.payout);
       case 'given':  return s.given>0?`<span class="neg">${money(s.given)}</span>`:dash;
       case 'ais1':   return money(s.ais1);
@@ -3528,8 +3587,19 @@ function simCell(r,k){
     case 'recovery': return r.recovery==null?dash:`<span class="${r.recovery<0?'neg':(r.recovery>=1?'pos':'')}">${pct0(r.recovery)}</span>`;
     case 'svNow': return svDay(r.svNow);
     case 'svTarget': return `<b style="color:var(--amber)">${svDay(r.svTarget)}</b>`;
-    case 'moClearHold': return !isFinite(r.moClearHold)?'<span class="flag" title="never clears at today’s pace">∞</span>'
-      :`<span class="${r.moClearHold>12?'neg':'pos'}">${fmt(r.moClearHold)}</span>`;
+    /* ∞ used to appear here for anything past 36 months, so a SKU clearing at
+       38 read identically to one clearing at 394 — or never. Show the real
+       number, and reserve the DEAD badge for stock that genuinely will not
+       shift inside a decade. */
+    case 'moClearHold':
+      /* legacy capped mode still cannot see past 36 months */
+      if(!r.dead && !isFinite(r.moClearHold))
+        return '<span class="flag" title="does not clear inside the 36-month cap — switch Horizon to “To full clearance” for the real number">∞</span>';
+      if(r.dead) return `<span class="badge v-skip" title="${isFinite(r.moClearHold)
+          ? 'Clears in ~'+fmt(r.moClearHold)+' months at today’s pace — past the '+DEAD_MO+'-month mark, so any lifetime figure on it is a decades-long extrapolation. Set an assumed SV floor above to model it.'
+          : 'No measurable velocity — it never clears, and its lifetime surcharge is unbounded. Set an assumed SV floor above to model it.'}">DEAD</span>`;
+      return `<span class="${r.moClearHold>12?'neg':'pos'}"${r.moClearHold>36
+          ? ` title="past the old 36-month cap — this is the true clearance time"`:''}>${fmt(r.moClearHold)}</span>`;
     case 'ais1Hold': case 'ais1Disc': case 'aisLDisc': return money2(r[k]);
     case 'aisLHold': return `<b class="neg">${money2(r.aisLHold)}</b>`;
     case 'ais1Saved': case 'aisLSaved': return `<span class="${r[k]>=0?'pos':'neg'}">${m2(r[k])}</span>`;
@@ -4291,6 +4361,7 @@ document.getElementById('exportSkus').onclick=exportSkusCSV;
 /* ---- decision engine wireup (one control row, no duplicates) ---- */
 document.getElementById('simParent').addEventListener('change',()=>{ populateSimSizes(); renderSimSoon(); });
 ['simSize','simDisc','engRef','simSearch','simAction','simReach','simZone','simBasis','simAllScen','simEssential',
+ 'simHorizon','simMinSv',                 /* both reprice every lifetime figure */
  /* liquidation assumptions — every one of them reprices the whole table */
  'liqRec','liqRef','liqTier','liqMaxLb','liqMaxCuft','liqOvrRemoval',
  'liq_s1','liq_s2','liq_s3','liq_s4','liq_o1','liq_o2','liq_o3','liq_perLb'].forEach(id=>{

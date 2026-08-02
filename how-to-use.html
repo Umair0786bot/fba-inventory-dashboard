@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>How to use the LTSF Dashboard</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📘</text></svg>" />
+<style>
+  :root{
+    --bg:#100d0a; --bg2:#16120d;
+    --panel:#1a1610; --panel2:#241e16; --line:#38301f;
+    --txt:#ffffff; --muted:#948b7c; --txt2:#cdc6b8;
+    --accent:#cc8829; --accent2:#a86f1d; --accent3:#27a2a2;
+    --green:#2ea86a; --amber:#f5d547; --red:#e2564f; --grey:#7a6f5e;
+    --grad:linear-gradient(135deg,#cc8829,#a86f1d);
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth;scroll-padding-top:74px}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font:15px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 22px 90px}
+
+  /* ---------- header ---------- */
+  header{background:linear-gradient(180deg,#191410,#100d0a);border-bottom:1px solid var(--line);
+    padding:34px 22px 30px;margin-bottom:0}
+  header .inner{max-width:1000px;margin:0 auto}
+  h1{margin:0 0 8px;font-size:clamp(24px,4vw,34px);line-height:1.2;letter-spacing:-.4px}
+  header .sub{color:var(--muted);font-size:14.5px;max-width:70ch}
+  header .meta{margin-top:15px;display:flex;gap:9px;flex-wrap:wrap;font-size:12px}
+  .pill{background:var(--panel2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;color:var(--txt2)}
+  .pill b{color:var(--accent)}
+  .pill a{color:var(--accent3);text-decoration:none}
+  .pill a:hover{text-decoration:underline}
+
+  /* ---------- sticky nav ---------- */
+  nav.toc{position:sticky;top:0;z-index:40;background:rgba(16,13,10,.93);
+    backdrop-filter:blur(9px);border-bottom:1px solid var(--line);padding:9px 22px}
+  nav.toc .inner{max-width:1000px;margin:0 auto;display:flex;gap:6px;overflow-x:auto;scrollbar-width:thin}
+  nav.toc a{flex:0 0 auto;color:var(--muted);text-decoration:none;font-size:12.5px;font-weight:600;
+    padding:5px 11px;border-radius:7px;white-space:nowrap;border:1px solid transparent}
+  nav.toc a:hover{color:var(--txt);background:var(--panel2);border-color:var(--line)}
+
+  /* ---------- structure ---------- */
+  h2{margin:46px 0 6px;font-size:22px;letter-spacing:-.2px;padding-bottom:9px;border-bottom:2px solid var(--line)}
+  h2 .n{display:inline-block;background:var(--grad);color:#1b1205;border-radius:7px;
+    padding:1px 10px;font-size:14px;font-weight:800;margin-right:10px;vertical-align:2px}
+  h3{margin:30px 0 8px;font-size:16.5px;color:var(--txt)}
+  h3 .tabico{margin-right:7px}
+  .lede{color:var(--muted);font-size:13.5px;margin:0 0 18px}
+  p{margin:0 0 13px;color:var(--txt2)}
+  b,strong{color:var(--txt)}
+  a{color:var(--accent3)}
+
+  /* ---------- numbered steps ---------- */
+  .step{display:flex;gap:15px;margin:0 0 22px;align-items:flex-start}
+  .stepn{flex:0 0 auto;width:29px;height:29px;border-radius:50%;background:var(--accent);color:#1b1205;
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;margin-top:2px}
+  .stepb{flex:1 1 auto;min-width:0}
+  .stepb h4{margin:3px 0 7px;font-size:16px;color:var(--txt)}
+  .stepb p:last-child{margin-bottom:0}
+
+  /* ---------- panels / callouts ---------- */
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:17px 19px;margin:0 0 18px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:19px 21px;margin:0 0 20px}
+  .card.accent{border-left:3px solid var(--accent)}
+  .note{border-radius:10px;padding:12px 15px;margin:0 0 16px;font-size:13.5px;line-height:1.65;
+    background:rgba(39,162,162,.09);border:1px solid rgba(39,162,162,.32)}
+  .warn{border-radius:10px;padding:12px 15px;margin:0 0 16px;font-size:13.5px;line-height:1.65;
+    background:rgba(245,213,71,.09);border:1px solid rgba(245,213,71,.38)}
+  .stop{border-radius:10px;padding:12px 15px;margin:0 0 16px;font-size:13.5px;line-height:1.65;
+    background:rgba(226,86,79,.10);border:1px solid rgba(226,86,79,.40)}
+  .note b,.warn b,.stop b{color:var(--txt)}
+  .note p:last-child,.warn p:last-child,.stop p:last-child{margin-bottom:0}
+
+  /* ---------- code ---------- */
+  code{background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:1.5px 6px;
+    font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12.5px;color:#ffca70}
+  pre{background:#0c0a07;border:1px solid var(--line);border-radius:10px;padding:14px 16px;
+    overflow-x:auto;margin:0 0 16px}
+  pre code{background:none;border:none;padding:0;color:#e8dcc6;font-size:12.5px;line-height:1.75}
+  pre .c{color:var(--muted)}
+  pre .ok{color:#7fd0a6}
+
+  /* ---------- tables ---------- */
+  .tw{overflow-x:auto;margin:0 0 18px;border:1px solid var(--line);border-radius:10px}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:420px}
+  th,td{text-align:left;padding:9px 13px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:var(--panel2);color:var(--txt);font-weight:700;font-size:12.5px;
+     text-transform:uppercase;letter-spacing:.4px}
+  tr:last-child td{border-bottom:none}
+  td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .big{font-size:15px;font-weight:700;color:var(--accent)}
+
+  /* ---------- badges ---------- */
+  .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11.5px;font-weight:600;white-space:nowrap}
+  .b-hold{background:rgba(122,111,94,.22);color:#c3b9a6}
+  .b-liq{background:rgba(226,86,79,.20);color:#f08078}
+  .b-disc{background:rgba(46,168,106,.18);color:#4fd894}
+  .b-warn{background:rgba(245,213,71,.18);color:#f5d547}
+
+  ul,ol{margin:0 0 14px;padding-left:22px;color:var(--txt2)}
+  li{margin-bottom:7px}
+  li::marker{color:var(--accent)}
+
+  /* ---------- checklist ---------- */
+  .checklist{list-style:none;padding:0;counter-reset:ck}
+  .checklist li{counter-increment:ck;position:relative;padding:11px 0 11px 44px;
+    border-bottom:1px dashed var(--line);margin:0}
+  .checklist li:last-child{border-bottom:none}
+  .checklist li::before{content:counter(ck);position:absolute;left:0;top:10px;width:26px;height:26px;
+    border-radius:50%;background:var(--panel2);border:1px solid var(--accent);color:var(--accent);
+    display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:800}
+
+  footer{margin-top:56px;padding-top:22px;border-top:1px solid var(--line);
+    color:var(--muted);font-size:12.5px}
+
+  @media(max-width:640px){
+    .wrap{padding:0 15px 60px} header{padding:26px 15px 22px} nav.toc{padding:8px 15px}
+    .step{gap:11px} h2{font-size:19px} .card,.panel{padding:15px 15px}
+  }
+  @media print{
+    nav.toc{display:none} body{background:#fff;color:#000}
+    .card,.panel,pre,.tw{border-color:#ccc} a{color:#000}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="inner">
+    <h1>📘 How to use the LTSF Dashboard</h1>
+    <div class="sub">Step by step — where the data comes from, what each tab answers, and what to
+      actually do with it. Written for the daily BM&nbsp;+&nbsp;PPC huddle.</div>
+    <div class="meta">
+      <span class="pill">📦 <a href="index.html">Open the dashboard →</a></span>
+      <span class="pill">Source: <b>LTSF July (5).xlsx</b></span>
+      <span class="pill">517 SKUs · <b>$52,311</b> AIS next cycle</span>
+      <span class="pill">Tracking window: <b>2026-07-15 → 07-23</b></span>
+    </div>
+  </div>
+</header>
+
+<nav class="toc"><div class="inner">
+  <a href="#parta">A · Getting data in</a>
+  <a href="#partb">B · Using it</a>
+  <a href="#t1">📊 Overview</a>
+  <a href="#t2">🧮 Decision Engine</a>
+  <a href="#t3">📈 Sales Tracking</a>
+  <a href="#t4">🖥️ Command Center</a>
+  <a href="#t5">🏷️ Deal Planner</a>
+  <a href="#routine">Daily routine</a>
+  <a href="#gotchas">Know this</a>
+</div></nav>
+
+<div class="wrap">
+
+<!-- ============================ PART A ============================ -->
+<h2 id="parta"><span class="n">A</span>Getting data in</h2>
+<p class="lede">Do this <b>once a month</b>, when Ali sends a new LTSF workbook. Everything the app
+shows comes from here — if this is stale, every number on every tab is stale.</p>
+
+<div class="step">
+  <div class="stepn">1</div>
+  <div class="stepb">
+    <h4>Drop the workbook in</h4>
+    <p>Put the new <code>LTSF &lt;Month&gt;.xlsx</code> into:</p>
+    <pre><code>PD US\LTSF-SOURCE-FILE\</code></pre>
+    <p>The build picks the <b>newest .xlsx by modified date</b> automatically — you don't rename
+    anything and you don't edit a config. It's currently running on <code>LTSF July (5).xlsx</code>.</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="stepn">2</div>
+  <div class="stepb">
+    <h4>Build the data file</h4>
+    <pre><code>cd "c:\Users\umair\OneDrive\Documents\PD US"
+python build_ltsf_data.py</code></pre>
+    <p>This reads five sheets — <code>Summary USA</code>, <code>1 Year Projections of Current</code>,
+    <code>SKU Cash Action Tracker</code>, <code>Rate Card</code> and <code>L30 SV</code> — and writes
+    <code>site\ltsf-data.js</code>.</p>
+    <div class="stop"><b>Check the reconciliation before you go further.</b> The script prints these
+    as it runs. If they don't tie to the workbook, stop — the app will be wrong and it will not tell you.
+    <pre style="margin:10px 0 0"><code><span class="ok">SUM Total AIS Charge:    $52,311.06</span>   <span class="c">(sheet grand total ~ $52,311)</span>
+<span class="ok">SUM Total AIS Units:     45,047</span>       <span class="c">(sheet ~ 45,047)</span>
+<span class="ok">cash-tracker inputs on:  516 of 517 SKUs</span></code></pre></div>
+  </div>
+</div>
+
+<div class="step">
+  <div class="stepn">3</div>
+  <div class="stepb">
+    <h4>Rebuild the page — only if someone changed the app itself</h4>
+    <pre><code>python assemble_index.py</code></pre>
+    <div class="warn"><b>⚠ <code>site\index.html</code> is generated. Never edit it directly</b> — your
+    edits get wiped the next time anyone runs the assembler. The real sources are
+    <code>site\index.base.html</code> plus the eight fragments in <code>_build\</code>.</div>
+    <p>If you only swapped the workbook, <b>skip this step entirely</b>.</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="stepn">4</div>
+  <div class="stepb">
+    <h4>Publish</h4>
+    <pre><code>.\deploy.ps1</code></pre>
+    <p>Needs <code>gh auth login</code> once, the first time. Live about a minute later.</p>
+    <p>To just look at it locally without publishing, double-click <code>site\index.html</code> —
+    it needs no server.</p>
+  </div>
+</div>
+
+<!-- ============================ PART B ============================ -->
+<h2 id="partb"><span class="n">B</span>Using it, tab by tab</h2>
+<p class="lede">Six tabs. It opens on LTSF Overview — but your daily work is tab 2.</p>
+
+<!-- ---------- TAB 1 ---------- -->
+<div class="card accent">
+<h3 id="t1"><span class="tabico">📊</span>Tab 1 — LTSF Overview <span style="color:var(--muted);font-weight:400">· "How bad is it?"</span></h3>
+<p>Read-only. Eight cards, thirty seconds, then move on.</p>
+<p>The one that matters: <b class="big">Est. LTSF / AIS next month = $52,311</b>. That is the bill
+Amazon sends on the 15th if nothing changes.</p>
+<div class="note"><b>Entering AIS soon is currently 0.</b> Nothing is sitting in the 91–180 day
+bucket, so no new stock is about to start getting charged. This month's problem is entirely the
+stock you already have.</div>
+<p>Below the cards: charge by age band, units by age, top SKUs and a parent breakdown. Use these to
+know <i>who</i> to talk to — <b>SLQS alone is $14,359, 27% of the whole bill</b>.</p>
+</div>
+
+<!-- ---------- TAB 2 ---------- -->
+<div class="card accent">
+<h3 id="t2"><span class="tabico">🧮</span>Tab 2 — Decision Engine <span style="color:var(--muted);font-weight:400">· "What do we do?"</span></h3>
+<p><b>This is the tab.</b> It is built as four numbered steps — work down them in order.</p>
+
+<h4 style="margin:22px 0 6px;font-size:14.5px;color:var(--accent)">Step 1 — Where do we stand?</h4>
+<p>KPI row, same story as the Overview but scoped to whatever filters you've set.</p>
+
+<h4 style="margin:22px 0 6px;font-size:14.5px;color:var(--accent)">Step 2 — What are our options worth?</h4>
+<p>A table comparing five plans across the whole book. <b>Read one column: <code>Net recovery</code></b>
+— cash collected minus surcharge paid. Biggest number wins. The last column shows each option
+against doing nothing.</p>
+
+<h4 style="margin:22px 0 6px;font-size:14.5px;color:var(--accent)">Step 3 — Set the plan</h4>
+<div class="tw"><table>
+  <thead><tr><th>Control</th><th>What to do with it</th></tr></thead>
+  <tbody>
+    <tr><td><b>Parent / Size</b></td><td>Narrow to one product line</td></tr>
+    <tr><td><b>Discount basis</b></td><td>The main lever — <code>Flat %</code> · <code>Ceiling</code> · <code>Floor</code> · <b>★ Best %</b></td></tr>
+    <tr><td><b>Flat %</b></td><td>Only used when basis = Flat. Defaults to 30%</td></tr>
+    <tr><td><b>Referral %</b></td><td>Amazon's cut. Leave it at 15</td></tr>
+  </tbody>
+</table></div>
+<div class="note"><b>Use ★ Best %.</b> It solves the ideal discount for each SKU separately.
+<code>Flat 30%</code> is only the default because it is the simplest thing to explain in a meeting.</div>
+<p>Underneath, a plain-English paragraph rewrites itself as you change the controls.
+<b>Read that</b> — it is the summary you would say out loud in the huddle.</p>
+<p><b>💵 FBA Liquidations drawer</b> (collapsed): what the stock is worth if you hand it to a
+liquidator. <code>Recovery % of price</code> — currently 7.5% — is the number worth arguing about;
+set it to what your own liquidation settlements have actually paid. The chip on the closed drawer
+gives you the answer without opening it: <i>"7.5% of price → $79,570 net on 45,047 units."</i></p>
+
+<h4 style="margin:22px 0 6px;font-size:14.5px;color:var(--accent)">Step 4 — Which SKUs, and what do we do with each?</h4>
+<p>517 rows, 18 columns. <b>Read the <code>ACTION</code> column</b> — that is the per-SKU
+recommendation. Right now the book splits:</p>
+<p style="margin-bottom:16px">
+  <span class="badge b-hold">⏳ HOLD 410</span>
+  <span class="badge b-liq" style="margin-left:6px">💵 LIQUIDATE 98</span>
+  <span class="badge b-disc" style="margin-left:6px">🏷️ DISCOUNT 9</span>
+</p>
+<ul>
+  <li><b><code>Essentials only</code> is ticked by default</b> — 18 columns instead of 60+. Untick it
+  only when you need to audit a specific number.</li>
+  <li><b><code>Compare all scenarios</code></b> puts Ceiling / Floor / Best side by side.</li>
+  <li><b><code>⤓ Export (CSV)</code></b> exports <i>what is on screen</i>, not everything — so the
+  file always matches the table you exported it from.</li>
+</ul>
+
+<h4 style="margin:22px 0 6px;font-size:14.5px;color:var(--accent)">The optimizer — advanced, collapsed</h4>
+<p><code>🧠 Discount optimizer &amp; assumptions</code>, at the bottom of the tab. This <i>solves</i>
+the exact best percentage per SKU rather than applying a rule to everything.</p>
+<div class="tw"><table>
+  <thead><tr><th>Control</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><b>Cap at</b></td><td>Floor is the hard cap — never go past it</td></tr>
+    <tr><td><b>Window</b></td><td>36 months. Solve to full clearance</td></tr>
+    <tr><td><b>Age-forward LTSF rates</b></td><td><b>ON</b> = brackets shift as stock ages ($5.45/cu ft past 271 days). <b>OFF</b> = current rate held flat, which is what the Excel workbook does</td></tr>
+    <tr><td><b>⚙ Assumptions</b></td><td>Ad rates, coupon clip, elasticity k, grid step</td></tr>
+    <tr><td><b>🎯 Elasticity &amp; k</b></td><td>Calibrate against measured uplift. Needs ≥14 days of clean data with PPC held constant</td></tr>
+  </tbody>
+</table></div>
+<div class="warn"><b>Age-forward is the single biggest difference between this app and the Excel
+brief.</b> Toggle it off and watch the total move — that one switch is most of the gap.</div>
+<ul>
+  <li><b>Click any row</b> → the "why this number won" modal: waterfall, scenario matrix, and a
+  copy-paste justification paragraph.</li>
+  <li><b><code>⤓ Optimizer CSV</code></b> — this is the file Ali's Master Tracker consumes.</li>
+</ul>
+</div>
+
+<!-- ---------- TAB 3 ---------- -->
+<div class="card accent">
+<h3 id="t3"><span class="tabico">📈</span>Tab 3 — Sales Tracking <span style="color:var(--muted);font-weight:400">· "Are we hitting it?"</span></h3>
+<p>Actuals vs target, per SKU per day.</p>
+<div class="tw"><table>
+  <thead><tr><th>Right now</th><th class="num">Reading</th></tr></thead>
+  <tbody>
+    <tr><td>Actual pace</td><td class="num">275 / day</td></tr>
+    <tr><td>Target pace</td><td class="num">1,420 / day</td></tr>
+    <tr><td>On track</td><td class="num" style="color:#f08078"><b>19%</b></td></tr>
+    <tr><td>SKUs behind target</td><td class="num" style="color:#f08078"><b>457 of 517</b></td></tr>
+    <tr><td>Projected days to clear</td><td class="num">155</td></tr>
+  </tbody>
+</table></div>
+<ul>
+  <li><b><code>Target basis</code></b> — how the target is set: <code>Coverage window</code> (clear in
+  N days) · <code>SV uplift</code> (+X% vs current) · <code>Adjusted DOH</code></li>
+  <li><b><code>Coverage (days)</code></b> — 30 by default. This is what makes the target 1,420/day</li>
+  <li><b><code>Status</code> filter → <span class="badge b-liq">🔴 Behind target</span></b> is your work list</li>
+</ul>
+<div class="stop"><b>⚠ Check the window date before you trust this tab.</b> It currently reads
+<b>2026-07-15 → 07-23, 9 days</b>. If that is old, every pacing verdict here is stale — and
+<b>nothing on screen will warn you</b>. Re-run Part A.</div>
+</div>
+
+<!-- ---------- TAB 4 ---------- -->
+<div class="card accent">
+<h3 id="t4"><span class="tabico">🖥️</span>Tab 4 — Command Center <span style="color:var(--muted);font-weight:400">· "Put it on the wall"</span></h3>
+<p>Read-only wall board — one number per card, sized to be read across a room. There is a
+<b>fullscreen button</b>; this is the TV-in-the-office tab.</p>
+<p>Today: <b>347 shipped</b> (▲116 vs the same day last week) · <b>5.5% clearance</b> ·
+gauge at <b style="color:#f08078">19% 🔴 well behind pace</b>.</p>
+<div class="note"><b>The card to show management:</b> keep at Amazon for 12 months =
+<b>$810,510</b> versus remove to 3PL = <b>$291,465</b> → <b style="color:#4fd894">$519,045
+avoided</b>.</div>
+</div>
+
+<!-- ---------- TAB 5 ---------- -->
+<div class="card accent">
+<h3 id="t5"><span class="tabico">🏷️</span>Tab 5 — Deal Planner <span style="color:var(--muted);font-weight:400">· "Does this specific deal work?"</span></h3>
+<p><b>Currently empty — it needs a file.</b></p>
+<ul>
+  <li>Click <b><code>⤒ Upload deal CSV</code></b> with your deal-price sheet (SKU, base price, deal price)</li>
+  <li>Or click <b><code>use SS4 sample</code></b> to see the layout using the SS4 sheet already in the project</li>
+</ul>
+<p>Use it when someone proposes a specific promo and you need to know what it actually recovers,
+and how much deeper you could safely go.</p>
+</div>
+
+<!-- ---------- TAB 6 ---------- -->
+<div class="card accent">
+<h3 id="t6"><span class="tabico">📊</span>Tab 6 — KPI Metrics</h3>
+<p>A link out to the standalone <code>metrics-tracker.html</code>. Nothing to do here.</p>
+</div>
+
+<!-- ============================ ROUTINE ============================ -->
+<h2 id="routine"><span class="n">C</span>The 5-minute daily routine</h2>
+<div class="panel">
+<ol class="checklist">
+  <li><b>Tab 3 — Sales Tracking.</b> Check the tracking window date is recent. If it isn't, re-run Part A before you read anything else.</li>
+  <li><b>Tab 3 → <code>Status = 🔴 Behind target</code>.</b> That is today's list.</li>
+  <li><b>Tab 2 — Decision Engine.</b> Set <code>Discount basis = ★ Best %</code>, then read the plain-English paragraph.</li>
+  <li><b>Tab 2, Step 4.</b> Work the <code>ACTION</code> column, SKU by SKU.</li>
+  <li><b>Tab 4 — Command Center.</b> On the wall for the huddle.</li>
+</ol>
+</div>
+<p><b>Monthly:</b> new workbook → Part A → confirm the two reconciliation lines tie → deploy.</p>
+
+<!-- ============================ GOTCHAS ============================ -->
+<h2 id="gotchas"><span class="n">D</span>Two things the app will not tell you</h2>
+<p class="lede">Both are live right now. Until they're fixed, you have to carry them in your head.</p>
+
+<div class="stop">
+  <p><b>1 · The tracking data is stale, and nothing flags it.</b></p>
+  <p>The window is fixed at <b>2026-07-15 → 07-23</b>. The Sales Tracking tab and every pacing gate
+  keep answering confidently off that window no matter how old it gets. There is no banner, no
+  warning, no greyed-out state. <b>Check the date yourself, every time.</b></p>
+</div>
+
+<div class="stop">
+  <p><b>2 · The two panels on the Decision Engine disagree — and nothing says why.</b></p>
+  <div class="tw" style="margin:11px 0 11px"><table>
+    <thead><tr><th>Panel</th><th class="num">Total payout</th><th class="num">To liquidate</th></tr></thead>
+    <tbody>
+      <tr><td>Main table (Step 4)</td><td class="num"><b>$632,663</b></td><td class="num"><b>98</b></td></tr>
+      <tr><td>Optimizer drawer, below it</td><td class="num"><b>$17,010</b></td><td class="num"><b>144</b></td></tr>
+    </tbody>
+  </table></div>
+  <p>They are answering <i>different questions</i> — the top prices everything at a flat 30% over a
+  lifetime horizon; the optimizer solves per-SKU with age-forward LTSF drag and fee-adjusted exit
+  values. Neither is wrong. But nothing on screen explains the gap, and <b>neither is close to the
+  Excel brief's $575,223</b>. If this goes to management as-is, that is the first question you
+  will get.</p>
+</div>
+
+<footer>
+  <b>LTSF / Aged-Inventory Surcharge Dashboard</b> — operating guide.<br />
+  Figures quoted describe the build from <b>LTSF July (5).xlsx</b> · 517 SKUs · $52,311 AIS ·
+  tracking window 2026-07-15 → 07-23. Re-read after any workbook refresh, because every number on
+  this page moves with it.<br />
+  <a href="index.html">← Back to the dashboard</a>
+</footer>
+
+</div>
+</body>
+</html>

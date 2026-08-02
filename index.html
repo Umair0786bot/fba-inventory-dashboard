@@ -828,11 +828,112 @@
   </div>
   </div><!-- /viewLtsf -->
 
-  <!-- ============ DECISION ENGINE — deliberately minimal ============ -->
+  <!-- ============ DECISION ENGINE — read top to bottom ============ -->
   <div id="viewProj" class="hide">
 
-    <div class="sectiontitle">Discount decision — what do we recover, and what surcharge do we escape?</div>
+    <style>
+      /* ---- guided-step scaffolding ---- */
+      #viewProj .step{display:flex;align-items:baseline;gap:11px;margin:22px 0 9px;flex-wrap:wrap}
+      #viewProj .step:first-of-type{margin-top:4px}
+      #viewProj .stepn{flex:0 0 auto;width:25px;height:25px;border-radius:50%;display:inline-flex;
+        align-items:center;justify-content:center;font-size:12.5px;font-weight:800;
+        background:var(--accent);color:#1b1205;align-self:center}
+      #viewProj .stept{font-size:15.5px;font-weight:700;color:var(--txt)}
+      #viewProj .steps{flex:1 1 260px;font-size:12.5px;color:var(--mut);line-height:1.6}
+      /* plain-language orientation block */
+      .introbox{padding:13px 16px;border-radius:11px;line-height:1.75;font-size:13px;color:var(--txt);
+        background:rgba(204,136,41,.08);border:1px solid rgba(204,136,41,.30)}
+      .introbox h4{margin:0 0 7px;font-size:13.5px;color:var(--accent)}
+      .introbox p{margin:0 0 8px}
+      .introbox p:last-child{margin-bottom:0}
+      .introbox b{color:var(--txt)}
+      .introbox .opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(184px,1fr));gap:8px;margin:10px 0 2px}
+      .introbox .opt{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:8px 11px;font-size:12.5px}
+      .introbox .opt b{display:block;margin-bottom:3px;color:var(--accent)}
+      /* "what this section is telling you" line under a step */
+      .sechelp{margin:0 0 10px;padding:8px 12px;border-radius:8px;font-size:12.5px;line-height:1.65;
+        background:var(--panel2);border:1px solid var(--line);color:var(--mut)}
+      .sechelp b{color:var(--txt)}
+      /* advanced block, closed by default */
+      .advbox{margin-top:8px;border:1px solid var(--line);border-radius:11px;background:var(--panel2)}
+      .advbox>summary{cursor:pointer;padding:11px 15px;font-size:13px;font-weight:700;color:var(--txt);
+        list-style:none;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+      .advbox>summary::-webkit-details-marker{display:none}
+      .advbox>summary::before{content:'▸';color:var(--accent);font-weight:800}
+      .advbox[open]>summary::before{content:'▾'}
+      .advbox[open]>summary{border-bottom:1px solid var(--line)}
+      .advbox>summary small{font-weight:400;color:var(--mut);font-size:12px}
+      .advbody{padding:14px 15px}
+      .advbody .sectiontitle:first-child{margin-top:0}
+    </style>
 
+    <div class="sectiontitle">Aged stock — what is it costing us, and what is the cheapest way out?</div>
+
+    <div class="introbox">
+      <h4>New here? Read this first.</h4>
+      <p>Stock that has sat in Amazon's warehouse for <b>181 days or more</b> gets hit with a monthly
+      <b>aged-inventory surcharge (AIS)</b>. It is charged every month the stock keeps sitting, and it gets
+      steeper the longer it stays. Doing nothing is <i>not</i> free — that is the whole point of this tab.</p>
+      <p>You have four ways out. This tab prices all four with your real numbers and tells you which one keeps the most cash:</p>
+      <div class="opts">
+        <div class="opt"><b>⏳ Hold</b>Change nothing. Keep selling at full price and keep paying the surcharge.</div>
+        <div class="opt"><b>🏷️ Discount</b>Cut the price so it sells faster. You earn less per unit but escape surcharge.</div>
+        <div class="opt"><b>💵 Liquidate</b>Amazon sells it to a bulk liquidator. You get a small cheque, the surcharge stops today.</div>
+        <div class="opt"><b>🚚 Remove</b>Pay Amazon to ship it back to you. Costs money, but the stock is yours again.</div>
+      </div>
+      <p style="margin-top:9px">Every figure below is judged on <b>net lifetime</b> — all the cash you collect minus
+      all the surcharge you pay, from now until that stock is finally gone. Work down the four steps in order.</p>
+    </div>
+
+    <div class="step">
+      <span class="stepn">1</span><span class="stept">Where do we stand?</span>
+      <span class="steps">How much aged stock we are carrying and what it is costing us if we do nothing.</span>
+    </div>
+
+    <div class="kpis" id="simKpis"></div>
+
+    <div class="step">
+      <span class="stepn">2</span><span class="stept">What are our options worth?</span>
+      <span class="steps">The same stock priced five different ways. The winner is highlighted.</span>
+    </div>
+    <div class="sechelp">
+      Read the <b>Net recovery</b> column — that is cash collected minus surcharge paid, for each option.
+      The row with the biggest number is the best plan for the book as a whole.
+      <b>Do nothing</b> is the baseline; the last column shows how much better or worse each option is than that.
+    </div>
+    <div class="panel" style="margin-bottom:16px">
+      <div class="filters" style="margin-bottom:6px">
+        <h3 style="margin:0">Which lever should we pull?</h3>
+        <span class="spacer"></span>
+        <span class="chip">every SKU priced at its own percentage</span>
+      </div>
+      <div class="tablewrap" style="max-height:none">
+        <table><thead><tr>
+          <th data-tip="The options available to us, each priced with every SKU at its own percentage rather than one blended number.">Option <span class="hint">?</span></th>
+          <th class="num" data-tip="Average discount actually applied, weighted by units.">Avg % off <span class="hint">?</span></th>
+          <th class="num" data-tip="Average selling price you would list at under this option, weighted by units. Compare with the full price to see what you are giving up.">Avg price <span class="hint">?</span></th>
+          <th class="num" data-tip="Cash collected after Amazon's referral and FBA fees, on the units we actually sell.">Cash collected <span class="hint">?</span></th>
+          <th class="num" data-tip="Total surcharge paid until the stock is gone.">Surcharge paid <span class="hint">?</span></th>
+          <th class="num" data-tip="Revenue given up to run the discount.">Discount given <span class="hint">?</span></th>
+          <th class="num" data-tip="Cash collected minus surcharge paid — the bottom line for each option. THIS is the column that decides.">Net recovery <span class="hint">?</span></th>
+          <th class="num" data-tip="How much better or worse than doing nothing.">vs no discount <span class="hint">?</span></th>
+        </tr></thead><tbody id="simCompare"></tbody></table>
+      </div>
+      <div class="footnote">
+        <b>Best %</b> is found per SKU by testing every discount from 0% to 90% and keeping the one that leaves the most cash after the surcharge. It is <b>not</b> capped at the ceiling — it often lands lower, because once a smaller cut already clears the stock, going deeper only gives away margin.
+      </div>
+    </div>
+
+    <div class="step">
+      <span class="stepn">3</span><span class="stept">Set the plan</span>
+      <span class="steps">Pick which discount rule to run, then read the summary in plain English.</span>
+    </div>
+    <div class="sechelp">
+      <b>Discount basis</b> is the main control. <b>Flat %</b> applies one percentage to everything.
+      <b>Ceiling</b> is the deepest cut that still returns your full product cost. <b>Floor</b> is where your payout
+      hits zero. <b>Best %</b> lets the app solve the ideal percentage for each SKU separately — usually the one to use.
+      Everything below this point updates as you change it.
+    </div>
     <!-- ONE control row. Discount is typed, not picked from a list. -->
     <div class="panel" style="margin-bottom:14px">
       <div class="filters">
@@ -936,33 +1037,14 @@
       </details>
     </div>
 
-    <div class="kpis" id="simKpis"></div>
-
-    <div class="panel" style="margin-bottom:16px">
-      <div class="filters" style="margin-bottom:6px">
-        <h3 style="margin:0">Which lever should we pull?</h3>
-        <span class="spacer"></span>
-        <span class="chip">every SKU priced at its own percentage</span>
-      </div>
-      <div class="tablewrap" style="max-height:none">
-        <table><thead><tr>
-          <th data-tip="The four choices available to us, each priced with every SKU at its own percentage rather than one blended number.">Option <span class="hint">?</span></th>
-          <th class="num" data-tip="Average discount actually applied, weighted by units.">Avg % off <span class="hint">?</span></th>
-          <th class="num" data-tip="Average selling price you would list at under this option, weighted by units. Compare with the full price to see what you are giving up.">Avg price <span class="hint">?</span></th>
-          <th class="num" data-tip="Cash collected after Amazon's referral and FBA fees, on the units we actually sell.">Cash collected <span class="hint">?</span></th>
-          <th class="num" data-tip="Total surcharge paid until the stock is gone.">Surcharge paid <span class="hint">?</span></th>
-          <th class="num" data-tip="Revenue given up to run the discount.">Discount given <span class="hint">?</span></th>
-          <th class="num" data-tip="Cash collected minus surcharge paid — the bottom line for each option.">Net recovery <span class="hint">?</span></th>
-          <th class="num" data-tip="How much better or worse than doing nothing.">vs no discount <span class="hint">?</span></th>
-        </tr></thead><tbody id="simCompare"></tbody></table>
-      </div>
-      <div class="footnote">
-        <b>Best %</b> is found per SKU by testing every discount from 0% to 90% and keeping the one that leaves the most cash after the surcharge. It is <b>not</b> capped at the ceiling — it often lands lower, because once a smaller cut already clears the stock, going deeper only gives away margin.
-      </div>
-    </div>
-
     <!-- ============ DISCOUNT OPTIMIZER ============ -->
     <style>
+      /* ---- horizon legend: one line, one basis ---- */
+      .horizonbox{margin-top:11px;padding:9px 13px;border-radius:9px;background:var(--panel2);
+        border:1px solid var(--line);display:flex;gap:11px;align-items:baseline;flex-wrap:wrap;
+        font-size:12.5px;line-height:1.65;color:var(--txt)}
+      .hz{flex:0 0 auto;font-weight:700;font-size:11.5px;padding:2px 8px;border-radius:6px;white-space:nowrap}
+      .hzL{background:rgba(46,168,106,.16);color:#4fd894;border:1px solid rgba(46,168,106,.40)}
       /* ---- liquidation drawer ---- */
       .liqdrawer{margin-top:11px;border:1px solid var(--line);border-radius:10px;background:var(--panel2)}
       .liqdrawer>summary{cursor:pointer;padding:9px 13px;font-size:12.5px;list-style:none;
@@ -1017,6 +1099,84 @@
         background:rgba(204,136,41,.08);border:1px solid rgba(204,136,41,.28)}
     </style>
 
+    <div class="step">
+      <span class="stepn">4</span><span class="stept">Which SKUs, and what do we do with each?</span>
+      <span class="steps">One row per SKU. The ACTION column is the recommendation for that SKU.</span>
+    </div>
+    <div class="sechelp">
+      Start with the <b>ACTION</b> column — it says DISCOUNT, LIQUIDATE, REMOVE or HOLD for each SKU. Then read
+      <b>AIS lifetime</b> (what doing nothing costs) against <b>Net lifetime</b> (what you end up with).
+      The table opens on <b>Essentials</b> — about a dozen columns. Switch to <b>All columns</b> only when you
+      need the full working. Click any row to see why that SKU got its number.
+    </div>
+    <!-- the one table -->
+    <div class="panel" style="margin-bottom:20px">
+      <div class="filters">
+        <h3 style="margin:0">Per-SKU detail</h3>
+        <input type="search" id="simSearch" placeholder="Search SKU…" />
+        <select id="simAction">
+          <option value="">All actions</option>
+          <option value="discount">🏷️ Discount — worth doing</option>
+          <option value="liquidate">💵 Liquidate — take the recovery cheque</option>
+          <option value="remove">🚚 Remove — pull it out, removal beats the bid</option>
+          <option value="hold">⏳ Hold — leave it alone</option>
+        </select>
+        <select id="simReach">
+          <option value="">Any reachability</option>
+          <option value="ok">🟢 Target is realistic</option>
+          <option value="stretch">🟡 Target is a stretch</option>
+          <option value="bad">🔴 Target out of reach / dead</option>
+        </select>
+        <select id="simZone">
+          <option value="">Any discount depth</option>
+          <option value="safe">🟢 At/below ceiling — full COGS back</option>
+          <option value="thin">🟡 Between ceiling and floor</option>
+          <option value="oop">🔴 Past floor — paying out of pocket</option>
+        </select>
+        <label class="chip" id="simEssentialWrap" style="border-left:2px solid var(--accent);padding-left:9px"
+               data-tip="On (default): about a dozen columns — who the SKU is, what holding costs, what the plan returns, and what to do. Off: every column, including the full working behind each number.">
+          <input type="checkbox" id="simEssential" checked style="margin-right:6px" />Essentials only <span class="hint">?</span>
+        </label>
+        <label class="chip" id="simAllScenWrap"
+               data-tip="Off (default): the table shows only the scenario the basis dropdown is running, so one decision reads straight across. On: the three fixed scenarios come back side by side for comparison. The CSV export always matches whatever is on screen.">
+          <input type="checkbox" id="simAllScen" style="margin-right:6px" />Compare all scenarios <span class="hint">?</span>
+        </label>
+        <span class="spacer"></span>
+        <button class="ghost" id="exportSim">⤓ Export (CSV)</button>
+      </div>
+
+      <!-- subtotals: follows the filter, sits above the frozen header -->
+      <div class="subtotals" id="simSubtotals" style="margin-top:10px"></div>
+
+      <div class="tablewrap" style="max-height:70vh;border-top-left-radius:0;border-top-right-radius:0">
+        <table><thead><tr id="simGroupHead"></tr><tr id="simHead"></tr></thead><tbody id="simBody"></tbody></table>
+      </div>
+      <!-- ============ HORIZON LEGEND ============ -->
+      <div class="horizonbox">
+        <span class="hz hzL">Everything decides on lifetime</span>
+        <span>Every verdict here — Winner, ACTION, Liquidate, Remove, Rec % — is solved on
+        <b>Net lifetime</b>: cash minus surcharge until this stock is sold through, capped at 36 months.
+        <b>AIS 1yr</b> is shown for budgeting only and decides nothing.</span>
+      </div>
+      <div class="footnote">
+        Every column header explains itself on hover. <b>Ceiling</b> = the deepest discount that still returns 100% of product cost. <b>Floor</b> = the point where your payout is exactly zero; past it you pay Amazon out of pocket to move the unit.
+        <b>Payout/unit</b> = deal price − Amazon referral − FBA fee (product cost is already spent, so it is not deducted twice). <b>Target SV</b> = the monthly pace needed to clear this SKU's aged stock within a year.
+        <b>To clear</b> figures run the surcharge all the way until the stock is gone — the honest number for SKUs that need more than a year, and the reason holding usually loses.
+      </div>
+    </div>
+
+    <div class="step">
+      <span class="stepn">5</span><span class="stept">Advanced — the solver and its assumptions</span>
+      <span class="steps">Optional. You do not need this to act on the four steps above.</span>
+    </div>
+    <details class="advbox" id="advOptimizer">
+      <summary>🧠 Discount optimizer &amp; assumptions <small>— solves the exact best percentage per SKU, and exposes every assumption behind it</small></summary>
+      <div class="advbody">
+        <div class="sechelp" style="margin-top:0">
+          Steps 1&ndash;4 already give you a recommendation. This section shows the solver that produces the
+          <b>Rec %</b>, and lets you change what it assumes about ad spend, coupon costs and how much faster a
+          discounted product sells. Change nothing here and the defaults apply.
+        </div>
     <div class="sectiontitle">Discount optimizer — the percentage is solved for, not chosen</div>
 
     <div class="panel" style="margin-bottom:14px">
@@ -1027,7 +1187,7 @@
             <option value="ceiling">Full-COGS CEILING (100% recovery goal)</option>
           </select>
         </label>
-        <label class="chip">Window&nbsp;<input type="number" id="optWindow" value="6" min="1" max="24" step="1" style="width:52px" />&nbsp;mo</label>
+        <label class="chip" data-tip="Months the optimizer solves over. Defaults to 36 — solve to full clearance, the same lifetime basis the rest of the tab uses. Shorten it only if you deliberately want to price a fixed-length promo wave instead.">Window&nbsp;<input type="number" id="optWindow" value="36" min="1" max="36" step="1" style="width:52px" />&nbsp;mo <span class="hint">?</span></label>
         <label class="chip" data-tip="ON: brackets shift as months pass, so a SKU crossing 271 days gets charged $5.45/cu ft from that month on. OFF: the current bracket rate is held constant — the setting the reference workbook uses.">
           <input type="checkbox" id="optAgeFwd" checked style="margin-right:6px" />Age-forward LTSF rates</label>
         <span class="spacer"></span>
@@ -1094,51 +1254,8 @@
         not a judgement call. Click any row in the table below to see why that number won.
       </div>
     </div>
-
-    <!-- the one table -->
-    <div class="panel" style="margin-bottom:20px">
-      <div class="filters">
-        <h3 style="margin:0">Per-SKU detail</h3>
-        <input type="search" id="simSearch" placeholder="Search SKU…" />
-        <select id="simAction">
-          <option value="">All actions</option>
-          <option value="discount">🏷️ Discount — worth doing</option>
-          <option value="liquidate">💵 Liquidate — take the recovery cheque</option>
-          <option value="remove">🚚 Remove — pull it out, removal beats the bid</option>
-          <option value="hold">⏳ Hold — leave it alone</option>
-        </select>
-        <select id="simReach">
-          <option value="">Any reachability</option>
-          <option value="ok">🟢 Target is realistic</option>
-          <option value="stretch">🟡 Target is a stretch</option>
-          <option value="bad">🔴 Target out of reach / dead</option>
-        </select>
-        <select id="simZone">
-          <option value="">Any discount depth</option>
-          <option value="safe">🟢 At/below ceiling — full COGS back</option>
-          <option value="thin">🟡 Between ceiling and floor</option>
-          <option value="oop">🔴 Past floor — paying out of pocket</option>
-        </select>
-        <label class="chip" id="simAllScenWrap"
-               data-tip="Off (default): the table shows only the scenario the basis dropdown is running, so one decision reads straight across. On: the three fixed scenarios come back side by side for comparison. The CSV export always matches whatever is on screen.">
-          <input type="checkbox" id="simAllScen" style="margin-right:6px" />Compare all scenarios <span class="hint">?</span>
-        </label>
-        <span class="spacer"></span>
-        <button class="ghost" id="exportSim">⤓ Export (CSV)</button>
       </div>
-
-      <!-- subtotals: follows the filter, sits above the frozen header -->
-      <div class="subtotals" id="simSubtotals" style="margin-top:10px"></div>
-
-      <div class="tablewrap" style="max-height:70vh;border-top-left-radius:0;border-top-right-radius:0">
-        <table><thead><tr id="simGroupHead"></tr><tr id="simHead"></tr></thead><tbody id="simBody"></tbody></table>
-      </div>
-      <div class="footnote">
-        Every column header explains itself on hover. <b>Ceiling</b> = the deepest discount that still returns 100% of product cost. <b>Floor</b> = the point where your payout is exactly zero; past it you pay Amazon out of pocket to move the unit.
-        <b>Payout/unit</b> = deal price − Amazon referral − FBA fee (product cost is already spent, so it is not deducted twice). <b>Target SV</b> = the monthly pace needed to clear this SKU's aged stock within a year.
-        <b>To clear</b> figures run the surcharge all the way until the stock is gone — the honest number for SKUs that need more than a year, and the reason holding usually loses.
-      </div>
-    </div>
+    </details>
 
     <!-- ============ "why this number" panel, opens on row click ============ -->
     <div class="modal-overlay" id="optModal">
@@ -3135,7 +3252,7 @@ function renderSimKpis(S){
     {label:'Target SV /day',val:svDay(agg.svTarget)+'/day',cls:'warn',sub:'pace needed to clear within a year'},
     {label:'AIS saved — 1 year',val:money(agg.ais1Hold-agg.ais1Disc),cls:'good',
       sub:'hold '+money(agg.ais1Hold)+' → '+money(agg.ais1Disc)},
-    {label:'AIS saved — to clear',val:money(agg.aisLHold-agg.aisLDisc),cls:'good',
+    {label:'AIS saved — lifetime',val:money(agg.aisLHold-agg.aisLDisc),cls:'good',
       sub:'hold '+money(agg.aisLHold)+' → '+money(agg.aisLDisc)},
     {label:'Discount given',val:money(agg.discGiven),cls:'warn',sub:'(price − deal) × units sold'},
     {label:'⚠ Cannot be discounted out',val:fmt(agg.nRemove),cls:agg.nRemove?'alert':'',
@@ -3205,12 +3322,12 @@ const SCEN_SUB=[
   ['mo',    'Mo to clear',       'Months to sell through the aged stock. Blank = does not clear inside 36 months.'],
   ['payout','Total payout',      'Payout per unit × units sold — total cash this SKU puts back in your hand.'],
   ['given', 'Discount given',    'Revenue given up = (price − sell price) × units sold.'],
-  ['ais1',  'AIS 1yr',           'Long-term-storage surcharge over the next 12 months under this scenario.'],
-  ['aisL',  'AIS to clear',      'Surcharge paid all the way until the stock is gone under this scenario.'],
-  ['saved', 'AIS saved vs hold', "Surcharge escaped versus doing nothing = HOLD's AIS to clear − this scenario's."],
+  ['ais1',  'AIS 1yr',           'Surcharge over the next 12 months only. Budget figure — decides nothing.'],
+  ['aisL',  'AIS lifetime',      'Surcharge until this stock is sold through, capped at 36 months. Equal to AIS 1yr = it clears inside a year. Bigger = the difference lands in year two and beyond.'],
+  ['saved', 'AIS saved vs hold', "Surcharge escaped versus doing nothing = HOLD's AIS lifetime − this scenario's."],
   ['net1',  'Net 1yr',           'Cash from units sold in year one minus the surcharge paid in year one.'],
-  ['netL',  'Net to clear',      'THE HEADLINE: cash from all units sold minus all surcharge, until the stock is gone.'],
-  ['vsHold','vs HOLD',           'Net to clear − HOLD net to clear. Positive = this scenario beats doing nothing.'],
+  ['netL',  'Net lifetime',      'THE HEADLINE — every verdict is decided on this. Cash from all units sold minus all surcharge, until the stock is gone.'],
+  ['vsHold','vs HOLD',           'Net lifetime − HOLD net lifetime. Positive = this scenario beats doing nothing.'],
 ];
 const scenCols=g=>SCEN_SUB.map(s=>({k:g+'.'+s[0],t:s[1],cls:'num',grp:g,tip:s[2]}));
 
@@ -3228,21 +3345,21 @@ const SIM_COLS=[
   {k:'upliftX',t:'Lift needed ×',cls:'num',grp:'hold',tip:'Target SV ÷ current SV. 2× is a normal promotion; past 4× no discount realistically gets there.'},
   {k:'reach',t:'Realistic?',cls:'',grp:'hold',tip:'onpace / ok / stretch / unlikely / no / dead — can any discount up to 90% actually reach the target pace?'},
   {k:'moClearHold',t:'Mo to clear',cls:'num',grp:'hold',tip:"Months to clear at today's pace. Blank = never clears inside 36 months."},
-  {k:'ais1Hold',t:'AIS 1yr',cls:'num',grp:'hold',tip:'Surcharge over the next 12 months if you change nothing.'},
-  {k:'aisLHold',t:'AIS to clear',cls:'num',grp:'hold',tip:"Surcharge paid until the stock is gone at today's pace — the real cost of holding."},
-  {k:'netLHold',t:'Net to clear',cls:'num',grp:'hold',tip:'Cash from full-price sales minus all surcharge until the stock is gone.'},
+  {k:'ais1Hold',t:'AIS 1yr',cls:'num',grp:'hold',tip:'Surcharge over the next 12 months if you change nothing. Budget figure — decides nothing.'},
+  {k:'aisLHold',t:'AIS if we HOLD',cls:'num',grp:'hold',tip:"Surcharge until the stock is gone at today's pace, capped at 36 months — the real cost of doing nothing."},
+  {k:'netLHold',t:'Net if we HOLD',cls:'num',grp:'hold',tip:'Cash from full-price sales minus all surcharge until the stock is gone, if you change nothing. This is the baseline every verdict is measured against.'},
   /* ---- the three scenarios ---- */
   ...scenCols('appl'),
   ...scenCols('ceil'),
   ...scenCols('flr'),
   ...scenCols('best'),
   /* ---- verdict ---- */
-  {k:'winner',t:'Winner',cls:'',grp:'ver',tip:'Which of HOLD / CEILING / FLOOR / BEST leaves the most cash (net to clear).'},
-  {k:'bestNet',t:'Best net',cls:'num',grp:'ver',tip:'Net to clear under the winning scenario.'},
-  {k:'gainVsHold',t:'Gain vs HOLD',cls:'num',grp:'ver',tip:"Winner's net minus HOLD net. What the right move is worth on this SKU."},
+  {k:'winner',t:'Winner',cls:'',grp:'ver',tip:'Which of HOLD / CEILING / FLOOR / BEST leaves the most cash. Decided on NET LIFETIME, never on the 1-year figure.'},
+  {k:'bestNet',t:'Best net',cls:'num',grp:'ver',tip:'Net lifetime under the winning scenario.'},
+  {k:'gainVsHold',t:'Gain vs HOLD',cls:'num',grp:'ver',tip:"Winner's net lifetime minus HOLD's net lifetime. What the right move is worth on this SKU."},
   {k:'bestZone',t:'Best % zone',cls:'',grp:'ver',tip:"Where Scenario 3's percentage sits. SAFE = at or under the ceiling, all product cost comes back. THIN = past the ceiling but above the floor. OUT-OF-POCKET = past the floor, every sale costs you cash — the optimiser goes there when escaping the surcharge is worth more than the loss per unit."},
   {k:'removalCost',t:'Cost to remove',cls:'num',grp:'ver',tip:"Amazon's removal fee × units — cost to pull the stock out and stop the surcharge now."},
-  {k:'removeGain',t:'Remove vs hold',cls:'num',grp:'ver',tip:'(−removal fee) − HOLD net. Positive = pulling the stock out beats leaving it there. Compare against Gain vs HOLD.'},
+  {k:'removeGain',t:'Remove vs hold',cls:'num',grp:'ver',tip:'(−removal fee) − HOLD net LIFETIME. Positive = pulling the stock out beats leaving it there. Compare against Gain vs HOLD.'},
   {k:'action',t:'ACTION',cls:'',grp:'ver',tip:'DISCOUNT when the lift is achievable and it out-earns both exits. LIQUIDATE when the net recovery beats holding and beats paying removal. REMOVE only when the liquidation bid nets below zero — removal is priced as a pure cost here, with no value credited to the returned goods, so it rarely wins. HOLD otherwise.'},
   /* ---- FBA Liquidations: the priced exit that sits behind LIQUIDATE ---- */
   {k:'liqTier',t:'Tier',cls:'',grp:'liq',tip:'Size tier used to price the liquidation processing fee. Auto-classified from unit weight and cu ft: past 20 lb or past 1.167 cu ft (the volume a standard-size box can hold) it is oversize. Override in the Liquidation assumptions drawer.'},
@@ -3253,7 +3370,7 @@ const SIM_COLS=[
   {k:'liqNet',t:'Net rec /unit',cls:'num',grp:'liq',tip:'Gross recovery − referral − processing. Floored at zero: when the fees exceed the gross value there is simply no payment, Amazon does not bill you the difference.'},
   {k:'liqPct',t:'% of price',cls:'num',grp:'liq',tip:'Net recovery per unit as a share of the selling price. The published expectation for this programme is roughly 5–10% gross, so this lands lower once fees come off.'},
   {k:'liqTotal',t:'Net rec TOTAL',cls:'num',grp:'liq',tip:'Net recovery per unit × aged units — the cash this SKU actually returns if it is liquidated.'},
-  {k:'liqGain',t:'Liquidate vs hold',cls:'num',grp:'liq',tip:'Liquidation cash − HOLD net to clear. Positive = taking the liquidator’s cheque today beats leaving the stock on the surcharge. This is the honest exit comparison; removal alone understates it because removal ignores the recovery.'},
+  {k:'liqGain',t:'Liquidate vs hold',cls:'num',grp:'liq',tip:'Liquidation cash − HOLD net lifetime. Positive = taking the liquidator’s cheque today beats leaving the stock on the surcharge. Removal alone understates this, because removal ignores the recovery.'},
   {k:'liqVsRemove',t:'Liquidate vs remove',cls:'num',grp:'liq',tip:'Liquidation cash − (−removal fee). Positive = liquidating beats paying to pull the stock out, which is almost always true unless the goods are worth reselling elsewhere.'},
 ];
 const SIM_GROUPS={id:'SKU · aged stock',hold:'Baseline — HOLD (no discount)',
@@ -3265,6 +3382,16 @@ const SIM_GROUPS={id:'SKU · aged stock',hold:'Baseline — HOLD (no discount)',
   ver:'Verdict'};
 const SCEN_GRPS=['appl','ceil','flr','best'];
 const BASIS_GRP={flat:'appl',ceiling:'ceil',floor:'flr',best:'best'};
+/* The dozen columns that answer "what do I do with this SKU, and why". Everything
+   else on this table is working — needed to audit a number, not to act on it.
+   Opening on 50+ columns is what makes the table unreadable to anyone who did not
+   build it, so Essentials is the default and the full set is one click away.
+   Scenario measures are listed bare (netL, vsHold) and get prefixed with whichever
+   scenario block is live, so this set follows the basis dropdown automatically. */
+const SIM_ESSENTIAL=['sku','tag','size','units','price',
+  'reach','moClearHold','aisLHold','netLHold',
+  'liqNet','liqTotal','action'];
+const SIM_ESSENTIAL_SCEN=['disc','pay','sold','aisL','netL','vsHold'];
 /* Which scenario blocks the table shows. The default is ONE — the block the
    basis dropdown is actually running — because three 14-column blocks side by
    side is a comparison view, not a reading view, and you cannot follow a single
@@ -3273,12 +3400,18 @@ const BASIS_GRP={flat:'appl',ceiling:'ceil',floor:'flr',best:'best'};
    above stay correct without recomputing. */
 function visibleSimCols(p){
   const all=(document.getElementById('simAllScen')||{}).checked;
+  const ess=(document.getElementById('simEssential')||{}).checked;
   const pick=BASIS_GRP[p.basis]||'appl';
   /* In compare mode the three fixed scenarios are the point; "Applied" only
      earns a slot on a flat %, where it is the sole block at the typed number.
      On any other basis it would duplicate whichever scenario is selected. */
   const keep=all?(p.basis==='flat'?SCEN_GRPS:['ceil','flr','best']):[pick];
-  return SIM_COLS.filter(c=>SCEN_GRPS.indexOf(c.grp)<0||keep.indexOf(c.grp)>=0);
+  let cols=SIM_COLS.filter(c=>SCEN_GRPS.indexOf(c.grp)<0||keep.indexOf(c.grp)>=0);
+  if(ess){
+    const okScen={}; keep.forEach(g=>SIM_ESSENTIAL_SCEN.forEach(k=>{okScen[g+'.'+k]=1;}));
+    cols=cols.filter(c=>SIM_ESSENTIAL.indexOf(c.k)>=0||okScen[c.k]);
+  }
+  return cols;
 }
 /* The applied block's header names the percentage it is running, so the table
    says what it is showing rather than making you look back at the control. */
@@ -3420,9 +3553,9 @@ function renderSubtotals(rows){
     ['Total payout',money(payout),'pos'],
     ['Discount given',money(disc),''],
     ['AIS saved · 1yr',money(s1),'pos'],
-    ['AIS saved · to clear',money(sL),'pos'],
-    ['Net if hold',moneyS(nH),nH<0?'neg':''],
-    ['Net if discount',moneyS(nD),nD<0?'neg':'pos'],
+    ['AIS saved · lifetime',money(sL),'pos'],
+    ['Net if hold · lifetime',moneyS(nH),nH<0?'neg':''],
+    ['Net if discount · lifetime',moneyS(nD),nD<0?'neg':'pos'],
     ['Difference',(d>=0?'+':'−')+money(Math.abs(d)),d>=0?'pos':'neg'],
     ['Discount wins',fmt(wins)+' of '+fmt(rows.length),'pos'],
     ['⚠ Must remove',fmt(rows.filter(r=>r.action==='remove').length),'neg'],
@@ -3438,6 +3571,10 @@ function renderSimTable(S){
   const rows=simView=simFiltered(S);
   renderSubtotals(rows);
   const COLS=_simCols=visibleSimCols(S.p);
+  /* Essentials drops columns from inside a group, so the block-divider flags
+     baked onto the shared column objects no longer mark the right ones. Derive
+     them from what is actually on screen instead of mutating those objects. */
+  let _bg=null; const BLK=COLS.map(c=>{ const b=(c.grp!==_bg); _bg=c.grp; return b; });
   /* Sorting by a column that the basis just hid would silently order the table
      on something invisible, so fall back to the default when that happens. */
   if(!COLS.some(c=>c.k===simSortKey)){ simSortKey='aisLHold'; simSortDir=-1; }
@@ -3445,14 +3582,14 @@ function renderSimTable(S){
   COLS.forEach(c=>{ if(c.grp!==run){ if(run) g+=`<th colspan="${span}" class="grp g-${run}">${simGroupLabel(run,S.p)}</th>`; run=c.grp; span=0; } span++; });
   if(run) g+=`<th colspan="${span}" class="grp g-${run}">${simGroupLabel(run,S.p)}</th>`;
   document.getElementById('simGroupHead').innerHTML=g;
-  document.getElementById('simHead').innerHTML=COLS.map(c=>{
+  document.getElementById('simHead').innerHTML=COLS.map((c,ix)=>{
     const arr=simSortKey===c.k?`<span class="sortarrow">${simSortDir<0?'▼':'▲'}</span>`:'';
-    return `<th class="${c.cls.includes('num')?'num':''} g-${c.grp}${c.blk?" blk":""}" data-k="${c.k}"${c.tip?` data-tip="${c.tip.replace(/"/g,'&quot;')}"`:''}>${c.t} ${arr}${c.tip?' <span class="hint">?</span>':''}</th>`;
+    return `<th class="${c.cls.includes('num')?'num':''} g-${c.grp}${BLK[ix]?" blk":""}" data-k="${c.k}"${c.tip?` data-tip="${c.tip.replace(/"/g,'&quot;')}"`:''}>${c.t} ${arr}${c.tip?' <span class="hint">?</span>':''}</th>`;
   }).join('');
   document.querySelectorAll('#simHead th').forEach(th=>th.onclick=()=>{
     const k=th.dataset.k; if(simSortKey===k) simSortDir*=-1; else {simSortKey=k; simSortDir=(k==='sku'||k==='tag'||k==='size'||k==='verdict')?1:-1;}
     renderSimTable(_lastSim);});
-  document.getElementById('simBody').innerHTML=rows.map(r=>'<tr>'+COLS.map(c=>`<td class="${c.cls.includes('num')?'num':''} g-${c.grp}${c.blk?" blk":""}">${simCell(r,c.k)}</td>`).join('')+'</tr>').join('')
+  document.getElementById('simBody').innerHTML=rows.map(r=>'<tr>'+COLS.map((c,ix)=>`<td class="${c.cls.includes('num')?'num':''} g-${c.grp}${BLK[ix]?" blk":""}">${simCell(r,c.k)}</td>`).join('')+'</tr>').join('')
     ||`<tr><td colspan="${COLS.length}" class="muted" style="padding:24px;text-align:center">No SKUs match.</td></tr>`;
 }
 let _lastSim=null, _simRaf=0;
@@ -4103,7 +4240,7 @@ document.getElementById('exportSkus').onclick=exportSkusCSV;
 
 /* ---- decision engine wireup (one control row, no duplicates) ---- */
 document.getElementById('simParent').addEventListener('change',()=>{ populateSimSizes(); renderSimSoon(); });
-['simSize','simDisc','engRef','simSearch','simAction','simReach','simZone','simBasis','simAllScen',
+['simSize','simDisc','engRef','simSearch','simAction','simReach','simZone','simBasis','simAllScen','simEssential',
  /* liquidation assumptions — every one of them reprices the whole table */
  'liqRec','liqRef','liqTier','liqMaxLb','liqMaxCuft','liqOvrRemoval',
  'liq_s1','liq_s2','liq_s3','liq_s4','liq_o1','liq_o2','liq_o3','liq_perLb'].forEach(id=>{
@@ -4537,7 +4674,11 @@ const OPT_DEFAULTS = {
   velCapX: 6,        // v(d) <= 6 x v0
   step:    0.01,     // grid resolution
   tie:     0.02,     // totals within 2% of max -> take the shallowest d
-  window:  6,        // months in one wave
+  /* Lifetime, matching the engine's HORMAX — one horizon across the whole tab.
+     This used to be a 6-month wave, which quietly asked a different question
+     from the ACTION column beside it and let the two disagree with no way to
+     tell why. Everything now solves to full clearance, capped at 3 years. */
+  window:  36,       // months — solve to clearance, same cap as the engine
   capBasis:'floor',
   ageFwd:  true,
 };

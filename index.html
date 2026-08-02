@@ -958,7 +958,7 @@
             <option value="cap36">Capped at 36 months (old)</option>
           </select> <span class="hint">?</span>
         </label>
-        <label class="chip" data-tip="Assume every SKU sells at least this fast. Dead stock has no measurable velocity, so it never clears and its lifetime surcharge is unbounded — true, but useless for planning. Set a floor here (0.1/day is a reasonable trickle) and those SKUs get a finite months-on-hand you control. SKUs already selling faster are untouched. 0 = off.">Assume min SV&nbsp;
+        <label class="chip" data-tip="DEAD SKUs ONLY. Stock that will not clear inside 120 months at its own pace has no usable velocity, so it never clears and its lifetime surcharge is unbounded — true, but useless for planning. Set a floor here (0.1/day is a reasonable trickle) and only those SKUs get a finite months-on-hand you control; they stay flagged DEAD, with the modelled figure marked *. Every SKU that clears on its own numbers keeps its own measured pace, untouched. 0 = off.">Assume min SV <small style="color:var(--mut)">(dead only)</small>&nbsp;
           <input type="number" id="simMinSv" value="0" min="0" max="50" step="0.05" style="width:58px" />&nbsp;/day <span class="hint">?</span>
         </label>
         <span class="spacer"></span>
@@ -3088,16 +3088,27 @@ function computeSim(){
     /* where the APPLIED discount sits against each SKU's OWN ceiling/floor */
     nSafe:0,nThin:0,nOop:0,
     /* dead = will not clear inside DEAD_MO even at today's pace */
-    nDead:0,deadUnits:0,deadAis:0,
+    nDead:0,deadUnits:0,deadAis:0,nDeadModelled:0,
     /* the four levers, totalled for the comparison panel */
     cmp:{none:{net:0,cash:0,ais:0,disc:0,w:0,pw:0},ceiling:{net:0,cash:0,ais:0,disc:0,w:0,pw:0},
          floor:{net:0,cash:0,ais:0,disc:0,w:0,pw:0},best:{net:0,cash:0,ais:0,disc:0,w:0,pw:0}}};
   simScopeSkus(p).forEach(x=>{
     const seed=skuSeed9(x), units=seed.reduce((s,v)=>s+v,0);
     const rate=skuRates9(x);
-    /* The assumed floor lifts only the SKUs selling slower than it; anything
-       already moving faster keeps its measured pace. */
-    const velHold=Math.max(skuVelBase(x), p.minSv*SV_DAYS_PER_MONTH);
+    /* A SKU that clears on its own numbers keeps its own numbers. The assumed
+       floor is a modelling crutch for stock that has NO usable pace — apply it
+       to anything merely slow and you are overwriting measured data with a
+       guess, which moved 37 SKUs' recommendations when it was a blanket floor.
+
+       Deadness is judged on the REAL pace, before any assumption, and without
+       a roll: this model sells a flat `vel` units a month until empty, so
+       units/vel IS the clearance time. That also keeps the dead count a fact
+       about the stock rather than a function of what you typed in the box. */
+    const velReal=skuVelBase(x);
+    const trueMo=velReal>0 ? units/velReal : Infinity;
+    const deadReal=!(trueMo<=DEAD_MO);
+    const svAssumed=deadReal && p.minSv>0 && p.minSv*SV_DAYS_PER_MONTH>velReal;
+    const velHold=svAssumed ? p.minSv*SV_DAYS_PER_MONTH : velReal;
     const velTarget=Math.max(velHold, units/HOR1);      // pace that clears inside a year
     const m1=x.ais>0?x.ais:null;
     const price=x.price;
@@ -3186,21 +3197,21 @@ function computeSim(){
        that will not survive the decade. Name it rather than score it — and the
        assumed-SV floor above is the lever for putting a usable number back.
 
-       Only meaningful when the roll actually ran to clearance: under the
-       36-month cap every slow SKU comes back as Infinity, so "dead" and "merely
-       slow" are indistinguishable and the label would be a guess. */
-    const dead = p.horizon!=='cap36'
-              && (!isFinite(hold.r.monthsToClear) || hold.r.monthsToClear>DEAD_MO);
+       Judged above on the real pace, so it does not move when the assumed
+       floor is dialled — the assumption changes what we MODEL for this stock,
+       never whether the stock is dead. */
+    const dead = deadReal;
 
     const r={
-      sc, winner:win[0], bestNet:win[1], gainVsHold:win[1]-hold.netL, bestZone, dead,
+      sc, winner:win[0], bestNet:win[1], gainVsHold:win[1]-hold.netL, bestZone,
+      dead, svAssumed, velReal, trueMo,
       sku:x.sku,tag:x.tag,size:x.size,units,alreadySold:x.totalSold||0,
       price,cogs:x.cogs,fba:x.fba,
       ceiling,floor,ceilPrice,floorPrice,bestPct:best.disc,bestPrice:price*(1-best.disc),
       discPct:dApp,dealP,payout:disc.pay,totalPayout,amazonFee,
       recovery:(x.cogs>0&&price>0)?disc.pay/x.cogs:null,
       zone:price<=0?'na':(dApp<=ceiling?'safe':(dApp<=floor?'thin':'oop')),
-      svNow:velHold,svTarget:velTarget,svAtDisc:disc.vel,
+      svNow:velHold,svTarget:velTarget,svAtDisc:disc.vel,velHoldMo:velHold,
       moClearHold:hold.r.monthsToClear,moClearDisc:disc.r.monthsToClear,
       ais1Hold:hold.r.tot1,ais1Disc:disc.r.tot1,aisLHold:hold.r.totL,aisLDisc:disc.r.totL,
       ais1Saved:hold.r.tot1-disc.r.tot1,aisLSaved:hold.r.totL-disc.r.totL,
@@ -3246,7 +3257,8 @@ function computeSim(){
        blended average hides which individual SKUs are underwater. */
     if(r.zone==='oop') agg.nOop++; else if(r.zone==='thin') agg.nThin++;
     else if(r.zone==='safe') agg.nSafe++;
-    if(r.dead){ agg.nDead++; agg.deadUnits+=units; agg.deadAis+=r.aisLHold; }
+    if(r.dead){ agg.nDead++; agg.deadUnits+=units; agg.deadAis+=r.aisLHold;
+      if(r.svAssumed) agg.nDeadModelled++; }
     if(price>0){ agg.ceilW+=ceiling*units; agg.floorW+=floor*units;
       agg.bestW+=best.disc*units; agg.appliedW+=dApp*units; agg.gw+=units; }
     if(r.action==='remove'){ agg.nRemove++; agg.removeUnits+=units; agg.removeCost+=removalCost;
@@ -3323,13 +3335,13 @@ function renderSimKpis(S){
     {label:'⚠ Cannot clear in 1 year',val:fmt(agg.nSlow),cls:agg.nSlow?'alert':'',
       sub:agg.nSlow?"at today's pace — read “Mo to clear”, not the 1-year figures"
                    :'every SKU clears inside a year at the pace it is selling now'},
-    {label:'💀 Dead stock',
-      val:S.p.horizon==='cap36'?'—':fmt(agg.nDead),
-      cls:S.p.horizon==='cap36'?'':(agg.nDead?'alert':''),
-      sub:S.p.horizon==='cap36'
-            ? 'not measurable under the 36-month cap — switch Horizon to full clearance'
-            : (agg.nDead?fmt(Math.round(agg.deadUnits))+' units · '+money(agg.deadAis)+' of the surcharge below is theirs'
-                        :'every SKU clears inside '+DEAD_MO+' months')},
+    /* Counted on the real pace, so this number does not move when the assumed
+       floor is dialled — dialling it changes what is modelled, not what is dead. */
+    {label:'💀 Dead stock',val:fmt(agg.nDead),cls:agg.nDead?'alert':'',
+      sub:agg.nDead
+            ? fmt(Math.round(agg.deadUnits))+' units · '+money(agg.deadAis)+' of the surcharge below is theirs'
+              +(agg.nDeadModelled?' · '+fmt(agg.nDeadModelled)+' modelled at the assumed pace':'')
+            :'every SKU clears inside '+DEAD_MO+' months at its own pace'},
     /* ---- what the selected plan does to that position ---- */
     {label:'Total payout',val:money(agg.payout),cls:'good',sub:'cash in hand across units sold'},
     {label:'Discount given',val:money(agg.discGiven),cls:'warn',sub:'(price − deal) × units sold'},
@@ -3595,9 +3607,16 @@ function simCell(r,k){
       /* legacy capped mode still cannot see past 36 months */
       if(!r.dead && !isFinite(r.moClearHold))
         return '<span class="flag" title="does not clear inside the 36-month cap — switch Horizon to “To full clearance” for the real number">∞</span>';
-      if(r.dead) return `<span class="badge v-skip" title="${isFinite(r.moClearHold)
-          ? 'Clears in ~'+fmt(r.moClearHold)+' months at today’s pace — past the '+DEAD_MO+'-month mark, so any lifetime figure on it is a decades-long extrapolation. Set an assumed SV floor above to model it.'
-          : 'No measurable velocity — it never clears, and its lifetime surcharge is unbounded. Set an assumed SV floor above to model it.'}">DEAD</span>`;
+      if(r.dead){
+        /* still dead once an assumed pace is applied — the assumption changes
+           what we model, not what the stock is. Say both. */
+        const real = isFinite(r.trueMo)
+          ? 'At its real pace ('+fmtN1(r.velReal)+'/mo) it needs ~'+fmt(Math.round(r.trueMo))+' months, past the '+DEAD_MO+'-month mark.'
+          : 'No measurable velocity — it never clears and its lifetime surcharge is unbounded.';
+        return r.svAssumed
+          ? `<span class="badge v-cost" title="${real} Modelled here at the assumed floor of ${fmtN1(r.velHoldMo)}/mo, which clears it in ~${fmt(Math.round(r.moClearHold))} months. That figure is an assumption, not a measurement.">DEAD · ~${fmt(Math.round(r.moClearHold))}mo*</span>`
+          : `<span class="badge v-skip" title="${real} Set an assumed SV floor above to model it.">DEAD</span>`;
+      }
       return `<span class="${r.moClearHold>12?'neg':'pos'}"${r.moClearHold>36
           ? ` title="past the old 36-month cap — this is the true clearance time"`:''}>${fmt(r.moClearHold)}</span>`;
     case 'ais1Hold': case 'ais1Disc': case 'aisLDisc': return money2(r[k]);

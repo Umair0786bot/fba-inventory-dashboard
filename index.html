@@ -3049,6 +3049,8 @@ function computeSim(){
     nLiq:0,liqUnits:0,liqNet:0,liqGain:0,liqAis:0,
     liqAllGross:0,liqAllFees:0,liqAllNet:0,
     cleared1:0,clearedL:0,left1:0,svNow:0,svTarget:0,nSlow:0,
+    /* where the APPLIED discount sits against each SKU's OWN ceiling/floor */
+    nSafe:0,nThin:0,nOop:0,
     /* the four levers, totalled for the comparison panel */
     cmp:{none:{net:0,cash:0,ais:0,disc:0,w:0,pw:0},ceiling:{net:0,cash:0,ais:0,disc:0,w:0,pw:0},
          floor:{net:0,cash:0,ais:0,disc:0,w:0,pw:0},best:{net:0,cash:0,ais:0,disc:0,w:0,pw:0}}};
@@ -3188,6 +3190,11 @@ function computeSim(){
        the KPI strip and the plain-English paragraph below it read off ONE
        definition and cannot drift apart later. */
     if(!isFinite(r.moClearHold)||r.moClearHold>HOR1) agg.nSlow++;
+    /* r.zone is judged per SKU on the discount actually applied to it, against
+       its own boundaries — the only honest way to report this, because a
+       blended average hides which individual SKUs are underwater. */
+    if(r.zone==='oop') agg.nOop++; else if(r.zone==='thin') agg.nThin++;
+    else if(r.zone==='safe') agg.nSafe++;
     if(price>0){ agg.ceilW+=ceiling*units; agg.floorW+=floor*units;
       agg.bestW+=best.disc*units; agg.appliedW+=dApp*units; agg.gw+=units; }
     if(r.action==='remove'){ agg.nRemove++; agg.removeUnits+=units; agg.removeCost+=removalCost;
@@ -3304,9 +3311,32 @@ function renderSimPlain(S){
     `Doing that avoids <b>${money(agg.ais1Hold-agg.ais1Disc)}</b> of surcharge in year one and <b>${money(savedL)}</b> by the time the stock is gone. `+
     `<b>${dL>=0?'Net, discounting recovers '+moneyS(Math.abs(dL))+' more than holding':'Net, holding recovers '+moneyS(Math.abs(dL))+' more than discounting'}</b> `+
     `— it wins on <b>${fmt(wins)} of ${fmt(agg.skus)}</b> SKUs. `+
-    (p.disc<=wCeil?`This discount is at or below the ceiling (${pct1(wCeil)}), so every unit still returns its full product cost.`
-     :(p.disc<=wFloor?`This is past the ceiling (${pct1(wCeil)}) but above the floor (${pct1(wFloor)}), so you recover part of the product cost, never less than zero.`
-     :`⚠ This is past the floor (${pct1(wFloor)}) — you would be paying Amazon out of your own pocket on every sale.`))+
+    /* Which zone we are in must be judged on the discount ACTUALLY APPLIED,
+       and per SKU against that SKU's own boundaries.
+       This used to test p.disc — the Flat % box — against blended averages. On
+       any non-flat basis those are different numbers, so a book priced at an
+       average 73.5% against a 60.9% floor reported as "above the floor ...
+       never less than zero" while its payout per unit was −$4.08. The floor is
+       exactly the point where payout reaches zero; past it every sale pays
+       Amazon out of pocket, and the app has to say so. */
+    (agg.nOop
+      ? `<b style="color:var(--red)">⚠ On ${fmt(agg.nOop)} of these ${fmt(agg.skus)} SKUs the applied discount goes past that SKU's own floor</b> `
+        + `(the floor averages ${pct1(wFloor)}) — the floor is where payout reaches zero, so past it every sale pays Amazon out of your own pocket. `
+        /* Only claim the blended per-unit figure is negative when it actually
+           is: a minority of underwater SKUs can sit inside a book that still
+           averages positive, and asserting otherwise is the same class of
+           error this whole sentence is being fixed for. */
+        + (agg.payoutW/(agg.units||1) < 0
+            ? `That is why the per-unit figure above is negative. `
+            : `The blended per-unit figure above stays positive because the rest of the book carries it — that is an average, not an all-clear. `)
+        + `The optimiser goes there deliberately when escaping the surcharge is worth more `
+        + `than the loss per unit, but book it as a cash cost, not a recovery.`
+        + (agg.nSafe+agg.nThin ? ` The other ${fmt(agg.nSafe+agg.nThin)} stay at or above break-even.` : '')
+      : agg.nThin
+      ? `On ${fmt(agg.nThin)} of these ${fmt(agg.skus)} SKUs the discount is past the ceiling (averaging ${pct1(wCeil)}) but still above the floor `
+        + `(${pct1(wFloor)}), so you recover part of the product cost and never less than zero.`
+        + (agg.nSafe ? ` The other ${fmt(agg.nSafe)} stay at or under their ceiling and return it in full.` : '')
+      : `Every SKU is priced at or below its own ceiling (averaging ${pct1(wCeil)}), so every unit still returns its full product cost.`)+
     (slow?` <b>${fmt(slow)}</b> of these SKUs cannot clear within a year at today's pace, which is why the "to clear" column matters more than the 1-year one.`:'')+
     (agg.nRemove?`<br/><b style="color:var(--red)">⚠ Reality check:</b> on <b>${fmt(agg.nRemove)}</b> of them the required pace is out of reach — `+
       `they hold <b>${fmt(Math.round(agg.removeUnits))}</b> units with <b>${money(agg.removeAis)}</b> of surcharge still ahead, and no realistic discount clears them. `+

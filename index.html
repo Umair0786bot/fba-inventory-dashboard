@@ -3332,11 +3332,17 @@ function renderSimPlain(S){
         + `The optimiser goes there deliberately when escaping the surcharge is worth more `
         + `than the loss per unit, but book it as a cash cost, not a recovery.`
         + (agg.nSafe+agg.nThin ? ` The other ${fmt(agg.nSafe+agg.nThin)} stay at or above break-even.` : '')
+      /* Never say "above the floor". A deeper discount is a BIGGER number, so
+         30% off sits numerically below a 60.9% floor while being on the safe
+         side of it — "above" then reads as "has crossed it", which is the exact
+         opposite of what is meant, in a sentence that goes on to say you are
+         not losing money. Say reached / not reached instead. */
       : agg.nThin
-      ? `On ${fmt(agg.nThin)} of these ${fmt(agg.skus)} SKUs the discount is past the ceiling (averaging ${pct1(wCeil)}) but still above the floor `
-        + `(${pct1(wFloor)}), so you recover part of the product cost and never less than zero.`
+      ? `On ${fmt(agg.nThin)} of these ${fmt(agg.skus)} SKUs the discount cuts deeper than the ceiling (averaging ${pct1(wCeil)}) `
+        + `but has not reached the floor (${pct1(wFloor)}) — so you get part of the product cost back but not all of it, `
+        + `and payout per unit stays at or above zero.`
         + (agg.nSafe ? ` The other ${fmt(agg.nSafe)} stay at or under their ceiling and return it in full.` : '')
-      : `Every SKU is priced at or below its own ceiling (averaging ${pct1(wCeil)}), so every unit still returns its full product cost.`)+
+      : `Every SKU is priced at or under its own ceiling (averaging ${pct1(wCeil)}), so every unit still returns its full product cost.`)+
     (slow?` <b>${fmt(slow)}</b> of these SKUs cannot clear within a year at today's pace, which is why the "to clear" column matters more than the 1-year one.`:'')+
     (agg.nRemove?`<br/><b style="color:var(--red)">⚠ Reality check:</b> on <b>${fmt(agg.nRemove)}</b> of them the required pace is out of reach — `+
       `they hold <b>${fmt(Math.round(agg.removeUnits))}</b> units with <b>${money(agg.removeAis)}</b> of surcharge still ahead, and no realistic discount clears them. `+
@@ -3401,7 +3407,7 @@ const SIM_COLS=[
   {k:'winner',t:'Winner',cls:'',grp:'ver',tip:'Which of HOLD / CEILING / FLOOR / BEST leaves the most cash. Decided on NET LIFETIME, never on the 1-year figure.'},
   {k:'bestNet',t:'Best net',cls:'num',grp:'ver',tip:'Net lifetime under the winning scenario.'},
   {k:'gainVsHold',t:'Gain vs HOLD',cls:'num',grp:'ver',tip:"Winner's net lifetime minus HOLD's net lifetime. What the right move is worth on this SKU."},
-  {k:'bestZone',t:'Best % zone',cls:'',grp:'ver',tip:"Where Scenario 3's percentage sits. SAFE = at or under the ceiling, all product cost comes back. THIN = past the ceiling but above the floor. OUT-OF-POCKET = past the floor, every sale costs you cash — the optimiser goes there when escaping the surcharge is worth more than the loss per unit."},
+  {k:'bestZone',t:'Best % zone',cls:'',grp:'ver',tip:"Where Scenario 3's percentage sits. SAFE = at or under the ceiling, all product cost comes back. THIN = deeper than the ceiling but not as deep as the floor, so part of the product cost comes back and payout stays at or above zero. OUT-OF-POCKET = past the floor, every sale costs you cash — the optimiser goes there when escaping the surcharge is worth more than the loss per unit."},
   {k:'removalCost',t:'Cost to remove',cls:'num',grp:'ver',tip:"Amazon's removal fee × units — cost to pull the stock out and stop the surcharge now."},
   {k:'removeGain',t:'Remove vs hold',cls:'num',grp:'ver',tip:'(−removal fee) − HOLD net LIFETIME. Positive = pulling the stock out beats leaving it there. Compare against Gain vs HOLD.'},
   {k:'action',t:'ACTION',cls:'',grp:'ver',tip:'DISCOUNT when the lift is achievable and it out-earns both exits. LIQUIDATE when the net recovery beats holding and beats paying removal. REMOVE only when the liquidation bid nets below zero — removal is priced as a pure cost here, with no value credited to the returned goods, so it rarely wins. HOLD otherwise.'},

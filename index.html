@@ -3048,7 +3048,7 @@ function computeSim(){
     nRemove:0,removeUnits:0,removeCost:0,removeGain:0,removeAis:0,
     nLiq:0,liqUnits:0,liqNet:0,liqGain:0,liqAis:0,
     liqAllGross:0,liqAllFees:0,liqAllNet:0,
-    cleared1:0,clearedL:0,left1:0,svNow:0,svTarget:0,
+    cleared1:0,clearedL:0,left1:0,svNow:0,svTarget:0,nSlow:0,
     /* the four levers, totalled for the comparison panel */
     cmp:{none:{net:0,cash:0,ais:0,disc:0,w:0,pw:0},ceiling:{net:0,cash:0,ais:0,disc:0,w:0,pw:0},
          floor:{net:0,cash:0,ais:0,disc:0,w:0,pw:0},best:{net:0,cash:0,ais:0,disc:0,w:0,pw:0}}};
@@ -3184,6 +3184,10 @@ function computeSim(){
     agg.netLHold+=r.netLHold; agg.netLDisc+=r.netLDisc;
     agg.cleared1+=r.cleared1; agg.clearedL+=r.clearedL; agg.left1+=r.left1;
     agg.svNow+=r.svNow; agg.svTarget+=r.svTarget;
+    /* Stock that will not clear inside a year at today's pace. Counted here so
+       the KPI strip and the plain-English paragraph below it read off ONE
+       definition and cannot drift apart later. */
+    if(!isFinite(r.moClearHold)||r.moClearHold>HOR1) agg.nSlow++;
     if(price>0){ agg.ceilW+=ceiling*units; agg.floorW+=floor*units;
       agg.bestW+=best.disc*units; agg.appliedW+=dApp*units; agg.gw+=units; }
     if(r.action==='remove'){ agg.nRemove++; agg.removeUnits+=units; agg.removeCost+=removalCost;
@@ -3232,31 +3236,41 @@ function renderCompare(S){
   }).join('');
 }
 /* ---------- KPI cards: only the numbers that were asked for ---------- */
+/* The strip used to carry five figures that are per-SKU by nature — the applied
+   discount, the ceiling, the floor, payout per unit and %COGS recovered — each
+   squashed into one unit-weighted number. Every one of them varies SKU by SKU,
+   so a single headline reads as a fact about the book when it is really an
+   average that no individual SKU is obliged to resemble. They are all still on
+   the Step 4 table, per SKU, where a per-SKU figure belongs.
+
+   "Your discount" was worse than blended: it echoed the Flat % box and ignored
+   the basis dropdown entirely, so on Ceiling / Floor / Best it displayed a
+   percentage that was not being applied to anything.
+
+   What is left answers two questions and nothing else: where do we stand, and
+   what does the selected plan do to that. */
 function renderSimKpis(S){
-  const {p,agg}=S, gw=agg.gw||agg.units||1, u=agg.units||1;
-  const wCeil=agg.ceilW/gw, wFloor=agg.floorW/gw;
-  const rec=agg.cogsW>0?agg.payoutW/agg.cogsW:null;
+  const {agg}=S;
   const dL=agg.netLDisc-agg.netLHold, d1=agg.net1Disc-agg.net1Hold;
-  const zone=p.disc<=wCeil?['good','full product cost comes back']
-            :(p.disc<=wFloor?['warn','part of product cost comes back']
-            :['alert','you pay Amazon out of pocket']);
   const cards=[
+    /* ---- standing position: true whatever plan is selected ---- */
     {label:'AIS SKUs in view',val:fmt(agg.skus),sub:fmt(agg.units)+' aged units · '+fmt(agg.sold)+' already sold'},
-    {label:'Your discount',val:pct0(p.disc),cls:zone[0],sub:zone[1]},
-    {label:'Ceiling % (recover COGS)',val:pct1(wCeil),cls:'good',sub:'deepest cut that returns 100% of cost'},
-    {label:'Floor % (zero payout)',val:pct1(wFloor),cls:'warn',sub:'past this you pay out of pocket'},
-    {label:'Payout / unit',val:money2(agg.payoutW/u),cls:'good',sub:'after referral + FBA'},
-    {label:'Total payout',val:money(agg.payout),cls:'good',sub:'cash in hand across units sold'},
-    {label:'% of COGS recovered',val:rec==null?'—':pct0(rec),cls:rec==null?'':(rec>=1?'good':'warn'),sub:'payout ÷ product cost'},
     {label:'Current SV /day',val:svDay(agg.svNow)+'/day',sub:'measured from real daily sales'},
     {label:'Target SV /day',val:svDay(agg.svTarget)+'/day',cls:'warn',sub:'pace needed to clear within a year'},
+    /* Replaces "⚠ Cannot be discounted out", which counted ACTION = REMOVE and
+       was therefore permanently 0: liquidation net is floored at zero and
+       removal cost is positive, so the exit comparison can never pick removal.
+       This counts the thing that card was trying to say and could not. */
+    {label:'⚠ Cannot clear in 1 year',val:fmt(agg.nSlow),cls:agg.nSlow?'alert':'',
+      sub:agg.nSlow?"at today's pace — read “Mo to clear”, not the 1-year figures"
+                   :'every SKU clears inside a year at the pace it is selling now'},
+    /* ---- what the selected plan does to that position ---- */
+    {label:'Total payout',val:money(agg.payout),cls:'good',sub:'cash in hand across units sold'},
+    {label:'Discount given',val:money(agg.discGiven),cls:'warn',sub:'(price − deal) × units sold'},
     {label:'AIS saved — 1 year',val:money(agg.ais1Hold-agg.ais1Disc),cls:'good',
       sub:'hold '+money(agg.ais1Hold)+' → '+money(agg.ais1Disc)},
     {label:'AIS saved — lifetime',val:money(agg.aisLHold-agg.aisLDisc),cls:'good',
       sub:'hold '+money(agg.aisLHold)+' → '+money(agg.aisLDisc)},
-    {label:'Discount given',val:money(agg.discGiven),cls:'warn',sub:'(price − deal) × units sold'},
-    {label:'⚠ Cannot be discounted out',val:fmt(agg.nRemove),cls:agg.nRemove?'alert':'',
-      sub:agg.nRemove?fmt(Math.round(agg.removeUnits))+' units · '+money(agg.removeAis)+' surcharge ahead · remove for '+money(agg.removeCost):'every SKU can be cleared by discounting'},
     {label:'Net if we HOLD',val:moneyS(agg.netLHold),cls:agg.netLHold<0?'alert':'',
       sub:'cash from full-price sales − all surcharge until the stock is gone'},
     {label:'Net if we DISCOUNT',val:moneyS(agg.netLDisc),cls:agg.netLDisc<0?'warn':'good',
@@ -3276,7 +3290,7 @@ function renderSimPlain(S){
   const dL=agg.netLDisc-agg.netLHold;
   const savedL=agg.aisLHold-agg.aisLDisc;
   const wins=S.rows.filter(r=>r.verdict==='disc').length;
-  const slow=S.rows.filter(r=>!isFinite(r.moClearHold)||r.moClearHold>12).length;
+  const slow=agg.nSlow;                       // same definition the KPI strip counts
   const wAppl=agg.appliedW/gw;
   const basisTxt = p.basis==='ceiling' ? `at <b>each SKU's own ceiling</b> (averaging ${pct1(wAppl)})`
                  : p.basis==='floor'   ? `at <b>each SKU's own floor</b> (averaging ${pct1(wAppl)})`

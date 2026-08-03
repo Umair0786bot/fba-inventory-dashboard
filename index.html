@@ -2926,9 +2926,9 @@ function renderBandBreakdown(){
   document.getElementById('bandChart').innerHTML=
    `<table style="width:100%;font-size:12.5px;border-collapse:collapse">
      <thead><tr style="color:var(--muted)">
-       <th style="text-align:left;padding:4px 6px" data-tip="How long the units have been stored in Amazon's warehouses. The surcharge rate escalates with each bracket. Click a row to see its SKUs.">Age band (days) <span class="hint">?</span></th>
+       <th style="text-align:left;padding:4px 6px" data-tip="How long the units have been stored in Amazon’s warehouses. The surcharge rate escalates with each bracket. Click a row to see its SKUs.">Age band (days) <span class="hint">?</span></th>
        <th style="text-align:right;padding:4px 6px" data-tip="Units Amazon will bill the aged-inventory surcharge on in this bracket next month.">Units <span class="hint">?</span></th>
-       <th style="text-align:left;padding:4px 6px;width:52%" data-tip="Amazon's own estimated surcharge for this bracket in the next billing cycle.">Est. charge next mo. <span class="hint">?</span></th></tr></thead><tbody>
+       <th style="text-align:left;padding:4px 6px;width:52%" data-tip="Amazon’s own estimated surcharge for this bracket in the next billing cycle.">Est. charge next mo. <span class="hint">?</span></th></tr></thead><tbody>
      ${BANDS8.map((b,i)=>`<tr class="band-row-click" data-bi="${i}" title="Click for SKU breakdown of ${b} days">
         <td style="padding:5px 6px"><span class="dot" style="background:${BAND8_COLORS[i]}"></span> ${b} <span class="muted" style="font-size:10px">›</span></td>
         <td class="num" style="padding:5px 6px">${u[i]?fmt(u[i]):'<span class=muted>0</span>'}</td>
@@ -2995,7 +2995,7 @@ function renderParents(){
 let skuSortKey='ais', skuSortDir=-1, skuView=[];
 const SKU_COLS=[
   {k:'sku',t:'SKU',cls:'',tip:'Child SKU.'},{k:'tag',t:'Parent',cls:'',tip:'Parent product tag — all sizes/colours roll up under it.'},{k:'size',t:'Size',cls:'',tip:'Variation size.'},
-  {k:'price',t:'Price',cls:'num',tip:'Current Amazon selling price.'},{k:'cogs',t:'COGS',cls:'num',tip:'Product cost per unit paid to the supplier.'},{k:'fba',t:'FBA',cls:'num',tip:'Amazon fulfilment fee per unit.'},{k:'margin',t:'Margin',cls:'num',tip:'What you keep on one unit at full price, after paying for the product, the FBA fee and Amazon's commission.'},
+  {k:'price',t:'Price',cls:'num',tip:'Current Amazon selling price.'},{k:'cogs',t:'COGS',cls:'num',tip:'Product cost per unit paid to the supplier.'},{k:'fba',t:'FBA',cls:'num',tip:'Amazon fulfilment fee per unit.'},{k:'margin',t:'Margin',cls:'num',tip:'What you keep on one unit at full price, after paying for the product, the FBA fee and Amazon’s commission.'},
   {k:'aged365',t:'366+ units',cls:'num',tip:'Units stored 366+ days — the steepest surcharge tier.'},{k:'unitsCharged',t:'Units charged',cls:'num',tip:'Units Amazon will bill the aged-inventory surcharge on next month.'},{k:'ais',t:'Est. AIS/mo',cls:'num',tip:'Amazon’s own estimated surcharge for this SKU next month.'},{k:'aged',t:'Aged 181+',cls:'num',tip:'All units stored 181+ days, i.e. everything the surcharge applies to.'},
 ];
 function filteredSkus(){
@@ -3093,7 +3093,7 @@ function skuVelBase(x){
   return x.svMonthly>0 ? x.svMonthly : (x.origMonthly>0 ? x.origMonthly : (x.svDay>0 ? x.svDay*30 : 0));
 }
 /* FIFO roll. Oldest age bracket sells first; survivors age one bracket a month; month 1 is
-   charged Amazon's own current estimate so the tab ties to the Overview total.
+   charged Amazon’s own current estimate so the tab ties to the Overview total.
    Returns totals at 12 months AND at full clearance, in one pass. */
 const _rA=new Float64Array(9), _rB=new Float64Array(9);
 /* `base` is base storage in $ per unit per month. It is tracked SEPARATELY from the
@@ -3192,7 +3192,7 @@ function liqParams(){
      - unit volume past what a standard-size box can physically hold
        (18x14x8in = 1.167 cu ft), and
      - the REMOVAL FEE Amazon already charges us. That one is the strongest
-       signal in the file: it is Amazon's own tier verdict, priced. No
+       signal in the file: it is Amazon’s own tier verdict, priced. No
        standard-size unit carries a removal fee anywhere near $3, so a SKU
        billed $8.90 to remove is a large-bulky unit whatever its cu ft says.
    The third test is what stops a dense, compact item being mispriced as
@@ -3298,7 +3298,7 @@ function baseRateOf(x,p){ return (p && p.storOn) ? (p.storRate||0)*(x.volume||0)
 /* Charge / sales over an ARBITRARY window. rollFIFO reports 12-month and
    lifetime totals only, and a 90-day deadline is neither, so the target-basis
    scenario needs its own bounded roll. Same FIFO rules: oldest bracket sells
-   first, survivors age one bracket a month, month 1 uses Amazon's own estimate. */
+   first, survivors age one bracket a month, month 1 uses Amazon’s own estimate. */
 function winRoll(seed,rate,vel,m1,base,months){
   const n=seed.length; let cur=seed.slice(), charge=0, sold=0;
   const M=Math.max(1,Math.ceil(months));
@@ -3753,7 +3753,7 @@ function renderSimPlain(S){
                  : `at a flat <b>${pct0(p.disc)} off</b>`;
   el.innerHTML=
     `Priced ${basisTxt} across these ${fmt(agg.skus)} SKUs (${fmt(agg.units)} aged units): you collect `+
-    `<b>${money2(agg.payoutW/(agg.units||1))} per unit</b> after Amazon's referral and FBA, `+
+    `<b>${money2(agg.payoutW/(agg.units||1))} per unit</b> after Amazon’s referral and FBA, `+
     `<b>${money(agg.payout)} in total</b>, and give up <b>${money(agg.discGiven)}</b> in discount. `+
     `To clear this stock inside a year you must sell <b>${svDay(agg.svTarget)}/day</b> versus <b>${svDay(agg.svNow)}/day</b> today. `+
     `Doing that avoids <b>${money(agg.ais1Hold-agg.ais1Disc)}</b> of surcharge in year one and <b>${money(savedL)}</b> by the time the stock is gone. `+
@@ -3879,14 +3879,14 @@ const SIM_COLS=[
   {k:'bestNet',t:'Best net',cls:'num',grp:'ver',tip:'The money you end up with under whichever choice won.'},
   {k:'gainVsHold',t:'Gain vs HOLD',cls:'num',grp:'ver',tip:"Winner's the money you end up with minus HOLD's the money you end up with. What the right move is worth on this SKU."},
   {k:'bestZone',t:'Best % zone',cls:'',grp:'ver',tip:"Where Scenario 3's percentage sits. SAFE = at or under the ceiling, all product cost comes back. THIN = deeper than the ceiling but not as deep as the floor, so part of the product cost comes back and payout stays at or above zero. OUT-OF-POCKET = past the floor, every sale costs you cash — the optimiser goes there when escaping the surcharge is worth more than the loss per unit."},
-  {k:'removalCost',t:'Cost to remove',cls:'num',grp:'ver',tip:"Amazon's removal fee × units — cost to pull the stock out and stop the surcharge now."},
+  {k:'removalCost',t:'Cost to remove',cls:'num',grp:'ver',tip:"Amazon’s removal fee × units — cost to pull the stock out and stop the surcharge now."},
   {k:'removeGain',t:'Remove vs hold',cls:'num',grp:'ver',tip:'How much better or worse it is to pay Amazon to ship the stock back to you, instead of leaving it there. A plus number means pulling it out wins.'},
   {k:'action',t:'ACTION',cls:'',grp:'ver',tip:'DISCOUNT when selling faster is realistic and earns more than either way of getting rid of the stock. LIQUIDATE when the net recovery beats holding and beats paying removal. REMOVE only when the liquidation bid nets below zero — removal is priced as a pure cost here, with no value credited to the returned goods, so it rarely wins. HOLD otherwise.'},
   /* ---- FBA Liquidations: the priced exit that sits behind LIQUIDATE ---- */
   {k:'liqTier',t:'Tier',cls:'',grp:'liq',tip:'Size tier used to price the liquidation processing fee. Auto-classified from unit weight and cu ft: past 20 lb or past 1.167 cu ft (the volume a standard-size box can hold) it is oversize. Override in the Liquidation assumptions drawer.'},
   {k:'liqW',t:'Weight lb',cls:'num',grp:'liq',tip:'Unit shipping weight, which is what the processing fee is banded on. Shown in amber when the workbook has no weight for this SKU — the tier’s opening band is assumed and the fee is a floor, not a quote.'},
   {k:'liqGross',t:'Gross rec /unit',cls:'num',grp:'liq',tip:'Gross recovery value = recovery % × current selling price. This is what the liquidator pays Amazon before any fee comes off.'},
-  {k:'liqRef',t:'Referral /unit',cls:'num',grp:'liq',tip:'Amazon's commission on a liquidation. It is taken from what the liquidator pays, not from your normal selling price.'},
+  {k:'liqRef',t:'Referral /unit',cls:'num',grp:'liq',tip:'Amazon’s commission on a liquidation. It is taken from what the liquidator pays, not from your normal selling price.'},
   {k:'liqProc',t:'Processing /unit',cls:'num',grp:'liq',tip:'Per-unit liquidation processing fee from the published rate card, banded on size tier and shipping weight.'},
   {k:'liqNet',t:'Net rec /unit',cls:'num',grp:'liq',tip:'Gross recovery − referral − processing. Floored at zero: when the fees exceed the gross value there is simply no payment, Amazon does not bill you the difference.'},
   {k:'liqPct',t:'% of price',cls:'num',grp:'liq',tip:'Net recovery per unit as a share of the selling price. The published expectation for this programme is roughly 5–10% gross, so this lands lower once fees come off.'},
@@ -5046,7 +5046,7 @@ const DP_COLS=[
   {k:'price',t:'Base price',cls:'num',grp:'pr',tip:'Current list price on Amazon, from the workbook.'},
   {k:'deal',t:'Deal price',cls:'num',grp:'pr',tip:'The price in your uploaded deal sheet.'},
   {k:'off',t:'% off',cls:'num',grp:'pr',tip:'The real discount this deal price represents against the base price.'},
-  {k:'payout',t:'Payout / unit',cls:'num',grp:'pay',tip:'What actually lands in your account for one unit at the deal price, after Amazon's commission and the FBA fee.'},
+  {k:'payout',t:'Payout / unit',cls:'num',grp:'pay',tip:'What actually lands in your account for one unit at the deal price, after Amazon’s commission and the FBA fee.'},
   {k:'marginU',t:'Margin / unit',cls:'num',grp:'pay',tip:'Payout per unit minus product cost — true profit on each unit sold at this deal.'},
   {k:'marginPct',t:'Margin %',cls:'num',grp:'pay',tip:'Your profit on a unit as a percentage of what the customer pays.'},
   {k:'units',t:'LTSF units',cls:'num',grp:'ltsf',tip:'Units of this SKU in long-term storage that the surcharge applies to. Blank = not an aged SKU.'},

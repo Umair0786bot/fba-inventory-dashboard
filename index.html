@@ -1244,6 +1244,24 @@
         <label class="chip" data-tip="DEAD SKUs ONLY. Stock that will not clear inside 120 months at its own pace has no usable velocity, so it never clears and its lifetime surcharge is unbounded — true, but useless for planning. Set a floor here (0.1/day is a reasonable trickle) and only those SKUs get a finite months-on-hand you control; they stay flagged DEAD, with the modelled figure marked *. Every SKU that clears on its own numbers keeps its own measured pace, untouched. 0 = off.">Assume min SV <small style="color:var(--mut)">(dead only)</small>&nbsp;
           <input type="number" id="simMinSv" value="0" min="0" max="50" step="0.05" style="width:58px" />&nbsp;/day <span class="hint">?</span>
         </label>
+        <label class="chip" style="border-left:2px solid var(--amber);padding-left:9px"
+               data-tip="How much faster a discount makes stock move: multiplier = (1/(1-d))^exponent, capped at 12x. 1.5 was the app's original guess with no data behind it. 2.30 is FITTED to our own Jul-Aug 2026 promo results — pre 15-22 Jul against post 23 Jul-2 Aug, with non-LTSF SKUs as a control to strip out the market trend, measured against the EFFECTIVE discount (promo $ / sales $) rather than the headline promo depth. At 30% off: 1.5 gives 1.71x, 2.30 gives 2.27x.">SV response&nbsp;
+          <select id="engSvExp">
+            <option value="2.3" selected>2.30 — fitted to our promo data</option>
+            <option value="1.5">1.50 — the old built-in guess</option>
+            <option value="2.0">2.00</option>
+            <option value="2.6">2.60</option>
+            <option value="3.0">3.00</option>
+          </select> <span class="hint">?</span>
+        </label>
+        <label class="chip" data-tip="Amazon bills base monthly storage on every unit on hand whatever its age. Holding aged stock therefore costs the surcharge PLUS this, and the tab used to count only the surcharge — understating the true cost of doing nothing by about 31% across this book ($891k against $2.86M). It is tracked as its own line, so the AIS columns and the Overview total still mean exactly what they always did.">
+          <input type="checkbox" id="engStorOn" checked style="margin-right:6px" />Charge base storage
+          <input type="number" id="engStorRate" value="2.40" min="0" max="20" step="0.05" style="width:56px;margin-left:6px" />&nbsp;<small style="color:var(--mut)">$/cu ft/mo</small>
+          <span class="hint">?</span>
+        </label>
+        <label class="chip" data-tip="The window the clear-min SV is measured against: the pace that empties the aged stock inside this many months regardless of economics. It sets the floor under the SV status chip.">Clear window&nbsp;
+          <input type="number" id="engClearWin" value="6" min="1" max="36" step="1" style="width:48px" />&nbsp;mo <span class="hint">?</span>
+        </label>
         <span class="spacer"></span>
         <span class="chip" id="simScopeChip"></span>
       </div>
@@ -3129,6 +3147,9 @@ const SV_DAYS_PER_MONTH=30;
 const svDay=v=>{ if(v==null||!isFinite(v)) return '—'; const d=v/SV_DAYS_PER_MONTH;
   return d.toLocaleString('en-US',{maximumFractionDigits:Math.abs(d)<10?2:1}); };
 const fmtN1=v=>(v==null||!isFinite(v))?'—':v.toLocaleString('en-US',{maximumFractionDigits:1});
+/* SV figures are units/DAY and most aged SKUs sit well under 1, where one decimal
+   rounds the number away entirely. Same rule svDay() already uses. */
+const fmtSV=v=>(v==null||!isFinite(v))?'—':v.toLocaleString('en-US',{maximumFractionDigits:Math.abs(v)<10?2:1});
 const HOR1=12;        // the 1-year view
 /* "Lifetime" used to stop dead at 36 months, which quietly truncated the
    surcharge on exactly the stock that is worst to keep: the roll simply halted
@@ -3166,11 +3187,17 @@ function skuVelBase(x){
    charged Amazon's own current estimate so the tab ties to the Overview total.
    Returns totals at 12 months AND at full clearance, in one pass. */
 const _rA=new Float64Array(9), _rB=new Float64Array(9);
-function rollFIFO(seed,rate,vel,m1Charge){
+/* `base` is base storage in $ per unit per month. It is tracked SEPARATELY from the
+   aged-inventory surcharge and never folded into it, so the AIS columns and the
+   Overview's $52,311 total keep meaning exactly what they always meant. The
+   surcharge applies only to the charged bands; base storage applies to every unit
+   on hand, including the 91-180 bucket that pays no surcharge yet. */
+function rollFIFO(seed,rate,vel,m1Charge,base){
+  base=base||0;
   const n=seed.length;
   let cur=_rA, nxt=_rB;
   for(let i=0;i<n;i++) cur[i]=seed[i];
-  let tot1=0, totL=0, sold1=0, soldL=0, left1=0, monthsToClear=Infinity;
+  let tot1=0, totL=0, sto1=0, stoL=0, sold1=0, soldL=0, left1=0, monthsToClear=Infinity;
   for(let m=1;m<=HORMAX;m++){
     if(m>1){
       nxt[0]=0;
@@ -3178,24 +3205,28 @@ function rollFIFO(seed,rate,vel,m1Charge){
       nxt[n-1]=cur[n-2]+cur[n-1];
       const t=cur; cur=nxt; nxt=t;
     }
-    let charge=0, sold=0;
+    let charge=0, store=0, sold=0;
     if(m===1){
       if(m1Charge!=null) charge=m1Charge;
       else { for(let i=1;i<n;i++) charge+=cur[i]*rate[i]; }
+      /* month 1 is charged on the stock as it stands, before this month's sales —
+         same basis the surcharge uses, so the two lines stay comparable */
+      if(base){ let oh=0; for(let i=0;i<n;i++) oh+=cur[i]; store=base*oh; }
       let s=vel; for(let i=n-1;i>=0&&s>1e-9;i--){ const t=cur[i]<s?cur[i]:s; cur[i]-=t; s-=t; } sold=vel-s;
     } else {
       let s=vel; for(let i=n-1;i>=0&&s>1e-9;i--){ const t=cur[i]<s?cur[i]:s; cur[i]-=t; s-=t; } sold=vel-s;
       for(let i=1;i<n;i++) charge+=cur[i]*rate[i];
+      if(base){ let oh=0; for(let i=0;i<n;i++) oh+=cur[i]; store=base*oh; }
     }
-    totL+=charge; soldL+=sold;
-    if(m<=HOR1){ tot1+=charge; sold1+=sold; }
+    totL+=charge; stoL+=store; soldL+=sold;
+    if(m<=HOR1){ tot1+=charge; sto1+=store; sold1+=sold; }
     let rem=0; for(let i=0;i<n;i++) rem+=cur[i];
     if(m===HOR1) left1=rem;
     if(rem<=1e-6){ if(!isFinite(monthsToClear)) monthsToClear=m; break; }
   }
   let leftL=0; for(let i=0;i<n;i++) leftL+=cur[i];
   if(HOR1>=HORMAX) left1=leftL;
-  return {tot1,totL,sold1,soldL,left1,leftL,monthsToClear};
+  return {tot1,totL,sto1,stoL,sold1,soldL,left1,leftL,monthsToClear};
 }
 /* ===========================================================================
    FBA LIQUIDATIONS — what a unit is actually worth if we hand it to a liquidator
@@ -3307,6 +3338,16 @@ function simParams(){
        unusable. Setting a floor here says "assume it moves at least this fast"
        and gives that stock a finite, tunable months-on-hand. 0 = off. */
     minSv:Math.max(0,num((document.getElementById('simMinSv')||{value:0}).value)||0),
+    /* how much faster a discount makes stock move — see SV_E above */
+    svExp:(()=>{const e=document.getElementById('engSvExp'); const v=e?num(e.value):SV_E_FIT;
+                return isFinite(v)&&v>0?clamp(v,0.1,8):SV_E_FIT;})(),
+    /* base storage: a real cost of holding that the surcharge alone misses */
+    storOn:(()=>{const e=document.getElementById('engStorOn'); return e?!!e.checked:true;})(),
+    storRate:(()=>{const e=document.getElementById('engStorRate'); const v=e?num(e.value):2.40;
+                   return isFinite(v)&&v>=0?v:2.40;})(),
+    /* window the clear-min SV is measured against */
+    clearWin:(()=>{const e=document.getElementById('engClearWin'); const v=e?num(e.value):6;
+                   return isFinite(v)&&v>0?v:6;})(),
     liq:liqParams(),
   };
 }
@@ -3319,20 +3360,48 @@ function simScopeSkus(p){
    meeting-to-meeting. A 30% cut roughly doubles the pace, 50% roughly triples it, and
    the lift is capped at 12x so a fire-sale cannot produce fantasy sales.
       multiplier = (1 / (1 - discount)) ^ 1.5                                        */
-const SV_E=1.5, SV_MAXMULT=12, SV_MAXDISC=0.90;
+/* SV_E is no longer a constant. 1.5 was a guess with nothing behind it; 2.30 is
+   fitted to our own Jul-Aug 2026 promo data (pre 15-22 Jul vs post 23 Jul-2 Aug,
+   with non-LTSF SKUs as a control to strip out the market trend, measured against
+   the EFFECTIVE discount promo$/sales$ rather than the headline promo depth).
+   The control in the toolbar writes to it; simParams() is the only writer. */
+let SV_E=2.3;
+const SV_E_APP=1.5, SV_E_FIT=2.3, SV_MAXMULT=12, SV_MAXDISC=0.90;
 function svMult(disc){
   const d=Math.min(0.95,Math.max(0,disc));
   return Math.min(SV_MAXMULT, Math.pow(1/(1-d), SV_E));
 }
+/* Base storage $/unit/month. Amazon bills it per cu ft on every unit on hand,
+   whatever its age, so it is a cost of HOLDING that the surcharge alone misses —
+   worth ~31% on top of the surcharge across this book. */
+function baseRateOf(x,p){ return (p && p.storOn) ? (p.storRate||0)*(x.volume||0) : 0; }
 /* Net recovery at a given discount: cash from units we actually sell, minus the
    surcharge we actually pay — over one year and over the full life of the stock.
    A deeper discount sells faster (less surcharge) but earns less per unit; the
    optimiser below finds where that trade-off peaks. */
-function skuAt(x,seed,rate,velHold,m1,disc,ref){
+function skuAt(x,seed,rate,velHold,m1,disc,ref,base){
   const pay=x.price*(1-disc)*(1-ref)-x.fba;
   const vel=velHold*svMult(disc);
-  const r=rollFIFO(seed,rate,vel,m1);
-  return {pay, r, vel, net1:pay*r.sold1-r.tot1, netL:pay*r.soldL-r.totL};
+  const r=rollFIFO(seed,rate,vel,m1,base);
+  return {pay, r, vel,
+          net1:pay*r.sold1-r.tot1-r.sto1,
+          netL:pay*r.soldL-r.totL-r.stoL};
+}
+/* THE TARGET, not a prediction: the pace at which discounting at `disc` stops
+   losing to doing nothing. netL rises monotonically with velocity, so there is
+   exactly one crossing; geometric bisection finds it. Returns null when no pace
+   pays — which is a real answer, and usually means the discount is too deep. */
+function breakevenVel(x,seed,rate,velHold,m1,disc,ref,base,nHold){
+  const U=seed.reduce((s,v)=>s+v,0);
+  if(!(U>0)) return null;
+  const pay=x.price*(1-disc)*(1-ref)-x.fba;
+  const at=v=>{const r=rollFIFO(seed,rate,v,m1,base); return pay*r.soldL-r.totL-r.stoL;};
+  let lo=Math.max(velHold,U/(HORMAX*1000)), hi=2*Math.max(U,velHold);
+  if(!(hi>lo)) return null;
+  if(at(hi)<nHold) return null;              // no pace pays
+  if(at(lo)>=nHold) return lo;               // already worth it at today's pace
+  for(let i=0;i<30;i++){ const mid=Math.sqrt(lo*hi); if(at(mid)>=nHold) hi=mid; else lo=mid; }
+  return hi;
 }
 /* The best discount for ONE SKU: the level that maximises net recovery over the full
    life of the stock. It is not tied to the ceiling — it lands wherever the maths says,
@@ -3341,13 +3410,15 @@ function skuAt(x,seed,rate,velHold,m1,disc,ref){
    far forward the surcharge is counted, so a stale entry from the capped run
    would silently survive a switch to full clearance. */
 let _optRef=null, _optMap={};
-function skuBest(x,seed,rate,velHold,m1,ref){
-  const sig=ref+'|'+HORMAX;
+function skuBest(x,seed,rate,velHold,m1,ref,base){
+  /* the winning discount moves with the SV curve and with whether base storage is
+     being charged, so both belong in the cache key */
+  const sig=ref+'|'+HORMAX+'|'+SV_E+'|'+(base||0);
   if(_optRef!==sig){ _optRef=sig; _optMap={}; }
   const hit=_optMap[x.sku]; if(hit) return hit;
   let best={disc:0,netL:-Infinity,net1:0,vel:velHold};
   for(let d=0;d<=90;d+=2){
-    const dd=d/100, a=skuAt(x,seed,rate,velHold,m1,dd,ref);
+    const dd=d/100, a=skuAt(x,seed,rate,velHold,m1,dd,ref,base);
     if(a.netL>best.netL) best={disc:dd,netL:a.netL,net1:a.net1,vel:a.vel};
   }
   return (_optMap[x.sku]=best);
@@ -3359,9 +3430,10 @@ function computeSim(){
      signatures would touch a lot for no gain — the render path is synchronous
      and single-threaded, like the caches already in this file. */
   HORMAX = p.horizon==='cap36' ? 36 : HOR_ABS;
+  SV_E   = p.svExp;          // one writer, same pattern as HORMAX above
   const rows=[];
   const agg={units:0,skus:0,sold:0,
-    ais1Hold:0,ais1Disc:0,aisLHold:0,aisLDisc:0,
+    ais1Hold:0,ais1Disc:0,aisLHold:0,aisLDisc:0,stoLHold:0,stoLDisc:0,sto1Hold:0,sto1Disc:0,
     payout:0,payoutW:0,cogsW:0,ceilW:0,floorW:0,bestW:0,appliedW:0,gw:0,
     discGiven:0,net1Hold:0,net1Disc:0,netLHold:0,netLDisc:0,
     nRemove:0,removeUnits:0,removeCost:0,removeGain:0,removeAis:0,
@@ -3400,15 +3472,16 @@ function computeSim(){
     const ceilPrice=(1-p.ref)>0?(x.cogs+x.fba)/(1-p.ref):0;
     const floorPrice=(1-p.ref)>0?x.fba/(1-p.ref):0;
 
-    const hold=skuAt(x,seed,rate,velHold,m1,0,p.ref);
-    const best=skuBest(x,seed,rate,velHold,m1,p.ref);
+    const base=baseRateOf(x,p);
+    const hold=skuAt(x,seed,rate,velHold,m1,0,p.ref,base);
+    const best=skuBest(x,seed,rate,velHold,m1,p.ref,base);
 
     /* EACH SKU USES ITS OWN NUMBER in ceiling / floor / best mode — never a blended average */
     const dApp = p.basis==='ceiling' ? ceiling
                : p.basis==='floor'   ? floor
                : p.basis==='best'    ? best.disc
                : p.disc;
-    const disc=skuAt(x,seed,rate,velHold,m1,dApp,p.ref);
+    const disc=skuAt(x,seed,rate,velHold,m1,dApp,p.ref,base);
 
     /* Reality: can ANY discount up to 90% reach the pace needed to clear inside a year? */
     const maxVel=velHold*svMult(SV_MAXDISC);
@@ -3447,11 +3520,11 @@ function computeSim(){
     /* ---- the three scenarios, side by side (mirrors LTSF-3-scenarios.xlsx) ----
        Ceiling / Floor / Best each get the SAME 14 measures so the blocks read
        across. Identical shape to scen_vals() in build_ltsf_scenarios.py. */
-    const sCeil=skuAt(x,seed,rate,velHold,m1,ceiling,p.ref);
-    const sFlr =skuAt(x,seed,rate,velHold,m1,floor,p.ref);
+    const sCeil=skuAt(x,seed,rate,velHold,m1,ceiling,p.ref,base);
+    const sFlr =skuAt(x,seed,rate,velHold,m1,floor,p.ref,base);
     /* skuBest caches a TRIMMED result ({disc,netL,net1,vel}) — no roll, no payout —
        so re-run the winning discount once to get the full detail this block needs. */
-    const sBest=skuAt(x,seed,rate,velHold,m1,best.disc,p.ref);
+    const sBest=skuAt(x,seed,rate,velHold,m1,best.disc,p.ref,base);
     /* d is passed in: skuAt() returns {pay,r,vel,net1,netL} and does NOT echo the
        discount back, unlike its Python twin. */
     const scen=(a,d)=>{
@@ -3460,7 +3533,8 @@ function computeSim(){
         rec:(x.cogs>0&&price>0)?a.pay/x.cogs:null,
         sold, mo:a.r.monthsToClear, payout:a.pay*sold,
         given:(price-dp)*sold,
-        ais1:a.r.tot1, aisL:a.r.totL, saved:hold.r.totL-a.r.totL,
+        ais1:a.r.tot1, aisL:a.r.totL, stoL:a.r.stoL,
+        saved:(hold.r.totL+hold.r.stoL)-(a.r.totL+a.r.stoL),
         net1:a.net1, netL:a.netL, vsHold:a.netL-hold.netL};
     };
     /* A fourth block in the same 14-measure shape: whatever the basis dropdown is
@@ -3485,6 +3559,30 @@ function computeSim(){
        never whether the stock is dead. */
     const dead = deadReal;
 
+    /* ---- SV EXPECTATION LAYER ----------------------------------------------
+       The engine used to state a PREDICTED uplift and nothing else, which is a
+       number nobody can act on. These four say what the plan actually commits
+       us to, what the floor is, and whether we are hitting it:
+         beVel      the pace at which the applied discount stops losing to HOLD
+         targetVel  the pace the SKU's own BEST % implies
+         clearMin   the pace that empties the aged stock inside the window
+         svStatus   measured pace against target, as a chip
+       Break-even is the honest one: it carries no behavioural assumption at all,
+       only this SKU's own cost structure and surcharge. */
+    const beVel   = breakevenVel(x,seed,rate,velHold,m1,dApp,p.ref,base,hold.netL);
+    const targetVel = velHold*svMult(best.disc);
+    const clearMin  = p.clearWin>0 ? units/p.clearWin : null;
+    /* Actual pace: a short trailing window when the build has one, else the
+       measured base. sv7 arrives from build_ltsf_data.py; until it does this
+       reads the same feed the base does and simply says ON PLAN. */
+    const actualDay = (x.sv7>0?x.sv7:(x.avgDaily||velHold/SV_DAYS_PER_MONTH));
+    const actualMo  = actualDay*SV_DAYS_PER_MONTH;
+    let svStatus;
+    if(units<=0||velHold<=0||!(actualDay>0))      svStatus='NO DATA';
+    else if(actualMo>=0.95*targetVel)             svStatus='ON PLAN';
+    else if(clearMin!=null&&actualMo>=clearMin)   svStatus='WATCH';
+    else                                          svStatus='AT RISK';
+
     const r={
       sc, winner:win[0], bestNet:win[1], gainVsHold:win[1]-hold.netL, bestZone,
       dead, svAssumed, velReal, trueMo,
@@ -3505,6 +3603,17 @@ function computeSim(){
       netAtBest:best.netL,bestGain:best.netL-hold.netL,
       verdict:(disc.netL>hold.netL)?'disc':'hold',
       upliftX,reach,canDiscount,removalCost,removeGain,action,
+      /* SV expectation layer */
+      beVel, beSV:(beVel!=null?beVel/SV_DAYS_PER_MONTH:null),
+      beExtra:(beVel!=null?(beVel-velHold)/SV_DAYS_PER_MONTH:null),
+      beLift:(beVel!=null&&velHold>0?beVel/velHold:null),
+      targetSV:targetVel/SV_DAYS_PER_MONTH,
+      reqUplift:(velHold>0?targetVel/velHold-1:null),
+      clearMinSV:(clearMin!=null?clearMin/SV_DAYS_PER_MONTH:null),
+      actualSV:actualDay, svStatus,
+      /* base storage, kept separate from the surcharge throughout */
+      stoLHold:hold.r.stoL, stoLDisc:disc.r.stoL, sto1Hold:hold.r.sto1, sto1Disc:disc.r.sto1,
+      baseRate:base,
       /* liquidation block */
       liqTier:lq.tier, liqW:lq.w, liqWKnown:lq.wKnown, liqGross:lq.gross, liqRef:lq.ref,
       liqProc:lq.proc, liqNet:lq.net, liqPct:lq.pctOfPrice, liqUnderwater:lq.underwater,
@@ -3515,16 +3624,18 @@ function computeSim(){
 
     /* ---- four-lever comparison, each SKU at its OWN percentage ---- */
     const add=(key,d,a)=>{const c=agg.cmp[key];
-      c.net+=a.netL; c.cash+=a.pay*a.r.soldL; c.ais+=a.r.totL;
+      c.net+=a.netL; c.cash+=a.pay*a.r.soldL; c.ais+=a.r.totL+a.r.stoL;
       c.disc+=(price-price*(1-d))*a.r.soldL; c.w+=d*units; c.pw+=price*(1-d)*units;};
     add('none',0,hold);
-    add('ceiling',ceiling,ceiling===dApp?disc:skuAt(x,seed,rate,velHold,m1,ceiling,p.ref));
-    add('floor',floor,floor===dApp?disc:skuAt(x,seed,rate,velHold,m1,floor,p.ref));
-    add('best',best.disc,best.disc===dApp?disc:skuAt(x,seed,rate,velHold,m1,best.disc,p.ref));
+    add('ceiling',ceiling,ceiling===dApp?disc:skuAt(x,seed,rate,velHold,m1,ceiling,p.ref,base));
+    add('floor',floor,floor===dApp?disc:skuAt(x,seed,rate,velHold,m1,floor,p.ref,base));
+    add('best',best.disc,best.disc===dApp?disc:skuAt(x,seed,rate,velHold,m1,best.disc,p.ref,base));
 
     agg.units+=units; agg.skus++; agg.sold+=r.alreadySold;
     agg.ais1Hold+=r.ais1Hold; agg.ais1Disc+=r.ais1Disc;
     agg.aisLHold+=r.aisLHold; agg.aisLDisc+=r.aisLDisc;
+    agg.stoLHold+=r.stoLHold; agg.stoLDisc+=r.stoLDisc;
+    agg.sto1Hold+=r.sto1Hold; agg.sto1Disc+=r.sto1Disc;
     agg.payout+=r.totalPayout; agg.payoutW+=r.payout*units; agg.cogsW+=x.cogs*units;
     agg.discGiven+=r.discGiven;
     agg.net1Hold+=r.net1Hold; agg.net1Disc+=r.net1Disc;
@@ -3632,6 +3743,10 @@ function renderSimKpis(S){
       sub:'hold '+money(agg.ais1Hold)+' → '+money(agg.ais1Disc)},
     {label:'AIS saved — lifetime',val:money(agg.aisLHold-agg.aisLDisc),cls:'good',
       sub:'hold '+money(agg.aisLHold)+' → '+money(agg.aisLDisc)},
+    {label:'Base storage — HOLD',val:money(agg.stoLHold),cls:agg.stoLHold>0?'alert':'',
+      sub:agg.stoLHold>0
+            ? 'the OTHER cost of doing nothing · '+money(agg.stoLHold-agg.stoLDisc)+' of it avoided by discounting'
+            : 'not being charged — tick “Charge base storage” in the toolbar'},
     {label:'Net if we HOLD',val:moneyS(agg.netLHold),cls:agg.netLHold<0?'alert':'',
       sub:'cash from full-price sales − all surcharge until the stock is gone'},
     {label:'Net if we DISCOUNT',val:moneyS(agg.netLDisc),cls:agg.netLDisc<0?'warn':'good',
@@ -3728,6 +3843,7 @@ const SCEN_SUB=[
   ['given', 'Discount given',    'Revenue given up = (price − sell price) × units sold.'],
   ['ais1',  'AIS 1yr',           'Surcharge over the next 12 months only. Budget figure — decides nothing.'],
   ['aisL',  'AIS lifetime',      'Surcharge until this stock is sold through — run to TRUE clearance, not truncated at 36 months. Equal to AIS 1yr = it clears inside a year. Bigger = the difference lands in year two and beyond.'],
+  ['stoL',  'Storage lifetime',  'Base monthly storage on every unit on hand until the stock is gone — the OTHER cost of keeping it, which the surcharge alone misses. Charged on all units including the 91-180 bucket that pays no surcharge yet. Toggle it off in the toolbar to see the old surcharge-only view.'],
   ['saved', 'AIS saved vs hold', "Surcharge escaped versus doing nothing = HOLD's AIS lifetime − this scenario's."],
   ['net1',  'Net 1yr',           'Cash from units sold in year one minus the surcharge paid in year one.'],
   ['netL',  'Net lifetime',      'THE HEADLINE — every verdict is decided on this. Cash from all units sold minus all surcharge, until the stock is gone.'],
@@ -3751,7 +3867,17 @@ const SIM_COLS=[
   {k:'moClearHold',t:'Mo to clear',cls:'num',grp:'hold',tip:"Months to clear at today's pace, run to true clearance rather than truncated at 36 months. DEAD = will not shift inside 120 months, so a lifetime figure on it would be a decades-long extrapolation — use the assumed SV floor to model those."},
   {k:'ais1Hold',t:'AIS 1yr',cls:'num',grp:'hold',tip:'Surcharge over the next 12 months if you change nothing. Budget figure — decides nothing.'},
   {k:'aisLHold',t:'AIS if we HOLD',cls:'num',grp:'hold',tip:"Surcharge until the stock is gone at today's pace, run to true clearance — the real cost of doing nothing."},
-  {k:'netLHold',t:'Net if we HOLD',cls:'num',grp:'hold',tip:'Cash from full-price sales minus all surcharge until the stock is gone, if you change nothing. This is the baseline every verdict is measured against.'},
+  {k:'stoLHold',t:'Storage if we HOLD',cls:'num',grp:'hold',tip:'Base monthly storage until the stock is gone at today’s pace. Amazon bills this on every unit on hand whatever its age, so it is a cost of holding on top of the surcharge — worth about 31% more across this book. Toggle it in the toolbar.'},
+  {k:'netLHold',t:'Net if we HOLD',cls:'num',grp:'hold',tip:'Cash from full-price sales minus all surcharge AND base storage until the stock is gone, if you change nothing. This is the baseline every verdict is measured against.'},
+  /* ---- SV expectation layer: what the plan commits to, and are we hitting it ---- */
+  {k:'beSV',t:'Break-even SV /day',cls:'num',grp:'sv',tip:'THE TARGET, not a prediction. The pace at which the applied discount stops losing to doing nothing. Below it the discount costs you money; above it, it pays. Carries no assumption about how customers respond — only this SKU’s own costs. Blank = no pace pays, which usually means the discount is too deep.'},
+  {k:'beExtra',t:'Extra SV /day needed',cls:'num',grp:'sv',tip:'Break-even SV minus today’s SV — the gap you have to close with PPC, BTP, SMPC, coupons or a deal.'},
+  {k:'beLift',t:'Lift x to break even',cls:'num',grp:'sv',tip:'Break-even SV / current SV. Compare with the modelled uplift: when the lift needed is the smaller number, the discount pays on the model’s own assumptions.'},
+  {k:'targetSV',t:'Target SV /day @ best %',cls:'num',grp:'sv',tip:'The pace this SKU’s own BEST % commits you to, using the SV curve in the toolbar.'},
+  {k:'reqUplift',t:'Required uplift %',cls:'num',grp:'sv',tip:'How much faster than today the best % has to sell.'},
+  {k:'clearMinSV',t:'Clear-min SV /day',cls:'num',grp:'sv',tip:'Pace that empties the aged stock inside the clear-window in the toolbar, economics aside. The floor below which the stock simply is not moving.'},
+  {k:'actualSV',t:'Actual SV /day',cls:'num',grp:'sv',tip:'Measured pace from the daily sales feed.'},
+  {k:'svStatus',t:'SV STATUS',cls:'',grp:'sv',tip:'ON PLAN = at or above 95% of target. WATCH = below target but still clearing the stock inside the window. AT RISK = below even the clear-min pace. NO DATA = not enough sales history.'},
   /* ---- the three scenarios ---- */
   ...scenCols('appl'),
   ...scenCols('ceil'),
@@ -3778,6 +3904,7 @@ const SIM_COLS=[
   {k:'liqVsRemove',t:'Liquidate vs remove',cls:'num',grp:'liq',tip:'Liquidation cash − (−removal fee). Positive = liquidating beats paying to pull the stock out, which is almost always true unless the goods are worth reselling elsewhere.'},
 ];
 const SIM_GROUPS={id:'SKU · aged stock',hold:'Baseline — HOLD (no discount)',
+  sv:'SV plan — the pace this has to hit',
   appl:'Applied — the % this dropdown is running',
   ceil:'Scenario 1 — Ceiling % off  (recovers 100% of COGS)',
   flr:'Scenario 2 — Floor % off  (payout falls to zero)',
@@ -3794,6 +3921,7 @@ const BASIS_GRP={flat:'appl',ceiling:'ceil',floor:'flr',best:'best'};
    scenario block is live, so this set follows the basis dropdown automatically. */
 const SIM_ESSENTIAL=['sku','tag','size','units','price',
   'reach','moClearHold','aisLHold','netLHold',
+  'beSV','beExtra','svStatus',
   'liqNet','liqTotal','action'];
 const SIM_ESSENTIAL_SCEN=['disc','pay','sold','aisL','netL','vsHold'];
 /* Which scenario blocks the table shows. The default is ONE — the block the
@@ -3848,6 +3976,7 @@ function simCell(r,k){
       case 'given':  return s.given>0?`<span class="neg">${money(s.given)}</span>`:dash;
       case 'ais1':   return money(s.ais1);
       case 'aisL':   return money(s.aisL);
+      case 'stoL':   return s.stoL>0?money(s.stoL):dash;
       case 'saved':  return s.saved>0?`<span class="pos">${money(s.saved)}</span>`:money(s.saved);
       case 'net1':   return moneyS(s.net1);
       case 'netL':   return `<b>${moneyS(s.netL)}</b>`;
@@ -3862,6 +3991,19 @@ function simCell(r,k){
     case 'gainVsHold': return `<span class="${r.gainVsHold>=0?'pos':'neg'}">${moneyS(r.gainVsHold)}</span>`;
     case 'bestZone': { const M={'SAFE':'v-run','THIN':'v-cost','OUT-OF-POCKET':'v-skip'};
       return r.bestZone?`<span class="badge ${M[r.bestZone]||'v-na'}">${r.bestZone}</span>`:dash; }
+    case 'stoLHold': return r.stoLHold>0?money(r.stoLHold):dash;
+    case 'beSV': return r.beSV==null
+        ? '<span class="muted" title="no pace makes this discount beat holding — it is too deep">never</span>'
+        : `<b>${fmtSV(r.beSV)}</b>`;
+    case 'beExtra': return r.beExtra==null?dash
+        :`<span class="${r.beExtra>0?'':'pos'}">${(r.beExtra>0?'+':'')+fmtSV(r.beExtra)}</span>`;
+    case 'beLift': return r.beLift==null?dash:fmtN1(r.beLift)+'×';
+    case 'targetSV': return fmtSV(r.targetSV);
+    case 'reqUplift': return r.reqUplift==null?dash:pct0(r.reqUplift);
+    case 'clearMinSV': return r.clearMinSV==null?dash:fmtSV(r.clearMinSV);
+    case 'actualSV': return fmtSV(r.actualSV);
+    case 'svStatus': { const M={'ON PLAN':'v-run','WATCH':'v-cost','AT RISK':'v-skip','NO DATA':'v-na'};
+      return `<span class="badge ${M[r.svStatus]||'v-na'}">${r.svStatus}</span>`; }
     case 'removalCost': return r.removalCost>0?money(r.removalCost):dash;
     case 'removeGain': return `<span class="${r.removeGain>=0?'pos':'neg'}">${moneyS(r.removeGain)}</span>`;
     case 'sku': return `<span class="sku">${r.sku}</span>`;
@@ -4663,7 +4805,7 @@ document.getElementById('exportSkus').onclick=exportSkusCSV;
 /* ---- decision engine wireup (one control row, no duplicates) ---- */
 document.getElementById('simParent').addEventListener('change',()=>{ populateSimSizes(); renderSimSoon(); });
 ['simSize','simDisc','engRef','simSearch','simAction','simReach','simZone','simBasis','simAllScen','simEssential',
- 'simHorizon','simMinSv',                 /* both reprice every lifetime figure */
+ 'simHorizon','simMinSv','engSvExp','engStorOn','engStorRate','engClearWin',                 /* both reprice every lifetime figure */
  /* liquidation assumptions — every one of them reprices the whole table */
  'liqRec','liqRef','liqTier','liqMaxLb','liqMaxCuft','liqOvrRemoval',
  'liq_s1','liq_s2','liq_s3','liq_s4','liq_o1','liq_o2','liq_o3','liq_perLb'].forEach(id=>{

@@ -3439,7 +3439,7 @@ function computeSim(){
     nRemove:0,removeUnits:0,removeCost:0,removeGain:0,removeAis:0,
     nLiq:0,liqUnits:0,liqNet:0,liqGain:0,liqAis:0,
     liqAllGross:0,liqAllFees:0,liqAllNet:0,
-    cleared1:0,clearedL:0,left1:0,svNow:0,svTarget:0,nSlow:0,
+    cleared1:0,clearedL:0,left1:0,svNow:0,svTarget:0,svBest:0,nSlow:0,
     /* where the APPLIED discount sits against each SKU's OWN ceiling/floor */
     nSafe:0,nThin:0,nOop:0,
     /* dead = will not clear inside DEAD_MO even at today's pace */
@@ -3642,6 +3642,8 @@ function computeSim(){
     agg.netLHold+=r.netLHold; agg.netLDisc+=r.netLDisc;
     agg.cleared1+=r.cleared1; agg.clearedL+=r.clearedL; agg.left1+=r.left1;
     agg.svNow+=r.svNow; agg.svTarget+=r.svTarget;
+    /* r.targetSV is already per-day; scale to monthly so the agg matches the others */
+    agg.svBest+=(r.targetSV||0)*SV_DAYS_PER_MONTH;
     /* Stock that will not clear inside a year at today's pace. Counted here so
        the KPI strip and the plain-English paragraph below it read off ONE
        definition and cannot drift apart later. */
@@ -3721,6 +3723,11 @@ function renderSimKpis(S){
     /* ---- standing position: true whatever plan is selected ---- */
     {label:'AIS SKUs in view',val:fmt(agg.skus),sub:fmt(agg.units)+' aged units · '+fmt(agg.sold)+' already sold'},
     {label:'Current SV /day',val:svDay(agg.svNow)+'/day',sub:'measured from real daily sales'},
+    /* What has to sell for the book to land on MAX net recovery — the pace each
+       SKU's own best % implies, summed. Distinct from the card below it, which is
+       the pace needed merely to clear inside a year. */
+    {label:'Target SV /day @ best %',val:svDay(agg.svBest)+'/day',cls:'good',
+     sub:(agg.svNow>0?('needs '+pct0(agg.svBest/agg.svNow-1)+' more than today'):'—')+' · lands at max net recovery'},
     {label:'Target SV /day',val:svDay(agg.svTarget)+'/day',cls:'warn',sub:'pace needed to clear within a year'},
     /* Replaces "⚠ Cannot be discounted out", which counted ACTION = REMOVE and
        was therefore permanently 0: liquidation net is floored at zero and

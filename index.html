@@ -186,12 +186,12 @@
   .asin a{color:var(--accent);text-decoration:none}
   .asin a:hover{text-decoration:underline}
   .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
-  .b-Healthy{background:rgba(46,168,106,.16);color:#4fd894}
-  .b-Lowstock{background:rgba(245,213,71,.16);color:#f5d547}
-  .b-Outofstock{background:rgba(226,86,79,.18);color:#f08078}
-  .b-Excess{background:rgba(155,90,217,.16);color:#b98ae6}
+  .b-Healthy{background:rgba(46,168,106,.16);color:var(--green)}
+  .b-Lowstock{background:rgba(245,213,71,.16);color:var(--amber)}
+  .b-Outofstock{background:rgba(226,86,79,.18);color:var(--red)}
+  .b-Excess{background:rgba(155,90,217,.16);color:var(--ser5)}
   .b-none{background:var(--panel2);color:var(--muted)}
-  .tagchip{display:inline-block;padding:2px 7px;border-radius:6px;font-size:10.5px;font-weight:700;background:rgba(204,136,41,.15);color:#d9a44a;white-space:nowrap}
+  .tagchip{display:inline-block;padding:2px 7px;border-radius:6px;font-size:10.5px;font-weight:700;background:rgba(204,136,41,.15);color:var(--accent);white-space:nowrap}
   .flag{color:var(--red);font-weight:700}
   .muted{color:var(--muted)}
   .sortarrow{font-size:9px;opacity:.7}
@@ -227,11 +227,11 @@
   .tab.active{color:var(--txt);border-bottom-color:var(--accent)}
 
   /* verdict badges + value coloring */
-  .v-run{background:rgba(46,168,106,.18);color:#4fd894}
-  .v-skip{background:rgba(226,86,79,.20);color:#f08078}
+  .v-run{background:rgba(46,168,106,.18);color:var(--green)}
+  .v-skip{background:rgba(226,86,79,.20);color:var(--red)}
   .v-na{background:var(--panel2);color:var(--muted)}
-  .v-cost{background:rgba(245,213,71,.18);color:#f5d547}
-  .pos{color:#4fd894}.neg{color:#f08078}
+  .v-cost{background:rgba(245,213,71,.18);color:var(--amber)}
+  .pos{color:var(--green)}.neg{color:var(--red)}
 
   /* ============ INVENTORY-AGE HISTOGRAM ============ */
   #ageChart{--plotH:206px}
@@ -255,7 +255,7 @@
   .ah-div{flex:0 0 auto;align-self:stretch;width:0;margin:0 7px 30px;position:relative}
   .ah-div::before{content:"";position:absolute;top:16px;bottom:0;left:0;border-left:2px dashed rgba(226,86,79,.5)}
   .ah-flag{position:absolute;top:-3px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:9px;font-weight:800;
-    letter-spacing:.3px;color:#f2a09a;background:rgba(226,86,79,.16);border:1px solid rgba(226,86,79,.42);
+    letter-spacing:.3px;color:var(--red);background:rgba(226,86,79,.16);border:1px solid rgba(226,86,79,.42);
     padding:2px 7px;border-radius:20px;box-shadow:0 2px 10px rgba(226,86,79,.25)}
   /* per-bar tooltip */
   .ah-col::after{content:attr(data-tip);position:absolute;left:50%;bottom:calc(100% - 26px);transform:translate(-50%,6px);
@@ -356,7 +356,7 @@
   .band-row-click:hover{background:rgba(204,136,41,.14)}
   .band-row-click:hover td{color:var(--txt)}
   .band-row-click:hover td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
-  .band-row-click:hover .muted{color:#e0c48a}
+  .band-row-click:hover .muted{color:var(--accent)}
 
   /* ============ PREMIUM CLICK FEEDBACK ============ */
   /* cursor-origin ripple (JS injects .ripple) */
@@ -408,7 +408,7 @@
   .tablewrap,.modal-body{overscroll-behavior:contain}
 
   /* header — glass bar with gradient hairline */
-  header{background:linear-gradient(180deg,rgba(33,28,20,.92),rgba(16,13,10,.75));
+  header{background:linear-gradient(180deg,color-mix(in srgb,var(--panel) 92%,transparent),color-mix(in srgb,var(--bg) 80%,transparent));
     backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
     border-bottom:1px solid var(--glass-line);box-shadow:0 1px 0 rgba(255,255,255,.03)}
   header h1{background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-weight:750}
@@ -437,12 +437,12 @@
 
   /* section titles — gradient bar + subtle gradient text */
   .sectiontitle::before{background:var(--grad);box-shadow:0 0 14px rgba(168,111,29,.55)}
-  .sectiontitle{color:#cdc6b8}
+  .sectiontitle{color:var(--txt2)}
 
   /* tabs — pill nav with gradient active state */
   .tabs{gap:4px;border-bottom:1px solid var(--glass-line)}
   .tab{border-radius:10px 10px 0 0;padding:11px 18px;position:relative}
-  .tab.active{color:#fff;border-bottom-color:transparent}
+  .tab.active{color:var(--txt);border-bottom-color:transparent}
   .tab.active::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:3px;border-radius:3px;background:var(--grad);box-shadow:0 0 12px rgba(204,136,41,.6)}
   .tab:hover{background:rgba(255,255,255,.04)}
 
@@ -459,7 +459,7 @@
   /* Open dropdown lists are painted by the OS, which defaulted to white-on-white here.
      colour-scheme + explicit option colours make the list readable before hovering. */
   select{color-scheme:dark}
-  select option{background:var(--panel);color:#f3ece1}
+  select option{background:var(--panel);color:var(--txt)}
   select option:checked{background:#cc8829;color:#171310}
 
   /* tables — sticky header with gradient underline, smoother rows */
@@ -469,21 +469,21 @@
   thead th:hover{background:rgba(204,136,41,.12)}
   tbody tr:hover{background:rgba(204,136,41,.06)}
   .band-row-click:hover{background:rgba(204,136,41,.10)}
-  .sku{color:#ede8dd}
-  .tagchip{background:linear-gradient(180deg,rgba(204,136,41,.20),rgba(204,136,41,.10));color:#e0c48a;border:1px solid rgba(204,136,41,.18)}
+  .sku{color:var(--txt)}
+  .tagchip{background:linear-gradient(180deg,rgba(204,136,41,.20),rgba(204,136,41,.10));color:var(--accent);border:1px solid rgba(204,136,41,.18)}
 
   /* semantic badges refreshed */
-  .badge.v-run,.b-Healthy{background:rgba(46,168,106,.16);color:#4fd894}
-  .badge.v-skip,.b-Outofstock{background:rgba(226,86,79,.16);color:#f08078}
-  .badge.v-cost,.b-Lowstock{background:rgba(245,213,71,.16);color:#f5d547}
-  .pos{color:#4fd894}.neg{color:#f08078}
+  .badge.v-run,.b-Healthy{background:rgba(46,168,106,.16);color:var(--green)}
+  .badge.v-skip,.b-Outofstock{background:rgba(226,86,79,.16);color:var(--red)}
+  .badge.v-cost,.b-Lowstock{background:rgba(245,213,71,.16);color:var(--amber)}
+  .pos{color:var(--green)}.neg{color:var(--red)}
 
   /* bars — gradient fills */
   .bar-fill{background:linear-gradient(90deg,var(--accent),var(--accent2))}
   .ah-bar{box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 8px 18px -6px rgba(0,0,0,.5)}
 
   /* modal — deeper glass */
-  .modal{background:linear-gradient(180deg,rgba(36,30,22,.98),rgba(26,22,16,.98));border:1px solid var(--glass-line);
+  .modal{background:linear-gradient(180deg,var(--panel),var(--panel));border:1px solid var(--glass-line);
     box-shadow:0 30px 80px -20px rgba(0,0,0,.75)}
   .modal-overlay{backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
 
@@ -521,15 +521,15 @@
   thead th[data-tip]{cursor:help}
   thead th .hint{display:inline-block;width:13px;height:13px;line-height:13px;text-align:center;
     border-radius:50%;font-size:9px;font-weight:800;vertical-align:middle;margin-left:3px;
-    background:rgba(204,136,41,.16);color:#e0b062;border:1px solid rgba(204,136,41,.3);opacity:.75}
-  thead th:hover .hint{opacity:1;background:var(--accent);color:#fff;border-color:var(--accent)}
+    background:rgba(204,136,41,.16);color:var(--accent);border:1px solid rgba(204,136,41,.3);opacity:.75}
+  thead th:hover .hint{opacity:1;background:var(--accent);color:var(--txt);border-color:var(--accent)}
   /* position:fixed so the tip escapes the table's overflow/sticky container */
   .hdrtip{position:fixed;z-index:70;display:none;max-width:320px;
     background:var(--panel2);border:1px solid rgba(204,136,41,.35);
     color:var(--txt);font-size:11.5px;font-weight:500;line-height:1.55;letter-spacing:0;
     text-transform:none;white-space:normal;padding:9px 12px;border-radius:10px;
     box-shadow:0 16px 40px rgba(0,0,0,.65);pointer-events:none}
-  .hdrtip b{color:#e0b062}
+  .hdrtip b{color:var(--accent)}
 
   /* ============================================================
      NATIVE CONTROL PALETTE
@@ -623,10 +623,10 @@
   /* group header band: colour-coded, so the block label reads as a heading */
   #viewProj table th.grp{font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;
     font-weight:800;text-align:center;padding:7px 8px;color:var(--txt)}
-  #viewProj table th.grp.g-ceil{color:#4fd894}
-  #viewProj table th.grp.g-flr {color:#f08078}
+  #viewProj table th.grp.g-ceil{color:var(--green)}
+  #viewProj table th.grp.g-flr {color:var(--red)}
   #viewProj table th.grp.g-best{color:var(--accent)}
-  #viewProj table th.grp.g-ver {color:#b98ae6}
+  #viewProj table th.grp.g-ver {color:var(--ser5)}
   #viewProj table th.grp.g-hold{color:var(--muted)}
 
   /* Freeze the SKU name while you scroll 63 columns sideways — without it you
@@ -652,9 +652,9 @@
   #viewDPlan table th.grp{font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;
     font-weight:800;text-align:center;padding:7px 8px;color:var(--txt)}
   #viewDPlan table th.grp.d-pr {color:var(--accent)}
-  #viewDPlan table th.grp.d-pay{color:#4fd894}
-  #viewDPlan table th.grp.d-ltsf{color:#f08078}
-  #viewDPlan table th.grp.d-sc {color:#b98ae6}
+  #viewDPlan table th.grp.d-pay{color:var(--green)}
+  #viewDPlan table th.grp.d-ltsf{color:var(--red)}
+  #viewDPlan table th.grp.d-sc {color:var(--ser5)}
   #viewDPlan table th.grp.d-sv {color:var(--muted)}
   /* freeze the SKU while scrolling the block sideways */
   #viewDPlan table th.d-id:first-child,#viewDPlan table td.d-id:first-child{
@@ -754,12 +754,12 @@
   .gbbig{font-size:clamp(30px,3.1vw,52px);font-weight:730;line-height:.98;letter-spacing:-1px;font-variant-numeric:tabular-nums;color:var(--txt)}
   .gbbig .cur{font-size:.46em;font-weight:650;vertical-align:.44em;margin-right:1px;color:var(--txt2)}
   .gbbig .unit{font-size:.42em;font-weight:650;vertical-align:.32em;margin-left:3px;color:var(--txt2)}
-  .gbbig.alert{color:#f08078} .gbbig.good{color:#4fd894} .gbbig.warn{color:var(--amber)}
+  .gbbig.alert{color:var(--red)} .gbbig.good{color:var(--green)} .gbbig.warn{color:var(--amber)}
   .gblabel{font-size:13px;color:var(--txt2);margin-top:7px}
   /* delta line — arrow + colour + word, never colour alone */
   .gbdelta{font-size:12.5px;margin-top:9px;color:var(--muted);display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
   .gbdelta b{font-size:14.5px;font-variant-numeric:tabular-nums}
-  .gbdelta.up{color:#4fd894} .gbdelta.down{color:#f08078}
+  .gbdelta.up{color:var(--green)} .gbdelta.down{color:var(--red)}
   .gbsub{font-size:13px;color:var(--txt2);margin:20px 0 6px;font-weight:600}
   .gbchart svg{width:100%;height:auto;display:block}
   .gbchart .empty{color:var(--muted);font-size:12px;padding:22px 0;text-align:center}
@@ -785,7 +785,7 @@
   .gbstmt tr.head td{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;border-bottom:0;padding:14px 0 3px}
   .gbstmt tr:first-child.head td{padding-top:0}
   .gbstmt tr.tot td{font-weight:700;border-bottom:0;border-top:1px solid var(--line);padding-top:9px}
-  .gbstmt tr.tot.save td{color:#4fd894}
+  .gbstmt tr.tot.save td{color:var(--green)}
   /* footer strip — brand + live clock, like a wall board */
   .gbfoot{display:flex;align-items:center;gap:16px;margin-top:14px;padding:12px 18px;background:var(--panel);
     border:1px solid var(--line);border-radius:var(--radius);flex-wrap:wrap}

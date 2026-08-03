@@ -664,6 +664,12 @@
   #viewDPlan table thead th.d-id:first-child{z-index:6}
   #viewDPlan table td.d-sv:last-child{padding:4px 10px}
 
+  /* Control-row grouping: seven controls in one undifferentiated line read as
+     noise. Labelled clusters with hairline separators say which knob does what. */
+  .ctlgrp{font-size:9px;letter-spacing:.9px;text-transform:uppercase;color:var(--muted);
+    font-weight:800;align-self:center;padding-right:2px}
+  .ctlsep{width:1px;align-self:stretch;background:var(--line);margin:2px 6px}
+
   /* ============================================================
      KPI TAB — the embedded tracker is a full application, so give it the
      full tab. It was sitting in a .panel inside .wrap's padding at a fixed
@@ -1428,7 +1434,9 @@
     <div class="panel" style="margin-bottom:20px">
       <div class="filters">
         <h3 style="margin:0">Per-SKU detail</h3>
+        <span class="ctlgrp">FIND</span>
         <input type="search" id="simSearch" placeholder="Search SKU…" />
+        <span class="ctlsep"></span><span class="ctlgrp">SHOW ONLY</span>
         <select id="simAction">
           <option value="">All actions</option>
           <option value="discount">Discount — worth doing</option>
@@ -1448,6 +1456,7 @@
           <option value="thin">🟡 Between ceiling and floor</option>
           <option value="oop">🔴 Past floor — paying out of pocket</option>
         </select>
+        <span class="ctlsep"></span><span class="ctlgrp">COLUMNS</span>
         <label class="chip" id="simEssentialWrap" style="border-left:2px solid var(--accent);padding-left:9px"
                data-tip="On (default): about a dozen columns — who the SKU is, what holding costs, what the plan returns, and what to do. Off: every column, including the full working behind each number.">
           <input type="checkbox" id="simEssential" checked style="margin-right:6px" />Essentials only <span class="hint">?</span>
@@ -3905,8 +3914,13 @@ const BASIS_GRP={flat:'appl',ceiling:'ceil',floor:'flr',best:'best'};
 const SIM_ESSENTIAL=['sku','tag','size','units','price',
   'reach','moClearHold','aisLHold','netLHold',
   'beSV','beExtra','svStatus',
+  /* the deadline answer belongs on the default view — it was only reachable
+     under "All columns", which hid the whole point of setting a target */
+  'tgtReqDay','tgtDisc','tgtReach','tgtNet','tgtVsHold',
   'liqNet','liqTotal','action'];
-const SIM_ESSENTIAL_SCEN=['disc','pay','sold','aisL','netL','vsHold'];
+/* Each scenario now also states the ACTION it demands, not just the money:
+   the pace it needs and how many months sooner the stock is gone. */
+const SIM_ESSENTIAL_SCEN=['disc','svDay','svLift','moSaved','pay','sold','aisL','netL','vsHold'];
 /* Which scenario blocks the table shows. The default is ONE — the block the
    basis dropdown is actually running — because three 14-column blocks side by
    side is a comparison view, not a reading view, and you cannot follow a single
@@ -3926,6 +3940,13 @@ function visibleSimCols(p){
     const okScen={}; keep.forEach(g=>SIM_ESSENTIAL_SCEN.forEach(k=>{okScen[g+'.'+k]=1;}));
     cols=cols.filter(c=>SIM_ESSENTIAL.indexOf(c.k)>=0||okScen[c.k]);
   }
+  /* Read order. The section tells you to start with ACTION, so ACTION cannot
+     live 100+ columns to the right — the verdict block moves up next to the
+     SKU, and the working that justifies it follows. Sorting here rather than
+     re-ordering SIM_COLS keeps each block's internal order intact. */
+  const ORDER=['id','ver','hold','sv','tgt','appl','ceil','flr','best','liq'];
+  const rank=g=>{const i=ORDER.indexOf(g); return i<0?ORDER.length:i;};
+  cols=cols.map((c,i)=>[c,i]).sort((a,b)=>(rank(a[0].grp)-rank(b[0].grp))||(a[1]-b[1])).map(a=>a[0]);
   return cols;
 }
 /* The applied block's header names the percentage it is running, so the table

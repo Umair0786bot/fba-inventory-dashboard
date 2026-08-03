@@ -3458,8 +3458,15 @@ function computeSim(){
        discount back, unlike its Python twin. */
     const scen=(a,d)=>{
       const sold=a.r.soldL, dp=price*(1-d);
+      const svMo = velHold*svMult(d);                       // pace this % implies
+      const moH = hold.r.monthsToClear, moS = a.r.monthsToClear;
       return {disc:d, sell:dp, pay:a.pay,
         rec:(x.cogs>0&&price>0)?a.pay/x.cogs:null,
+        /* the action this scenario actually asks of you */
+        svDay: svMo/SV_DAYS_PER_MONTH,
+        svLift: velHold>0 ? svMo/velHold : null,
+        svExtra:(svMo-velHold)/SV_DAYS_PER_MONTH,
+        moSaved:(isFinite(moH)&&isFinite(moS))?moH-moS:null,
         sold, mo:a.r.monthsToClear, payout:a.pay*sold,
         given:(price-dp)*sold,
         ais1:a.r.tot1, aisL:a.r.totL, stoL:a.r.stoL,
@@ -3800,6 +3807,10 @@ const SCEN_SUB=[
   ['sell',  'Sell price',        'Price under this scenario = price × (1 − disc %).'],
   ['pay',   'Payout / unit',     'Cash in hand per unit = sell price − referral − FBA. COGS is not deducted (already spent).'],
   ['rec',   '% COGS back',       'Payout per unit ÷ product cost. 100% = the whole product cost comes back.'],
+  ['svDay', 'SV needed /day',    'The pace this discount is expected to produce — what you have to actually sell for these numbers to hold.'],
+  ['svLift','× vs today',        'How much faster than today that is. 2.0 means twice the current pace.'],
+  ['svExtra','Extra /day',       'Units per day on top of today’s pace — the gap PPC, BTP, coupons or a deal has to close.'],
+  ['moSaved','Months saved',     'How many months sooner the stock is gone than if you did nothing. This is where the surcharge saving comes from.'],
   ['sold',  'Units sold',        'Units this scenario sells before the aged stock is gone.'],
   ['mo',    'Mo to clear',       'Months to sell through the aged stock, run to true clearance. Blank = no measurable velocity.'],
   ['payout','Total payout',      'Payout per unit × units sold — total cash this SKU puts back in your hand.'],
@@ -3942,6 +3953,10 @@ function simCell(r,k){
       case 'pay':    return s.pay<0?`<span class="neg">${money2(s.pay)}</span>`:money2(s.pay);
       case 'rec':    return s.rec==null?dash
                        :`<span class="${s.rec>=1?'pos':(s.rec>=.5?'':'neg')}">${pct0(s.rec)}</span>`;
+      case 'svDay':  return fmtSV(s.svDay);
+      case 'svLift': return s.svLift==null?dash:(s.svLift<1.005?'<span class="muted">no lift</span>':'<b>'+s.svLift.toFixed(2)+'×</b>');
+      case 'svExtra':return s.svExtra<=0.0005?dash:'<span class="neg">+'+fmtSV(s.svExtra)+'</span>';
+      case 'moSaved':return s.moSaved==null?dash:(s.moSaved<=0.05?dash:'<span class="pos">−'+fmtN1(s.moSaved)+' mo</span>');
       case 'sold':   return fmt(Math.round(s.sold));
       case 'mo':     return !isFinite(s.mo)?'<span class="muted" title="no measurable velocity — never clears">—</span>':fmt(s.mo);
       case 'payout': return money(s.payout);

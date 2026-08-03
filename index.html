@@ -1288,9 +1288,6 @@
           <input type="number" id="engStorRate" value="2.40" min="0" max="20" step="0.05" style="width:56px;margin-left:6px" />&nbsp;<small style="color:var(--mut)">$/cu ft/mo</small>
           <span class="hint">?</span>
         </label>
-        <label class="chip" data-tip="The window the clear-min SV is measured against: the pace that empties the aged stock inside this many months regardless of economics. It sets the floor under the SV status chip.">Clear window&nbsp;
-          <input type="number" id="engClearWin" value="6" min="1" max="36" step="1" style="width:48px" />&nbsp;mo <span class="hint">?</span>
-        </label>
         <span class="spacer"></span>
         <span class="chip" id="simScopeChip"></span>
       </div>
@@ -3379,8 +3376,11 @@ function simParams(){
     tgtDays:(()=>{const e=document.getElementById('engTgtDays'); const v=e?num(e.value):90;
                    return isFinite(v)&&v>0?v:90;})(),
     /* window the clear-min SV is measured against */
-    clearWin:(()=>{const e=document.getElementById('engClearWin'); const v=e?num(e.value):6;
-                   return isFinite(v)&&v>0?v:6;})(),
+    /* Clear window was its own control in months, asking the same question as
+       Target basis in different units. One deadline now drives both the SV
+       status chip and the target-basis columns. */
+    clearWin:(()=>{const e=document.getElementById('engTgtDays'); const v=e?num(e.value):90;
+                   return (isFinite(v)&&v>0?v:90)/30;})(),
     liq:liqParams(),
   };
 }
@@ -3692,7 +3692,6 @@ function computeSim(){
       tgtSold:tgtRoll.sold, tgtLeft:tgtRoll.left,
       targetSV:targetVel/SV_DAYS_PER_MONTH,
       reqUplift:(velHold>0?targetVel/velHold-1:null),
-      clearMinSV:(clearMin!=null?clearMin/SV_DAYS_PER_MONTH:null),
       actualSV:actualDay, svStatus,
       /* base storage, kept separate from the surcharge throughout */
       stoLHold:hold.r.stoL, stoLDisc:disc.r.stoL, sto1Hold:hold.r.sto1, sto1Disc:disc.r.sto1,
@@ -3965,7 +3964,6 @@ const SIM_COLS=[
   {k:'beLift',t:'× faster than today',cls:'num',grp:'sv',tip:'The same gap as a multiple — 2.0 means you must sell twice as fast as today. Compare it with the uplift the model predicts: if the number here is SMALLER than the predicted uplift, the discount pays even on the model’s own assumptions, with room to spare.'},
   {k:'targetSV',t:'Target SV /day @ best %',cls:'num',grp:'sv',tip:'The pace this SKU’s own BEST % commits you to, using the SV curve in the toolbar.'},
   {k:'reqUplift',t:'Required uplift %',cls:'num',grp:'sv',tip:'How much faster than today the best % has to sell.'},
-  {k:'clearMinSV',t:'Clear-min SV /day',cls:'num',grp:'sv',tip:'Pace that empties the aged stock inside the clear-window in the toolbar, economics aside. The floor below which the stock simply is not moving.'},
   {k:'actualSV',t:'Actual SV /day',cls:'num',grp:'sv',tip:'Measured pace from the daily sales feed.'},
   {k:'tgtReqDay',t:'Required SV /day',cls:'num',grp:'tgt',tip:'Pace this SKU must hit to clear its aged stock inside the target window = aged units ÷ target days.'},
   {k:'tgtDisc',t:'% off needed',cls:'num',grp:'tgt',tip:'The discount that delivers the required pace, solved by inverting the calibrated SV curve. Capped at the cash floor — we never recommend paying Amazon to move a unit.'},
@@ -4112,7 +4110,6 @@ function simCell(r,k){
     case 'tgtVsHold': return `<span class="${r.tgtVsHold>=0?'pos':'neg'}">${moneyS(r.tgtVsHold)}</span>`;
     case 'targetSV': return fmtSV(r.targetSV);
     case 'reqUplift': return r.reqUplift==null?dash:pct0(r.reqUplift);
-    case 'clearMinSV': return r.clearMinSV==null?dash:fmtSV(r.clearMinSV);
     case 'actualSV': return fmtSV(r.actualSV);
     case 'svStatus': { const M={'ON PLAN':'v-run','WATCH':'v-cost','AT RISK':'v-skip','NO DATA':'v-na'};
       return `<span class="badge ${M[r.svStatus]||'v-na'}">${r.svStatus}</span>`; }
@@ -4917,7 +4914,7 @@ document.getElementById('exportSkus').onclick=exportSkusCSV;
 /* ---- decision engine wireup (one control row, no duplicates) ---- */
 document.getElementById('simParent').addEventListener('change',()=>{ populateSimSizes(); renderSimSoon(); });
 ['simSize','simDisc','engRef','simSearch','simAction','simReach','simZone','simBasis','simAllScen','simEssential',
- 'simHorizon','simMinSv','engSvExp','engStorOn','engStorRate','engClearWin',                 /* both reprice every lifetime figure */
+ 'simHorizon','simMinSv','engSvExp','engStorOn','engStorRate',                 /* both reprice every lifetime figure */
  /* liquidation assumptions — every one of them reprices the whole table */
  'engTgtDays','liqRec','liqRef','liqTier','liqMaxLb','liqMaxCuft','liqOvrRemoval',
  'liq_s1','liq_s2','liq_s3','liq_s4','liq_o1','liq_o2','liq_o3','liq_perLb'].forEach(id=>{

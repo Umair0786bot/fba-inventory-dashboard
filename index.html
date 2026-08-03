@@ -608,6 +608,8 @@
   #viewProj table td.g-flr,    #viewProj table th.g-flr    {background:rgba(226,86,79,.070)}
   #viewProj table td.g-best,   #viewProj table th.g-best   {background:rgba(204,136,41,.095)}
   #viewProj table td.g-ver,    #viewProj table th.g-ver    {background:rgba(155,90,217,.085)}
+  #viewProj table td.g-tgt,    #viewProj table th.g-tgt   {background:color-mix(in srgb,var(--amber) 12%,transparent)}
+  #viewProj table th.grp.g-tgt{color:var(--amber)}
   /* the divider the eye actually follows */
   #viewProj table td.g-hold:first-of-type{}
   #viewProj table th.g-hold, #viewProj table td.g-hold,
@@ -1187,6 +1189,11 @@
     <div class="panel" style="margin-bottom:16px">
       <div class="filters" style="margin-bottom:6px">
         <h3 style="margin:0">Which lever should we pull?</h3>
+        <label class="chip" style="border-left:2px solid var(--accent);padding-left:9px"
+               data-tip="The deadline. Set how many days you want this stock gone in, and the Target-basis columns solve backwards: the pace required, the discount that delivers it, and what that costs in revenue and surcharge over exactly that window.">Target basis&nbsp;
+          <input type="number" id="engTgtDays" value="90" min="7" max="720" step="1"
+                 style="width:60px;font-weight:700;color:var(--accent)" />&nbsp;days <span class="hint">?</span>
+        </label>
         <span class="spacer"></span>
         <span class="chip">every SKU priced at its own percentage</span>
       </div>
@@ -3345,6 +3352,10 @@ function simParams(){
     storOn:(()=>{const e=document.getElementById('engStorOn'); return e?!!e.checked:true;})(),
     storRate:(()=>{const e=document.getElementById('engStorRate'); const v=e?num(e.value):2.40;
                    return isFinite(v)&&v>=0?v:2.40;})(),
+    /* Target basis — the deadline, in DAYS. Mirrors Sales Tracking's coverage
+       window so the two tabs ask the same question. */
+    tgtDays:(()=>{const e=document.getElementById('engTgtDays'); const v=e?num(e.value):90;
+                   return isFinite(v)&&v>0?v:90;})(),
     /* window the clear-min SV is measured against */
     clearWin:(()=>{const e=document.getElementById('engClearWin'); const v=e?num(e.value):6;
                    return isFinite(v)&&v>0?v:6;})(),
@@ -3379,6 +3390,28 @@ function baseRateOf(x,p){ return (p && p.storOn) ? (p.storRate||0)*(x.volume||0)
    surcharge we actually pay — over one year and over the full life of the stock.
    A deeper discount sells faster (less surcharge) but earns less per unit; the
    optimiser below finds where that trade-off peaks. */
+/* Charge / sales over an ARBITRARY window. rollFIFO reports 12-month and
+   lifetime totals only, and a 90-day deadline is neither, so the target-basis
+   scenario needs its own bounded roll. Same FIFO rules: oldest bracket sells
+   first, survivors age one bracket a month, month 1 uses Amazon's own estimate. */
+function winRoll(seed,rate,vel,m1,base,months){
+  const n=seed.length; let cur=seed.slice(), charge=0, sold=0;
+  const M=Math.max(1,Math.ceil(months));
+  for(let m=1;m<=M;m++){
+    if(m>1){ const nx=new Array(n).fill(0);
+      for(let i=1;i<n-1;i++) nx[i]=cur[i-1];
+      nx[n-1]=cur[n-2]+cur[n-1]; cur=nx; }
+    const frac=Math.min(1,months-(m-1));           // last month may be partial
+    let s=vel*frac;
+    for(let i=n-1;i>=0&&s>1e-9;i--){ const t=Math.min(cur[i],s); cur[i]-=t; s-=t; }
+    sold+=vel*frac-s;
+    let c=0; for(let i=1;i<n;i++) c+=cur[i]*rate[i];
+    if(m===1&&m1!=null) c=m1;
+    const onHand=cur.reduce((a,b)=>a+b,0);
+    charge+=(c+(base||0)*onHand)*frac;
+  }
+  return {charge, sold, left:cur.reduce((a,b)=>a+b,0)};
+}
 function skuAt(x,seed,rate,velHold,m1,disc,ref,base){
   const pay=x.price*(1-disc)*(1-ref)-x.fba;
   const vel=velHold*svMult(disc);
@@ -3572,6 +3605,31 @@ function computeSim(){
     const beVel   = breakevenVel(x,seed,rate,velHold,m1,dApp,p.ref,base,hold.netL);
     const targetVel = velHold*svMult(best.disc);
     const clearMin  = p.clearWin>0 ? units/p.clearWin : null;
+
+    /* ---- TARGET BASIS: pick a deadline, see what it costs -------------------
+       Runs the model backwards. Required pace comes from the deadline; the
+       discount is solved by inverting the calibrated curve; then the whole
+       thing is priced over that same window so revenue and surcharge are
+       measured on the deadline, not on a year. */
+    const tgtMonths = p.tgtDays/30;
+    const tgtReqDay = units>0 ? units/p.tgtDays : 0;          // units/day needed
+    const tgtReqMo  = tgtReqDay*SV_DAYS_PER_MONTH;
+    const tgtCap    = Math.max(0, Math.min(0.95, floor));      // never past the cash floor
+    const needMult  = velHold>0 ? tgtReqMo/velHold : Infinity;
+    /* invert svMult: mult = (1/(1-d))^E  ->  d = 1 - mult^(-1/E) */
+    let tgtDisc = (isFinite(needMult) && needMult>1)
+                  ? 1-Math.pow(needMult,-1/SV_E) : 0;
+    const tgtReach = isFinite(tgtDisc) && tgtDisc<=tgtCap+1e-9;
+    if(!tgtReach) tgtDisc = tgtCap;                            // deepest we're allowed
+    const tgtVel   = velHold*svMult(tgtDisc);
+    const tgtRoll  = winRoll(seed,rate,tgtVel,m1,base,tgtMonths);
+    const tgtPay   = x.price*(1-tgtDisc)*(1-p.ref)-x.fba;
+    const tgtRev   = tgtPay*tgtRoll.sold;
+    const tgtNet   = tgtRev-tgtRoll.charge;
+    /* HOLD priced over the SAME window, so the comparison is like for like */
+    const holdWin  = winRoll(seed,rate,velHold,m1,base,tgtMonths);
+    const tgtVsHold= tgtNet-((x.price*(1-p.ref)-x.fba)*holdWin.sold-holdWin.charge);
+    const tgtShort = tgtReqDay>0 ? (tgtVel/SV_DAYS_PER_MONTH)/tgtReqDay-1 : 0;
     /* Actual pace: a short trailing window when the build has one, else the
        measured base. sv7 arrives from build_ltsf_data.py; until it does this
        reads the same feed the base does and simply says ON PLAN. */
@@ -3607,6 +3665,9 @@ function computeSim(){
       beVel, beSV:(beVel!=null?beVel/SV_DAYS_PER_MONTH:null),
       beExtra:(beVel!=null?(beVel-velHold)/SV_DAYS_PER_MONTH:null),
       beLift:(beVel!=null&&velHold>0?beVel/velHold:null),
+      tgtReqDay, tgtDisc, tgtReach, tgtAchDay:tgtVel/SV_DAYS_PER_MONTH,
+      tgtShort, tgtAis:tgtRoll.charge, tgtRev, tgtNet, tgtVsHold,
+      tgtSold:tgtRoll.sold, tgtLeft:tgtRoll.left,
       targetSV:targetVel/SV_DAYS_PER_MONTH,
       reqUplift:(velHold>0?targetVel/velHold-1:null),
       clearMinSV:(clearMin!=null?clearMin/SV_DAYS_PER_MONTH:null),
@@ -3884,6 +3945,15 @@ const SIM_COLS=[
   {k:'reqUplift',t:'Required uplift %',cls:'num',grp:'sv',tip:'How much faster than today the best % has to sell.'},
   {k:'clearMinSV',t:'Clear-min SV /day',cls:'num',grp:'sv',tip:'Pace that empties the aged stock inside the clear-window in the toolbar, economics aside. The floor below which the stock simply is not moving.'},
   {k:'actualSV',t:'Actual SV /day',cls:'num',grp:'sv',tip:'Measured pace from the daily sales feed.'},
+  {k:'tgtReqDay',t:'Required SV /day',cls:'num',grp:'tgt',tip:'Pace this SKU must hit to clear its aged stock inside the target window = aged units ÷ target days.'},
+  {k:'tgtDisc',t:'% off needed',cls:'num',grp:'tgt',tip:'The discount that delivers the required pace, solved by inverting the calibrated SV curve. Capped at the cash floor — we never recommend paying Amazon to move a unit.'},
+  {k:'tgtReach',t:'Makes the date?',cls:'',grp:'tgt',tip:'Whether any allowed discount reaches the required pace. NO means the deadline is not achievable for this SKU at any price we are willing to give.'},
+  {k:'tgtAchDay',t:'Best case /day',cls:'num',grp:'tgt',tip:'The pace actually achieved. Equals Required SV when the date is makeable; when it is not, this is the most the deepest allowed discount can do.'},
+  {k:'tgtShort',t:'Short by',cls:'num',grp:'tgt',tip:'How far the achievable pace falls below the required pace. Blank when the date is makeable.'},
+  {k:'tgtRev',t:'Revenue in window',cls:'num',grp:'tgt',tip:'Cash collected inside the target window at the needed discount.'},
+  {k:'tgtAis',t:'Surcharge in window',cls:'num',grp:'tgt',tip:'Surcharge and base storage actually paid across the target window — shorter window, less drag.'},
+  {k:'tgtNet',t:'Net in window',cls:'num',grp:'tgt',tip:'Revenue minus surcharge inside the window. This is what hitting the deadline is worth.'},
+  {k:'tgtVsHold',t:'Worth it?',cls:'num',grp:'tgt',tip:'Net in window minus what HOLDING would net over the SAME window. Positive means chasing the deadline beats doing nothing.'},
   {k:'svStatus',t:'SV STATUS',cls:'',grp:'sv',tip:'ON PLAN = at or above 95% of target. WATCH = below target but still clearing the stock inside the window. AT RISK = below even the clear-min pace. NO DATA = not enough sales history.'},
   /* ---- the three scenarios ---- */
   ...scenCols('appl'),
@@ -3912,6 +3982,7 @@ const SIM_COLS=[
 ];
 const SIM_GROUPS={id:'SKU · aged stock',hold:'Baseline — HOLD (no discount)',
   sv:'SV plan — the pace this has to hit',
+  tgt:'Target basis — clear it by a deadline',
   appl:'Applied — the % this dropdown is running',
   ceil:'Scenario 1 — Ceiling % off  (recovers 100% of COGS)',
   flr:'Scenario 2 — Floor % off  (payout falls to zero)',
@@ -4005,6 +4076,18 @@ function simCell(r,k){
     case 'beExtra': return r.beExtra==null?dash
         :`<span class="${r.beExtra>0?'':'pos'}">${(r.beExtra>0?'+':'')+fmtSV(r.beExtra)}</span>`;
     case 'beLift': return r.beLift==null?dash:fmtN1(r.beLift)+'×';
+    case 'tgtReqDay': return fmtSV(r.tgtReqDay);
+    case 'tgtDisc': return r.units<=0?dash:`<b>${pct1(r.tgtDisc)}</b>`;
+    case 'tgtReach': return r.units<=0?dash:(r.tgtReach
+        ?'<span class="badge v-run">✅ YES</span>'
+        :'<span class="badge v-skip">⛔ NO</span>');
+    case 'tgtAchDay': return fmtSV(r.tgtAchDay);
+    case 'tgtShort': return (r.units<=0||r.tgtReach)?dash
+        :`<span class="neg">${pct0(Math.abs(r.tgtShort))} short</span>`;
+    case 'tgtRev': return money(r.tgtRev);
+    case 'tgtAis': return money(r.tgtAis);
+    case 'tgtNet': return `<b>${moneyS(r.tgtNet)}</b>`;
+    case 'tgtVsHold': return `<span class="${r.tgtVsHold>=0?'pos':'neg'}">${moneyS(r.tgtVsHold)}</span>`;
     case 'targetSV': return fmtSV(r.targetSV);
     case 'reqUplift': return r.reqUplift==null?dash:pct0(r.reqUplift);
     case 'clearMinSV': return r.clearMinSV==null?dash:fmtSV(r.clearMinSV);
@@ -4814,7 +4897,7 @@ document.getElementById('simParent').addEventListener('change',()=>{ populateSim
 ['simSize','simDisc','engRef','simSearch','simAction','simReach','simZone','simBasis','simAllScen','simEssential',
  'simHorizon','simMinSv','engSvExp','engStorOn','engStorRate','engClearWin',                 /* both reprice every lifetime figure */
  /* liquidation assumptions — every one of them reprices the whole table */
- 'liqRec','liqRef','liqTier','liqMaxLb','liqMaxCuft','liqOvrRemoval',
+ 'engTgtDays','liqRec','liqRef','liqTier','liqMaxLb','liqMaxCuft','liqOvrRemoval',
  'liq_s1','liq_s2','liq_s3','liq_s4','liq_o1','liq_o2','liq_o3','liq_perLb'].forEach(id=>{
   const el=document.getElementById(id); if(!el) return;
   el.addEventListener('input',renderSimSoon); el.addEventListener('change',renderSimSoon);

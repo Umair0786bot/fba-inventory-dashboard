@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>LTSF / Aged-Inventory Surcharge Dashboard</title>
+<title>LTSF Master App</title>
 <!-- Favicon: a storage carton with an ageing dial on it — the whole tool in one
      mark. Inline SVG data-URI so it needs no extra file and survives the
      single-file deploy. Ember amber on the app's own charcoal. -->
@@ -19,44 +19,114 @@
      16.5), and every mark clears 3:1 on --panel. The severity ramp is
      validated separately as an ordinal scale.
      ============================================================ */
-  :root{
-    --bg:#100d0a; --bg2:#16120d;
-    --panel:#1a1610; --panel2:#241e16; --line:#38301f;
-    --txt:#ffffff; --muted:#948b7c; --txt2:#cdc6b8;
-    --accent:#cc8829; --accent2:#a86f1d; --accent3:#27a2a2;
+  /* ==========================================================================
+     SELLER CONSOLE — theme tokens
+     Light is the default; [data-theme="dark"] overrides it below. Everything
+     that carries colour reads a token, so a theme is a value swap and never a
+     second stylesheet.
 
-    /* Status is reserved — never reused as a series colour, and always
-       shipped with an icon or a text label, never colour alone.
-       --amber is pushed to a bright yellow so a warning never reads as
-       accent chrome; the app has no "serious" tier, so there isn't one. */
-    --green:#2ea86a; --amber:#f5d547; --red:#e2564f; --blue:#1d7fe9; --grey:#7a6f5e;
+     CHROME IS DARK IN BOTH MODES, on purpose. Seller Central's own bar never
+     goes light, and the constant dark band does two jobs: the app stays
+     recognisable at a glance, and it draws a hard line between where you
+     navigate and where you read numbers.
+     ========================================================================== */
+  :root{
+    /* --- chrome: identical in both themes --- */
+    --chrome:#232f3e; --chrome2:#1a2430; --chrome-nav:#31404f;
+    --chrome-txt:#ffffff; --chrome-mut:#b6c2cf; --chrome-line:#465768;
+    --chrome-accent:#f0a13c;
+
+    /* --- workspace: LIGHT --- */
+    --bg:#eef1f4; --bg2:#e4e9ee;
+    --panel:#ffffff; --panel2:#f2f5f8; --line:#d3dae1;
+    --txt:#0f1111; --txt2:#39424b; --muted:#5b6a79; --mut:#5b6a79;
+    --accent:#95590c; --accent2:#7a4708; --accent3:#0e6a70;
+    --accent-solid:#cc8829;         /* fills, where contrast is the bar's job */
+    --on-accent:#ffffff;
+
+    /* Status is reserved — never reused as a series colour, and always shipped
+       with an icon or a text label, never colour alone. On a light surface the
+       status hues have to be DARKENED to stay legible as text; the -bg pairs
+       are the tints they sit on. */
+    --green:#136c43; --amber:#835c00; --red:#b3271e; --blue:#12579e; --grey:#6b7683;
+    --pos:#136c43; --neg:#b3271e;
+    --green-bg:rgba(19,108,67,.11); --amber-bg:rgba(131,92,0,.13);
+    --red-bg:rgba(179,39,30,.10);   --blue-bg:rgba(18,87,158,.10);
+    --accent-bg:rgba(149,89,12,.11); --purple-bg:rgba(108,52,168,.11);
+    --purple:#6c34a8;
 
     /* Categorical series, in assignment order. Green is absent by design:
-       status owns green, and at dE 6.7 a series green would impersonate it. */
-    --ser1:#cd4290; --ser2:#1d7fe9; --ser3:#27a2a2; --ser4:#ad721c; --ser5:#9b5ad9;
+       status owns green, and a series green would impersonate it. */
+    --ser1:#ad2a72; --ser2:#12579e; --ser3:#0e6a70; --ser4:#8a5a12; --ser5:#6c34a8;
 
-    /* Ordinal severity ramp — one hue, monotone lightness, older = brighter.
-       Shared by the AIS band chart and the age histogram so both read as
-       one scale. Light end clears 2:1 on --panel. */
+    /* Ordinal severity ramp — one hue, monotone lightness, shared by the AIS
+       band chart and the age histogram so both read as one scale. On a LIGHT
+       surface the polarity inverts: older = DARKER, because on white it is the
+       dark end that reads as heavy. */
+    --ramp1:#fde0cc; --ramp2:#fac4a4; --ramp3:#f5a67c; --ramp4:#ee8654;
+    --ramp5:#dd6a33; --ramp6:#bf5322; --ramp7:#983f18; --ramp8:#6f2b0e;
+
+    --glass:rgba(15,17,17,.025); --glass-line:rgba(15,17,17,.09);
+    --shadow:0 1px 2px rgba(15,17,17,.07),0 1px 6px rgba(15,17,17,.05);
+    --grad:linear-gradient(135deg,#cc8829,#a86f1d);
+    --grad-hero:linear-gradient(135deg,#b3271e,#95590c 60%,#7a4708);
+    --radius:10px;
+  }
+
+  /* --- workspace: DARK. Slate rather than the old brown, so it sits under the
+         navy chrome as one family instead of two competing warm/cool casts. --- */
+  :root[data-theme="dark"]{
+    --bg:#11161c; --bg2:#161d25;
+    --panel:#1a222b; --panel2:#222c37; --line:#334353;
+    --txt:#f4f7fa; --txt2:#c6d2de; --muted:#8fa0b1; --mut:#8fa0b1;
+    --accent:#f0a13c; --accent2:#cc8829; --accent3:#3fbcbc;
+    --accent-solid:#cc8829;
+    --on-accent:#1b1205;
+
+    --green:#4fd894; --amber:#f5d547; --red:#f08078; --blue:#5aa9f5; --grey:#7a8797;
+    --pos:#4fd894; --neg:#f08078;
+    --green-bg:rgba(46,168,106,.18); --amber-bg:rgba(245,213,71,.16);
+    --red-bg:rgba(226,86,79,.20);    --blue-bg:rgba(29,127,233,.18);
+    --accent-bg:rgba(204,136,41,.18); --purple-bg:rgba(155,90,217,.18);
+    --purple:#b98ae6;
+
+    --ser1:#e0609f; --ser2:#5aa9f5; --ser3:#3fbcbc; --ser4:#d19a3f; --ser5:#b98ae6;
+
+    /* on a dark surface the polarity flips back: older = brighter */
     --ramp1:#7c350f; --ramp2:#994416; --ramp3:#b7531c; --ramp4:#d66223;
     --ramp5:#f6722b; --ramp6:#f8986c; --ramp7:#faba9d; --ramp8:#fcd9c9;
 
     --glass:rgba(255,255,255,.045); --glass-line:rgba(255,255,255,.08);
-    --grad:linear-gradient(135deg,#cc8829,#a86f1d);
+    --shadow:0 1px 2px rgba(0,0,0,.35),0 2px 10px rgba(0,0,0,.25);
     --grad-hero:linear-gradient(135deg,#e2564f,#cc8829 60%,#a86f1d);
-    --radius:14px;
   }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     background:var(--bg);color:var(--txt);font-size:14px}
-  header{padding:18px 24px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:linear-gradient(180deg,#211c14,#100d0a)}
-  header h1{font-size:18px;margin:0;font-weight:650;letter-spacing:.2px}
-  header .sub{color:var(--muted);font-size:12px}
+  /* ---- chrome: the dark band, in both themes ---- */
+  header{padding:13px 22px;border-bottom:1px solid var(--chrome-line);display:flex;align-items:center;
+    gap:16px;flex-wrap:wrap;background:var(--chrome);color:var(--chrome-txt)}
+  header h1{font-size:17px;margin:0;font-weight:700;letter-spacing:-.1px;color:var(--chrome-txt)}
+  header .sub{color:var(--chrome-mut);font-size:12px}
+  header .snap{color:var(--chrome-mut)}
+  /* buttons sitting on the dark band cannot use workspace tokens */
+  header button.ghost{background:rgba(255,255,255,.08);color:var(--chrome-txt);border:1px solid var(--chrome-line)}
+  header button.ghost:hover{background:rgba(255,255,255,.15)}
   .spacer{flex:1}
-  button,.btn{background:var(--accent);color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:550}
-  button.ghost{background:var(--panel2);color:var(--txt);border:1px solid var(--line)}
-  button:hover{filter:brightness(1.08)}
+  button,.btn{background:var(--accent-solid);color:#1b1205;border:none;padding:8px 14px;border-radius:7px;
+    font-size:13px;cursor:pointer;font-weight:650}
+  button.ghost{background:var(--panel);color:var(--txt);border:1px solid var(--line);font-weight:550}
+  button:hover{filter:brightness(1.06)}
+  button.ghost:hover{background:var(--panel2);border-color:var(--accent)}
+
+  /* theme switch */
+  .themetog{display:inline-flex;align-items:center;gap:0;background:rgba(255,255,255,.08);
+    border:1px solid var(--chrome-line);border-radius:7px;padding:2px;flex:0 0 auto}
+  .themetog button{background:none;border:none;color:var(--chrome-mut);padding:4px 10px;border-radius:5px;
+    font-size:12px;font-weight:600;cursor:pointer}
+  .themetog button:hover{filter:none;color:var(--chrome-txt)}
+  .themetog button[aria-pressed="true"]{background:var(--chrome-accent);color:#20160a}
   /* Full-bleed: the dashboard is a data surface, so tables and charts should use
      every pixel of a wide monitor. Only running prose gets a measure cap. */
   .wrap{padding:20px 28px;max-width:none;margin:0}
@@ -732,16 +802,197 @@
     .gbcard{padding:13px 14px 15px}
     .gbfoot .clock{font-size:19px}
   }
+
+  /* ==========================================================================
+     SELLER CONSOLE — final pass.
+     Three earlier passes over this sheet layer gradients and light-on-dark
+     literals that only work on the old dark-only theme. Rather than unpick
+     them in place — three sets of overlapping selectors, high blast radius —
+     this block lands last and is authoritative. Everything here reads tokens,
+     so both themes come from the same rules.
+     ========================================================================== */
+
+  /* ---- header: a later pass re-paints it with the old brown gradient and
+         gradient-clips the h1, both of which assume light-on-dark-brown ---- */
+  header{background:var(--chrome);border-bottom:1px solid var(--chrome-line);
+    box-shadow:0 1px 0 rgba(0,0,0,.18);backdrop-filter:none}
+  header h1{background:none;-webkit-background-clip:border-box;background-clip:border-box;
+    -webkit-text-fill-color:currentColor;color:var(--chrome-txt);text-shadow:none}
+
+  /* ---- tab bar: part of the dark chrome, in both themes ---- */
+  .tabs{position:sticky;top:0;z-index:50;display:flex;gap:0;flex-wrap:wrap;
+    background:var(--chrome-nav);border-bottom:1px solid var(--chrome-line);
+    padding:0 14px;margin:0 0 18px}
+  .tab{background:none;border:none;border-radius:0;position:relative;
+    color:var(--chrome-mut);padding:11px 16px;font-weight:600;font-size:13.5px;
+    border-bottom:3px solid transparent;transform:none}
+  .tab:hover{color:var(--chrome-txt);background:rgba(255,255,255,.07);transform:none}
+  .tab.active{color:var(--chrome-txt);background:rgba(255,255,255,.10);
+    border-bottom-color:var(--chrome-accent)}
+  .tab.active::after{display:none}
+  /* the tab strip is full-bleed, so pull it out of .wrap's padding */
+  #app.wrap{padding-top:0}
+  #app>nav.tabs{margin-left:-28px;margin-right:-28px;padding-left:28px;padding-right:28px}
+  @media(max-width:640px){#app>nav.tabs{margin-left:-15px;margin-right:-15px;padding-left:15px;padding-right:15px}}
+
+  /* ---- surfaces ---- */
+  body{background:var(--bg);color:var(--txt)}
+  .panel,.tablewrap,.kpi{background:var(--panel);border:1px solid var(--line);
+    border-radius:var(--radius);box-shadow:var(--shadow)}
+  .panel h3{color:var(--txt)}
+  .sectiontitle{color:var(--muted)}
+  .footnote,.muted,.chip{color:var(--muted)}
+  .sechelp{background:var(--panel2);border:1px solid var(--line);color:var(--txt2)}
+
+  /* ---- KPI cards: the old rules paint the value with a light-on-dark
+         gradient via background-clip, which is invisible on white ---- */
+  /* nowrap is load-bearing: "−$1,760,872" was breaking after the minus sign,
+     leaving a lone "−" above a big positive-looking number. */
+  .kpi .val{background:none;-webkit-background-clip:border-box;background-clip:border-box;
+    -webkit-text-fill-color:currentColor;color:var(--txt);font-weight:700;
+    white-space:nowrap;font-size:clamp(17px,1.32vw,24px)}
+  .kpi.good .val{-webkit-text-fill-color:currentColor;color:var(--green);background:none}
+  .kpi.warn .val{-webkit-text-fill-color:currentColor;color:var(--amber);background:none}
+  .kpi.alert .val,.kpi.hero .val{-webkit-text-fill-color:currentColor;color:var(--red);background:none}
+  .kpi .label{color:var(--muted)}
+  .kpi .sub{color:var(--muted)}
+  .kpi.hero{border-color:var(--red);background:var(--panel);box-shadow:var(--shadow)}
+
+  /* ---- tables ---- */
+  thead th,tr.totrow th{background:var(--panel2);color:var(--muted);
+    border-bottom:1px solid var(--line);text-shadow:none}
+  thead th:hover{color:var(--txt)}
+  tbody td{border-bottom:1px solid var(--line);color:var(--txt2)}
+  tbody tr:hover{background:var(--panel2)}
+  .sku{color:var(--txt);font-weight:650}
+  td.name{color:var(--muted)}
+
+  /* ---- inputs ---- */
+  .filters input,.filters select,input[type=number],input[type=search],input[type=text],select{
+    background:var(--panel);border:1px solid var(--line);color:var(--txt)}
+  .filters input:focus,.filters select:focus,input:focus,select:focus{
+    border-color:var(--accent);outline:2px solid var(--accent-bg);outline-offset:0}
+  select option{background:var(--panel);color:var(--txt)}
+  label.chip{background:var(--panel);border:1px solid var(--line);color:var(--txt2);
+    border-radius:7px;padding:5px 9px}
+
+  /* ---- badges + status, all token-driven ---- */
+  .badge{border-radius:6px;font-weight:650;padding:3px 8px}
+  .badge.v-run,.b-Healthy{background:var(--green-bg);color:var(--green)}
+  .badge.v-hold{background:transparent;color:var(--green);box-shadow:inset 0 0 0 1px var(--green)}
+  .badge.v-skip,.b-Outofstock{background:var(--red-bg);color:var(--red)}
+  .badge.v-cost,.b-Lowstock{background:var(--amber-bg);color:var(--amber)}
+  .badge.v-na,.b-none{background:var(--panel2);color:var(--muted)}
+  .b-Excess{background:var(--purple-bg);color:var(--purple)}
+  .pos{color:var(--pos)}.neg{color:var(--neg)}
+  .flag{color:var(--red)}
+  .tagchip{background:var(--accent-bg);color:var(--accent);border:1px solid transparent;
+    border-radius:5px;font-weight:700}
+
+  /* ---- banners ---- */
+  .databanner{background:var(--amber-bg);border:1px solid var(--amber);border-left-width:4px;
+    border-radius:8px;color:var(--txt)}
+  .databanner .db-ico{color:var(--amber)}
+  .databanner.urgent{background:var(--red-bg);border-color:var(--red)}
+  .databanner.urgent .db-ico{color:var(--red)}
+  .databanner code{background:var(--panel2);color:var(--accent);border:1px solid var(--line)}
+
+  /* ---- frozen first column + sticky totals strip: both hardcoded the old
+         dark surface, which painted a black band down a light table ---- */
+  tbody td:first-child,thead th:first-child{background:var(--panel);
+    box-shadow:1px 0 0 var(--line)}
+  thead th:first-child{background:var(--panel2)}
+  tbody tr:hover td:first-child{background:var(--panel2)}
+  #viewProj table th.g-id:first-child,#viewProj table td.g-id:first-child,
+  #viewDPlan table th.d-id:first-child,#viewDPlan table td.d-id:first-child{
+    box-shadow:2px 0 0 var(--line)}
+  .subtotals{background:var(--panel2);border:1px solid var(--line);color:var(--txt)}
+  .subtotals .k{color:var(--muted)}
+  .subtotals .v{color:var(--txt)}
+
+  /* ---- every remaining surface that baked in the old dark brown. These are
+         the ones that painted a dark card into a light page. ---- */
+  .gbcard,.gbcard.hero{background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow)}
+  .gbcard.hero{border-color:var(--red)}
+  .gbcard .gblbl,.gbfoot .meta{color:var(--muted)}
+  .gbcard .gbbig{color:var(--txt)}
+  .gbfoot{background:var(--chrome);color:var(--chrome-txt);border-color:var(--chrome-line)}
+  .gbfoot .clock{color:var(--chrome-txt)}
+  .subtotals .st,.totrow th{background:transparent}
+  tr.totrow th{background:var(--panel2);color:var(--txt)}
+  select option,select optgroup{background:var(--panel);color:var(--txt)}
+  select option:checked{background:var(--accent-bg);color:var(--txt)}
+  .optdrawer,.advbox,.liqdrawer,.optmx,.optjust,.optwf{background:var(--panel2);
+    border-color:var(--line);color:var(--txt)}
+  .optmodal,#optModal .box,.modal .box{background:var(--panel);color:var(--txt);border-color:var(--line)}
+  .introbox{background:var(--accent-bg);border:1px solid var(--line)}
+  .horizonbox{background:var(--panel2);border-color:var(--line);color:var(--txt2)}
+
+  /* ---- misc chrome that hardcoded the dark theme ---- */
+  *{scrollbar-color:var(--line) transparent}
+  *::-webkit-scrollbar-thumb{background:var(--line);border-radius:20px;
+    border:2px solid transparent;background-clip:padding-box}
+  *::-webkit-scrollbar-thumb:hover{background:var(--muted);background-clip:padding-box}
+  [data-tip]::after,[title]::after{background:var(--chrome);color:var(--chrome-txt);
+    border-color:var(--chrome-line)}
+  .band-row-click:hover .muted{color:var(--accent)}
+  .hint{background:var(--accent-bg);color:var(--accent)}
+  hr{border-color:var(--line)}
+  a{color:var(--accent)}
 </style>
+<script data-theme-boot>
+/* Theme resolution runs BEFORE first paint — set from <head>, not on load, or
+   the page flashes the default theme before the saved one lands. Saved choice
+   wins; with none, follow the OS.
+
+   NOTE the data-theme-boot attribute: assemble_index.py splits the file on the
+   bare opening script tag, so an unadorned tag here would be mistaken for the
+   app's main script block and the page would be spliced in the wrong place.
+   For the same reason this comment must not spell that tag out literally. */
+(function(){
+  var K='ltsf.theme';
+  var saved=null; try{ saved=localStorage.getItem(K); }catch(e){}
+  /* ?theme=light|dark pins the theme for this load — lets a link, a print, or a
+     screenshot be deterministic instead of inheriting whoever's OS opens it. */
+  var q=(location.search.match(/[?&]theme=(light|dark)/)||[])[1];
+  var t=q || ((saved==='light'||saved==='dark') ? saved
+      : ((window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light'));
+  document.documentElement.setAttribute('data-theme',t);
+  window.__setTheme=function(next){
+    document.documentElement.setAttribute('data-theme',next);
+    try{ localStorage.setItem(K,next); }catch(e){}
+    var b=document.querySelectorAll('[data-theme-set]');
+    for(var i=0;i<b.length;i++) b[i].setAttribute('aria-pressed', String(b[i].dataset.themeSet===next));
+  };
+  document.addEventListener('DOMContentLoaded',function(){
+    window.__setTheme(document.documentElement.getAttribute('data-theme'));
+    document.addEventListener('click',function(e){
+      var t=e.target.closest && e.target.closest('[data-theme-set]');
+      if(t) window.__setTheme(t.dataset.themeSet);
+    });
+  });
+  /* follow the OS only while the user has expressed no preference of their own */
+  if(!saved && window.matchMedia){
+    try{ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',function(ev){
+      var s=null; try{ s=localStorage.getItem(K); }catch(e){}
+      if(!s) window.__setTheme(ev.matches?'dark':'light');
+    }); }catch(e){}
+  }
+})();
+</script>
 </head>
 <body>
 <header>
   <div>
-    <h1>📦 LTSF / Aged-Inventory Surcharge Dashboard</h1>
+    <h1>LTSF Master App</h1>
     <div class="sub" id="snapline">Load your Amazon FBA inventory report to begin</div>
   </div>
   <div class="spacer"></div>
   <span class="snap" id="rowcount"></span>
+  <div class="themetog" role="group" aria-label="Colour theme">
+    <button type="button" data-theme-set="light" aria-pressed="false">Light</button>
+    <button type="button" data-theme-set="dark"  aria-pressed="false">Dark</button>
+  </div>
   <button class="ghost" id="reloadBtn">⟳ Load / Refresh CSV</button>
   <input type="file" id="fileInput" accept=".csv,.txt" class="hide" />
 </header>
@@ -761,12 +1012,12 @@
 <div id="app" class="wrap hide">
 
   <nav class="tabs">
-    <button class="tab active" data-tab="ltsf">📊 LTSF Overview</button>
-    <button class="tab" data-tab="proj">🧮 Decision Engine</button>
-    <button class="tab" data-tab="track">📈 Sales Tracking</button>
-    <button class="tab" data-tab="pulse">🖥️ Command Center</button>
-    <button class="tab" data-tab="deal">🏷️ Deal Planner</button>
-    <button class="tab" data-tab="kpi">📊 KPI Metrics</button>
+    <button class="tab active" data-tab="ltsf">LTSF Overview</button>
+    <button class="tab" data-tab="proj">Decision Engine</button>
+    <button class="tab" data-tab="track">Sales Tracking</button>
+    <button class="tab" data-tab="pulse">Command Center</button>
+    <button class="tab" data-tab="deal">Deal Planner</button>
+    <button class="tab" data-tab="kpi">KPI Metrics</button>
   </nav>
 
   <div id="viewLtsf">
@@ -776,12 +1027,12 @@
 
   <div class="grid2">
     <div class="panel">
-      <h3>💸 Where next month's surcharge comes from — by age band</h3>
+      <h3>Where next month's surcharge comes from — by age band</h3>
       <div id="bandChart"></div>
       <div class="footnote">Amazon's estimated Aged-Inventory Surcharge for the next billing cycle, split by how long each unit has been stored. The rate escalates with age — the 366+ and 456+ tiers are steepest. Click a band to see its SKUs.</div>
     </div>
     <div class="panel">
-      <h3>📅 Units to be charged, by inventory age</h3>
+      <h3>Units to be charged, by inventory age</h3>
       <div id="ageChart"></div>
     </div>
   </div>
@@ -790,7 +1041,7 @@
   <div class="sectiontitle">By parent (product tag)</div>
   <div class="panel" style="margin-bottom:16px">
     <div class="panel" style="background:var(--panel2)">
-      <h3>🏷️ Estimated AIS by parent — descending by next-month charge</h3>
+      <h3>Estimated AIS by parent — descending by next-month charge</h3>
       <div id="parentChart"></div>
     </div>
     <div class="filters" style="margin-top:12px">
@@ -837,7 +1088,7 @@
       #viewProj .step:first-of-type{margin-top:4px}
       #viewProj .stepn{flex:0 0 auto;width:25px;height:25px;border-radius:50%;display:inline-flex;
         align-items:center;justify-content:center;font-size:12.5px;font-weight:800;
-        background:var(--accent);color:#1b1205;align-self:center}
+        background:var(--accent);color:var(--on-accent);align-self:center}
       #viewProj .stept{font-size:15.5px;font-weight:700;color:var(--txt)}
       #viewProj .steps{flex:1 1 260px;font-size:12.5px;color:var(--mut);line-height:1.6}
       /* plain-language orientation block */
@@ -877,7 +1128,7 @@
       <p>You have four ways out. This tab prices all four with your real numbers and tells you which one keeps the most cash:</p>
       <div class="opts">
         <div class="opt"><b>⏳ Hold</b>Change nothing. Keep selling at full price and keep paying the surcharge.</div>
-        <div class="opt"><b>🏷️ Discount</b>Cut the price so it sells faster. You earn less per unit but escape surcharge.</div>
+        <div class="opt"><b>Discount</b>Cut the price so it sells faster. You earn less per unit but escape surcharge.</div>
         <div class="opt"><b>💵 Liquidate</b>Amazon sells it to a bulk liquidator. You get a small cheque, the surcharge stops today.</div>
         <div class="opt"><b>🚚 Remove</b>Pay Amazon to ship it back to you. Costs money, but the stock is yours again.</div>
       </div>
@@ -1053,7 +1304,7 @@
         border:1px solid var(--line);display:flex;gap:11px;align-items:baseline;flex-wrap:wrap;
         font-size:12.5px;line-height:1.65;color:var(--txt)}
       .hz{flex:0 0 auto;font-weight:700;font-size:11.5px;padding:2px 8px;border-radius:6px;white-space:nowrap}
-      .hzL{background:rgba(46,168,106,.16);color:#4fd894;border:1px solid rgba(46,168,106,.40)}
+      .hzL{background:rgba(46,168,106,.16);color:var(--green);border:1px solid rgba(46,168,106,.40)}
       /* ---- liquidation drawer ---- */
       .liqdrawer{margin-top:11px;border:1px solid var(--line);border-radius:10px;background:var(--panel2)}
       .liqdrawer>summary{cursor:pointer;padding:9px 13px;font-size:12.5px;list-style:none;
@@ -1076,7 +1327,7 @@
       /* the liquidation column block in the per-SKU table */
       #viewProj table td.g-liq, #viewProj table th.g-liq{background:rgba(46,168,106,.10)}
       #viewProj table th.g-liq.blk, #viewProj table td.g-liq.blk{border-left:2px solid rgba(255,255,255,.22)}
-      #viewProj table th.grp.g-liq{color:#4fd894}
+      #viewProj table th.grp.g-liq{color:var(--green)}
       /* the optimizer's own column block, coloured like the scenario blocks */
       #viewProj table td.g-opt, #viewProj table th.g-opt{background:rgba(39,162,162,.10)}
       #viewProj table th.g-opt.blk, #viewProj table td.g-opt.blk{border-left:2px solid rgba(255,255,255,.22)}
@@ -1096,7 +1347,7 @@
       table.optmx th,table.optmx td{padding:6px 10px;border-bottom:1px solid var(--line);text-align:right}
       table.optmx th:first-child,table.optmx td:first-child{text-align:left}
       table.optmx tr.selrow{outline:2px solid var(--accent);outline-offset:-2px}
-      table.optmx td.argmax{background:rgba(46,168,106,.18);font-weight:700;color:#4fd894}
+      table.optmx td.argmax{background:rgba(46,168,106,.18);font-weight:700;color:var(--green)}
       /* waterfall */
       .optwf{display:flex;flex-direction:column;gap:3px;font-size:12px}
       .optwf .r{display:flex;align-items:center;gap:9px}
@@ -1125,7 +1376,7 @@
         <input type="search" id="simSearch" placeholder="Search SKU…" />
         <select id="simAction">
           <option value="">All actions</option>
-          <option value="discount">🏷️ Discount — worth doing</option>
+          <option value="discount">Discount — worth doing</option>
           <option value="liquidate">💵 Liquidate — take the recovery cheque</option>
           <option value="remove">🚚 Remove — pull it out, removal beats the bid</option>
           <option value="hold">⏳ Hold — leave it alone</option>
@@ -1179,7 +1430,7 @@
       <span class="steps">Optional. You do not need this to act on the four steps above.</span>
     </div>
     <details class="advbox" id="advOptimizer">
-      <summary>🧠 Discount optimizer &amp; assumptions <small>— solves the exact best percentage per SKU, and exposes every assumption behind it</small></summary>
+      <summary>Discount optimizer &amp; assumptions <small>— solves the exact best percentage per SKU, and exposes every assumption behind it</small></summary>
       <div class="advbody">
         <div class="sechelp" style="margin-top:0">
           Steps 1&ndash;4 already give you a recommendation. This section shows the solver that produces the
@@ -1200,8 +1451,8 @@
         <label class="chip" data-tip="ON: brackets shift as months pass, so a SKU crossing 271 days gets charged $5.45/cu ft from that month on. OFF: the current bracket rate is held constant — the setting the reference workbook uses.">
           <input type="checkbox" id="optAgeFwd" checked style="margin-right:6px" />Age-forward LTSF rates</label>
         <span class="spacer"></span>
-        <button class="ghost" id="optAssumBtn">⚙ Assumptions</button>
-        <button class="ghost" id="optCalBtn">🎯 Elasticity &amp; k</button>
+        <button class="ghost" id="optAssumBtn">Assumptions</button>
+        <button class="ghost" id="optCalBtn">Elasticity &amp; k</button>
         <button class="ghost" id="optResetSel" title="Discard every manual Selected % and snap them all back to Rec %">↺ Reset to Rec</button>
         <button class="ghost" id="optExport">⤓ Optimizer CSV</button>
       </div>
@@ -1316,7 +1567,7 @@
         <span class="spacer"></span>
         <span class="chip" id="trkWindow"></span>
       </div>
-      <h3 style="margin:10px 0 6px">📈 Units sold per day</h3>
+      <h3 style="margin:10px 0 6px">Units sold per day</h3>
       <div id="dailyChart"></div>
       <div class="footnote">Daily units shipped over the tracking window (from Summary USA). The dashed line marks the <b>target daily pace</b> needed to clear the remaining aged units within the coverage window. Bars above the line = on track; below = falling behind.</div>
     </div>
@@ -1415,7 +1666,7 @@
     </div>
 
     <div class="gbfoot">
-      <span class="brand"><span class="mark">📦</span> LTSF Command Center</span>
+      <span class="brand">LTSF Master App</span>
       <span class="meta" id="pFootMeta"></span>
       <span class="spacer"></span>
       <span class="clock" id="pClock">--:--</span>
@@ -2517,7 +2768,7 @@ function projCell(r,k){
     case 'deltaNet': return r.hasCost?`<span class="${r.deltaNet>=0?'pos':'neg'}"><b>${m0(r.deltaNet)}</b></span>`:dash;
     case 'action': {
       if(!r.hasCost) return '<span class="badge v-cost">⚠ add COGS</span>';
-      return r.action==='Discount'?'<span class="badge v-run">🏷️ DISCOUNT</span>':'<span class="badge v-na">⏳ HOLD</span>';
+      return r.action==='Discount'?'<span class="badge v-run">DISCOUNT</span>':'<span class="badge v-na">⏳ HOLD</span>';
     }
   }
   return '';
@@ -2547,7 +2798,7 @@ function renderProjKpis(rows){
     {label:'AIS avoided by discounting',val:money(aisNo-aisDisc),cls:'good',sub:'surcharge saved'},
     {label:'Net — no discount',val:money(netNo),cls:netNo<0?'alert':'',sub:'margin − AIS'},
     {label:'Net — discount',val:money(netDisc),cls:netDisc<0?'alert':'good',sub:'margin − AIS'},
-    {label:'🏷️ Discount wins',val:fmt(win.length),cls:win.length?'good':'',sub:'SKUs where discount beats hold'},
+    {label:'Discount wins',val:fmt(win.length),cls:win.length?'good':'',sub:'SKUs where discount beats hold'},
     {label:'Net gain if acted',val:money(gain),cls:gain>0?'good':'',sub:'on recommended discounts'},
   ];
   if(noCost) cards.push({label:'⚠ Missing COGS',val:fmt(noCost),cls:'warn',sub:'upload on Deal tab to evaluate'});
@@ -2603,7 +2854,7 @@ function exportProjCSV(){
    ======================================================================= */
 const LT = (window.LTSF_DATA || {skus:[],parents:[],meta:{},rateCard:{}});
 const BANDS8=['181–210','211–240','241–270','271–300','301–330','331–365','366–455','456+'];
-const BAND8_COLORS=['#7c350f','#994416','#b7531c','#d66223','#f6722b','#f8986c','#faba9d','#fcd9c9'];
+const BAND8_COLORS=['var(--ramp1)','var(--ramp2)','var(--ramp3)','var(--ramp4)','var(--ramp5)','var(--ramp6)','var(--ramp7)','var(--ramp8)'];
 const pct0=v=>(v*100).toFixed(0)+'%';
 const pct1=v=>(v*100).toFixed(1)+'%';
 const m2=v=>(v<0?'-$':'$')+Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -2626,13 +2877,13 @@ function columnChart(elId, items, opts){
   let html=`<div class="agehist" style="--plotH:${H}px;align-items:flex-end;position:relative">`;
   if(ref){
     const topPx = (H*(1 - barPct(ref.value)/100)).toFixed(1);   // px from plot top → aligns to bar scale
-    html+=`<div class="ah-refline" style="position:absolute;left:0;right:0;top:${topPx}px;border-top:2px dashed ${ref.color||'#f5d547'};pointer-events:none;z-index:4">
-      <span style="position:absolute;right:0;top:-16px;font-size:10px;font-weight:700;color:${ref.color||'#f5d547'};background:rgba(16,13,10,.72);padding:1px 5px;border-radius:5px;white-space:nowrap">${ref.label||''}</span>
+    html+=`<div class="ah-refline" style="position:absolute;left:0;right:0;top:${topPx}px;border-top:2px dashed ${ref.color||'var(--amber)'};pointer-events:none;z-index:4">
+      <span style="position:absolute;right:0;top:-16px;font-size:10px;font-weight:700;color:${ref.color||'var(--amber)'};background:rgba(16,13,10,.72);padding:1px 5px;border-radius:5px;white-space:nowrap">${ref.label||''}</span>
     </div>`;
   }
   items.forEach((d,i)=>{
     const v=d.value||0, h=barPct(v);
-    const col=d.color||'#cc8829';
+    const col=d.color||'var(--accent-solid)';
     const tip=(d.tip||(d.label+'\n'+vfmt(v)));
     html+=`<div class="ah-col" data-tip="${tip}">
       <div class="ah-plot">
@@ -2754,7 +3005,7 @@ function renderParents(){
     // Parents are nominal — SLQS vs SSS4 has no inherent order — so every bar
     // takes the same hue. Ranking them down a ramp would spend the identity
     // channel re-encoding what the bar length already says.
-    label:tagLabel(p.tag), short:p.tag, value:p.ais, color:'#cc8829',
+    label:tagLabel(p.tag), short:p.tag, value:p.ais, color:'var(--accent-solid)',
     sub:pct0(p.ais/grand), tip:tagLabel(p.tag)+'\n'+money2(p.ais)+' · '+pct0(p.ais/grand)+' of AIS\n'+fmt(p.units)+' units · '+p.skus+' SKUs'
   })), {compact:true, height:260, barMax:58});
   const top5=all.slice(0,5).reduce((s,p)=>s+p.ais,0);
@@ -3419,7 +3670,7 @@ function renderSimPlain(S){
       `they hold <b>${fmt(Math.round(agg.removeUnits))}</b> units with <b>${money(agg.removeAis)}</b> of surcharge still ahead, and no realistic discount clears them. `+
       `Pulling that stock out of Amazon costs <b>${money(agg.removeCost)}</b> and stops the bleed — <b>${moneyS(agg.removeGain)}</b> better than holding. `+
       `Filter <b>ACTION = REMOVE</b> to see them.`:'')+
-    (agg.nLiq?`<br/><b style="color:#4fd894">💵 Liquidation:</b> on <b>${fmt(agg.nLiq)}</b> SKUs the liquidator's cheque is the best exit — `+
+    (agg.nLiq?`<br/><b style="color:var(--green)">💵 Liquidation:</b> on <b>${fmt(agg.nLiq)}</b> SKUs the liquidator's cheque is the best exit — `+
       `<b>${fmt(Math.round(agg.liqUnits))}</b> units returning <b>${money(agg.liqNet)}</b> net of the referral and processing fees, `+
       `<b>${moneyS(agg.liqGain)}</b> better than holding and it stops <b>${money(agg.liqAis)}</b> of surcharge dead. `+
       `Filter <b>ACTION = LIQUIDATE</b> to see them.`:'')+
@@ -3639,7 +3890,7 @@ function simCell(r,k){
       const [c,t]=M[r.reach]||M.no; return `<span class="badge ${c}">${t}</span>`; }
     case 'removalCost': return r.removalCost>0?money2(r.removalCost):dash;
     case 'removeGain': return r.removalCost>0?`<span class="${r.removeGain>0?'pos':'neg'}">${m2(r.removeGain)}</span>`:dash;
-    case 'action': { const M={discount:['v-run','🏷️ DISCOUNT'],liquidate:['v-cost','💵 LIQUIDATE'],
+    case 'action': { const M={discount:['v-run','DISCOUNT'],liquidate:['v-cost','💵 LIQUIDATE'],
         remove:['v-skip','🚚 REMOVE'],hold:['v-na','⏳ HOLD']};
       const [c,t]=M[r.action]||M.hold; return `<span class="badge ${c}">${t}</span>`; }
     /* ---- liquidation block ---- */
@@ -3957,12 +4208,12 @@ function renderDailyChart(){
   const items=dates.map((d,i)=>{
     const v=series[i]||0;
     return {label:d, short:shortDate(d), value:v,
-      color: v>=tgtDaily?'#2ea86a':'#e2564f',
+      color: v>=tgtDaily?'var(--green)':'var(--red)',
       tip:d+'\n'+fmt(v)+' units'+(tgtDaily?'\ntarget '+Math.round(tgtDaily)+'/day (need '+(v>=tgtDaily?'on track':'+'+Math.round(tgtDaily-v))+')':'')};
   });
   // bars + target line share one scale (with headroom) so the line never collides
   columnChart('dailyChart', items, {fmt:fmt, height:210, barMax:48,
-    refLine: tgtDaily>0 ? {value:tgtDaily, label:'target '+Math.round(tgtDaily)+'/day', color:'#f5d547'} : null});
+    refLine: tgtDaily>0 ? {value:tgtDaily, label:'target '+Math.round(tgtDaily)+'/day', color:'var(--amber)'} : null});
   const tot=series.reduce((a,b)=>a+b,0);
   document.getElementById('trkWindow').innerHTML=`${fmt(tot)} units over ${dates.length} days`+(sel?` · ${tagLabel(sel)}`:'');
 }
@@ -4018,7 +4269,7 @@ function renderTracking(){
   const daySums=dates.map((d,i)=>rows.reduce((s,r)=>s+((r.daily&&r.daily[i])||0),0));
   const tot=trkRowCalc(sumTarget,sumSold,rows.length,'Σ',''); tot.daily=daySums;
   const mode=document.getElementById('trkMode').value;
-  const totRow=`<tr style="background:linear-gradient(180deg,#241e16,#1a1610);font-weight:700;box-shadow:inset 0 -2px 0 var(--accent)">`
+  const totRow=`<tr style="background:linear-gradient(180deg,var(--panel2),var(--panel));font-weight:700;box-shadow:inset 0 -2px 0 var(--accent)">`
     +`<td class="sku" style="color:var(--accent)">Σ ${mode==='parent'?'parents':'SKUs'}</td>`
     +`<td class="num">${fmt(rows.length)}</td><td class="num">${fmt(sumTarget)}</td><td class="num"><b>${fmt(sumSold)}</b></td>`
     +`<td class="num muted">·</td>`+daySums.map(v=>`<td class="num"><b>${v?fmt(v):'·'}</b></td>`).join('')
@@ -4099,10 +4350,10 @@ function initLTSF(){
    whether or not that tab is visible.
    ==================================================================================== */
 const TIERS4=[
-  {t:'181–270 days', idx:[0,1,2], color:'#b7531c'},
-  {t:'271–365 days', idx:[3,4,5], color:'#f6722b'},
-  {t:'366–455 days', idx:[6],     color:'#f8986c'},
-  {t:'456+ days',    idx:[7],     color:'#fcd9c9'},
+  {t:'181–270 days', idx:[0,1,2], color:'var(--ramp3)'},
+  {t:'271–365 days', idx:[3,4,5], color:'var(--ramp5)'},
+  {t:'366–455 days', idx:[6],     color:'var(--ramp6)'},
+  {t:'456+ days',    idx:[7],     color:'var(--ramp8)'},
 ];
 const sumBy=(rows,f)=>rows.reduce((s,x)=>s+(f(x)||0),0);
 /* $52,311 -> "$52.31 K", matching the wall-board convention of two significant
@@ -4209,12 +4460,12 @@ function pulseGauge(elId, frac, S){
   const f=cl(frac/max);
   const [nx,ny]=pt(f,r-16);
   const [tx,ty]=pt(.5/max,r+11), [tx2,ty2]=pt(.5/max,r-11);
-  const col=frac>=1?'#4fd894':(frac>=.6?'var(--amber)':'#f08078');
+  const col=frac>=1?'var(--green)':(frac>=.6?'var(--amber)':'var(--red)');
   const word=frac>=1?'on / ahead of pace':(frac>=.6?'behind pace':'well behind pace');
   el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Pace vs target ${pct0(frac)}">
     ${arc(0,1,'var(--panel2)')}
-    ${arc(1/max,1,'#2ea86a')}
-    <line x1="${tx.toFixed(1)}" y1="${ty.toFixed(1)}" x2="${tx2.toFixed(1)}" y2="${ty2.toFixed(1)}" stroke="#e2564f" stroke-width="3"/>
+    ${arc(1/max,1,'var(--green)')}
+    <line x1="${tx.toFixed(1)}" y1="${ty.toFixed(1)}" x2="${tx2.toFixed(1)}" y2="${ty2.toFixed(1)}" stroke="var(--red)" stroke-width="3"/>
     <line x1="${cx}" y1="${cy}" x2="${nx.toFixed(1)}" y2="${ny.toFixed(1)}" stroke="var(--txt)" stroke-width="5" stroke-linecap="round"/>
     <circle cx="${cx}" cy="${cy}" r="11" fill="var(--txt)"/>
     <text x="${cx-r-2}" y="${cy+20}" text-anchor="middle" font-size="12" fill="var(--muted)">0%</text>
@@ -4246,8 +4497,8 @@ function renderPulse(){
 
   const avg=S.ser.length?S.ser.reduce((a,b)=>a+b,0)/S.ser.length:0;
   pulseLine('pDailyChart',labels,[
-    {name:'units / day',color:'#cc8829',values:S.ser},
-    {name:'window average ('+fmt(Math.round(avg))+'/day)',color:'#7a6f5e',values:S.ser.map(()=>avg),dash:true,w:2},
+    {name:'units / day',color:'var(--accent-solid)',values:S.ser},
+    {name:'window average ('+fmt(Math.round(avg))+'/day)',color:'var(--grey)',values:S.ser.map(()=>avg),dash:true,w:2},
   ],{height:225,aria:'Units shipped per day'});
 
   /* --- 2. cleared to date + burn-down of the aged pool --- */
@@ -4261,8 +4512,8 @@ function renderPulse(){
   const remain=S.ser.map(v=>{ run+=v; return Math.max(0,S.target-run); });
   const ideal=S.ser.map((_,i)=>Math.max(0,S.target*(1-(i+1)/cov)));
   pulseLine('pBurn',labels,[
-    {name:'aged units remaining',color:'#1d7fe9',values:remain},
-    {name:'ideal pace (clear in '+cov+'d)',color:'#f5d547',values:ideal,dash:true,w:2},
+    {name:'aged units remaining',color:'var(--blue)',values:remain},
+    {name:'ideal pace (clear in '+cov+'d)',color:'var(--amber)',values:ideal,dash:true,w:2},
   ],{height:225,yfmt:v=>v>=1000?(v/1000).toFixed(0)+'k':fmt(v),aria:'Aged units remaining vs ideal clearance pace'});
 
   /* --- 3. exposure + clearance rate --- */
@@ -4302,7 +4553,7 @@ function renderPulse(){
   const st={behind:0,ontrack:0,done:0};
   S.rows.forEach(x=>{ if((x.targetUnits||0)<=0&&(x.totalSold||0)<=0) return;
     st[trkRowCalc(x.targetUnits,x.totalSold,1,x.sku,x.tag).status]++; });
-  const stDefs=[{k:'behind',t:'🔴 Behind target',c:'#e2564f'},{k:'ontrack',t:'🟢 On / ahead of pace',c:'#2ea86a'},{k:'done',t:'✅ Target met',c:'#1d7fe9'}];
+  const stDefs=[{k:'behind',t:'🔴 Behind target',c:'var(--red)'},{k:'ontrack',t:'🟢 On / ahead of pace',c:'var(--green)'},{k:'done',t:'✅ Target met',c:'var(--blue)'}];
   const stTot=Math.max(1,st.behind+st.ontrack+st.done);
   document.getElementById('pStatus').innerHTML=stDefs.map(d=>
     `<div class="gbbar">
@@ -4592,7 +4843,7 @@ function dpSpark(d){
     '<polygon points="0,'+H+' '+line+' '+W+','+H+'" fill="rgba(204,136,41,.16)"/>'+
     '<polyline points="'+line+'" fill="none" stroke="var(--accent)" stroke-width="1.6" '+
     'stroke-linejoin="round" stroke-linecap="round"/>'+
-    '<circle cx="'+last[0].toFixed(1)+'" cy="'+last[1].toFixed(1)+'" r="2.1" fill="#f5d547"/></svg>';
+    '<circle cx="'+last[0].toFixed(1)+'" cy="'+last[1].toFixed(1)+'" r="2.1" fill="var(--amber)"/></svg>';
 }
 
 const DP_COLS=[
@@ -4644,7 +4895,7 @@ function dpCell(r,k){
     case 'ceilPrice': return money2(r.ceilPrice);
     case 'floor': return pct1(r.floor);
     case 'floorPrice': return money2(r.floorPrice);
-    case 'bestPct': return r.units>0?'<b style="color:#4fd894">'+pct1(r.bestPct)+'</b>':dash;
+    case 'bestPct': return r.units>0?'<b style="color:var(--green)">'+pct1(r.bestPct)+'</b>':dash;
     case 'bestPrice': return r.units>0?money2(r.bestPrice):dash;
     case 'headroom': return r.units<=0?dash
       :'<span class="'+(r.headroom>0.005?'pos':(r.headroom<-0.005?'neg':'muted'))+'">'+(r.headroom>0?'+':'')+pct1(r.headroom)+'</span>';
@@ -5257,12 +5508,12 @@ function optWaterfall(inp, d, A, k){
   const promo = r.sold * (d > 0 ? A.adPromo*inp.P*(1 - d) + A.clip : A.adBase*inp.P);
   const tail = r.tail * inp.xu;
   const rows = [
-    ['Gross proceeds',  gross,   '#27a2a2'],
-    ['− referral',     -refFee,  '#e2564f'],
-    ['− FBA',          -fba,     '#e2564f'],
-    ['− promo / ads',  -promo,   '#e2564f'],
-    ['− LTSF drag',    -r.drag,  '#e2564f'],
-    ['+ tail exit cash', tail,   '#2ea86a'],
+    ['Gross proceeds',  gross,   'var(--accent3)'],
+    ['− referral',     -refFee,  'var(--red)'],
+    ['− FBA',          -fba,     'var(--red)'],
+    ['− promo / ads',  -promo,   'var(--red)'],
+    ['− LTSF drag',    -r.drag,  'var(--red)'],
+    ['+ tail exit cash', tail,   'var(--green)'],
   ];
   const max = Math.max(1, ...rows.map(x => Math.abs(x[1])));
   const body = rows.map(([lab, v, col]) =>

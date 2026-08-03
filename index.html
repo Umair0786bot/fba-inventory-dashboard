@@ -5314,7 +5314,12 @@ function optAssum(){
    §2 elasticity. k scales the UPLIFT, never the multiplier, so d = 0 pins to
    exactly 1x base for every k — a zero discount can never change velocity.
    --------------------------------------------------------------------------- */
-function optM(d){ return d < 0.20 ? 1 + 5*d : 10*d; }
+/* Was a hand-written piecewise curve (d<0.20 ? 1+5d : 10d) with no data behind
+   it, which ran up to 32% hotter than the engine at 20-40% off — exactly the
+   range a real deal lives in, and the range the calibration was fitted on.
+   It now uses the SAME svMult the Decision Engine uses, so the app has one
+   demand curve and one recommended discount instead of two that disagree. */
+function optM(d){ return svMult(d); }
 function optMk(d, k){ return 1 + k*(optM(d) - 1); }
 /* calibrated k for a parent, else the canon Base */
 function optKFor(tag, A){
@@ -5623,19 +5628,19 @@ function optAttach(S){
    §6.1 the new column block
    --------------------------------------------------------------------------- */
 const OPT_COLS = [
-  {k:'optRec',   t:'Rec %',            cls:'num', grp:'opt', tip:"The discount that maximises total recovered cash under Base elasticity, found by testing every percentage on the grid up to the cap. Sub-text is the band across Conservative and Aggressive demand — when it is tight, act; when it is wide, the call is elasticity-sensitive and worth a test first."},
-  {k:'optSel',   t:'Selected %',       cls:'num', grp:'opt', tip:'Editable, 1% steps, capped at the applicable cap. Defaults to Rec %. Saved in this browser, so it survives a refresh.'},
-  {k:'optTotal', t:'Total payout @ Sel',cls:'num',grp:'opt', tip:'Total recovered cash at the selected discount = unit cash × units sold − LTSF drag while clearing + exit value of the unsold tail.'},
-  {k:'optDelta', t:'Δ vs Rec',         cls:'num', grp:'opt', tip:'What the selected discount gives up against the recommendation. Negative means the manual override is costing money.'},
+  {k:'optRec',   t:'Suggested %',            cls:'num', grp:'opt', tip:"The discount that maximises total recovered cash under Base elasticity, found by testing every percentage on the grid up to the cap. Sub-text is the band across Conservative and Aggressive demand — when it is tight, act; when it is wide, the call is elasticity-sensitive and worth a test first."},
+  {k:'optSel',   t:'Your %',       cls:'num', grp:'opt', tip:'Type your own discount here if you disagree with the suggestion. 1% steps. Saved in this browser, so it survives a refresh.'},
+  {k:'optTotal', t:'You get',cls:'num',grp:'opt', tip:'All the cash this SKU puts back in your pocket at your discount: what the units sell for, minus the surcharge you pay while clearing, plus whatever the leftovers are worth.'},
+  {k:'optDelta', t:'vs suggested',         cls:'num', grp:'opt', tip:'How much your discount gains or loses against the suggested one. Negative means your choice is costing money.'},
   {k:'optMo',    t:'Mo to clear',      cls:'num', grp:'opt', tip:'Aged units ÷ velocity at the selected discount. Flagged when it runs past the simulation window, because the tail then exits at liquidation value instead of selling.'},
-  {k:'optCogs',  t:'%COGS rec @ Sel',  cls:'num', grp:'opt', tip:'Total recovered cash ÷ (aged units × product cost). 100% means the whole product cost came back.'},
-  {k:'optVerdict',t:'Verdict',         cls:'',    grp:'opt', tip:'SELL when discounting beats liquidating now. LIQUIDATE when it does not — the exit-cash gate fired. CLIFF-RACE when the stock crosses 271 days next month and the discount has been forced deep enough to clear it first. CANNOT OUTRUN CLIFF when no allowed discount can.'},
+  {k:'optCogs',  t:'Cost recovered',  cls:'num', grp:'opt', tip:'How much of what you paid for the stock comes back. 100% means you got all your product cost back.'},
+  {k:'optVerdict',t:'Sell or dump?',         cls:'',    grp:'opt', tip:'SELL when discounting beats liquidating now. LIQUIDATE when it does not — the exit-cash gate fired. CLIFF-RACE when the stock crosses 271 days next month and the discount has been forced deep enough to clear it first. CANNOT OUTRUN CLIFF when no allowed discount can.'},
 ];
 (function optInstallCols(){
   if(typeof SIM_COLS === 'undefined') return;
   const at = SIM_COLS.findIndex(c => c.grp !== 'id');          // straight after SKU · aged stock
   SIM_COLS.splice(at < 0 ? SIM_COLS.length : at, 0, ...OPT_COLS);
-  SIM_GROUPS.opt = 'Discount optimizer — solved d*';
+  SIM_GROUPS.opt = 'What discount should we give?';
   let g = null; SIM_COLS.forEach(c => { c.blk = (c.grp !== g); g = c.grp; });
 })();
 

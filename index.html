@@ -1168,6 +1168,28 @@
       </div>
       <p style="margin-top:9px">Every figure below is judged on <b>net lifetime</b> — all the cash you collect minus
       all the surcharge you pay, from now until that stock is finally gone. Work down the four steps in order.</p>
+
+      <p style="margin-top:11px"><b>Two numbers people mix up — they answer opposite questions.</b></p>
+      <div class="optgrid" style="margin-top:6px">
+        <div class="optcard">
+          <b>Pace that makes it pay</b> <span class="muted">(break-even)</span>
+          <p>How fast a SKU must sell before the discount is worth giving. Sell slower and the discount
+          loses money; faster and it pays. It is worked out purely from that SKU's own costs —
+          <b>it assumes nothing about how customers react</b>, so it stays true even if our SV response
+          is wrong. Treat it as the bar to clear.</p>
+        </div>
+        <div class="optcard">
+          <b>Predicted uplift</b> <span class="muted">(SV response)</span>
+          <p>How fast we <i>think</i> it will sell at that discount, from the curve fitted to our own
+          promo data. This one is an estimate. If the bar above is <b>lower</b> than this prediction,
+          the discount pays with room to spare — that gap is your safety margin.</p>
+        </div>
+      </div>
+      <p style="margin-top:9px"><b>Target basis</b> runs the whole thing backwards: instead of picking a
+      discount and seeing when the stock clears, you set the deadline — say 90 days — and it solves for the
+      pace required, the discount that delivers it, and what that costs in revenue and surcharge over
+      exactly that window. Where no allowed discount can hit the date, the row says so and shows how far
+      short it falls.</p>
     </div>
 
     <div class="step">
@@ -1189,11 +1211,6 @@
     <div class="panel" style="margin-bottom:16px">
       <div class="filters" style="margin-bottom:6px">
         <h3 style="margin:0">Which lever should we pull?</h3>
-        <label class="chip" style="border-left:2px solid var(--accent);padding-left:9px"
-               data-tip="The deadline. Set how many days you want this stock gone in, and the Target-basis columns solve backwards: the pace required, the discount that delivers it, and what that costs in revenue and surcharge over exactly that window.">Target basis&nbsp;
-          <input type="number" id="engTgtDays" value="90" min="7" max="720" step="1"
-                 style="width:60px;font-weight:700;color:var(--accent)" />&nbsp;days <span class="hint">?</span>
-        </label>
         <span class="spacer"></span>
         <span class="chip">every SKU priced at its own percentage</span>
       </div>
@@ -1242,6 +1259,11 @@
                  style="width:64px;font-size:15px;font-weight:700;color:var(--accent)" />
         </label>
         <label class="chip">Referral %&nbsp;<input type="number" id="engRef" value="15" min="0" max="100" step="0.5" style="width:56px" /></label>
+        <label class="chip" style="border-left:2px solid var(--accent);padding-left:9px"
+               data-tip="The deadline. Set how many days you want this stock gone in, and the Target-basis columns solve backwards: the pace required, the discount that delivers it, and what that costs in revenue and surcharge over exactly that window.">Target basis&nbsp;
+          <input type="number" id="engTgtDays" value="90" min="7" max="720" step="1"
+                 style="width:60px;font-weight:700;color:var(--accent)" />&nbsp;days <span class="hint">?</span>
+        </label>
         <label class="chip" data-tip="How far forward the surcharge is counted. TO CLEARANCE runs until the stock is actually gone — the honest lifetime cost. CAPPED AT 36 stops at three years and drops whatever is still sitting, which is what this tab used to do; it understated the book by $1.9M and made HOLD look like the winning plan. Kept so the two can be compared.">Horizon&nbsp;
           <select id="simHorizon">
             <option value="clear" selected>To full clearance</option>
@@ -3938,9 +3960,9 @@ const SIM_COLS=[
   {k:'stoLHold',t:'Storage if we HOLD',cls:'num',grp:'hold',tip:'Base monthly storage until the stock is gone at today’s pace. Amazon bills this on every unit on hand whatever its age, so it is a cost of holding on top of the surcharge — worth about 31% more across this book. Toggle it in the toolbar.'},
   {k:'netLHold',t:'Net if we HOLD',cls:'num',grp:'hold',tip:'Cash from full-price sales minus all surcharge AND base storage until the stock is gone, if you change nothing. This is the baseline every verdict is measured against.'},
   /* ---- SV expectation layer: what the plan commits to, and are we hitting it ---- */
-  {k:'beSV',t:'Break-even SV /day',cls:'num',grp:'sv',tip:'THE TARGET, not a prediction. The pace at which the applied discount stops losing to doing nothing. Below it the discount costs you money; above it, it pays. Carries no assumption about how customers respond — only this SKU’s own costs. Blank = no pace pays, which usually means the discount is too deep.'},
-  {k:'beExtra',t:'Extra SV /day needed',cls:'num',grp:'sv',tip:'Break-even SV minus today’s SV — the gap you have to close with PPC, BTP, SMPC, coupons or a deal.'},
-  {k:'beLift',t:'Lift x to break even',cls:'num',grp:'sv',tip:'Break-even SV / current SV. Compare with the modelled uplift: when the lift needed is the smaller number, the discount pays on the model’s own assumptions.'},
+  {k:'beSV',t:'Pace that makes it pay /day',cls:'num',grp:'sv',tip:'How fast this SKU has to sell before the discount is worth giving. Sell slower than this and the discount loses you money; faster and it pays. This is the ONE number here that does not depend on guessing how customers react — it comes only from this SKU’s own costs, so it stays true even if the SV response is wrong. Blank means no pace pays, i.e. the discount is too deep.'},
+  {k:'beExtra',t:'Extra /day to get there',cls:'num',grp:'sv',tip:'How many more units a day you need to sell than you do today. This is the gap you have to close with PPC, BTP, SMPC, coupons or a deal.'},
+  {k:'beLift',t:'× faster than today',cls:'num',grp:'sv',tip:'The same gap as a multiple — 2.0 means you must sell twice as fast as today. Compare it with the uplift the model predicts: if the number here is SMALLER than the predicted uplift, the discount pays even on the model’s own assumptions, with room to spare.'},
   {k:'targetSV',t:'Target SV /day @ best %',cls:'num',grp:'sv',tip:'The pace this SKU’s own BEST % commits you to, using the SV curve in the toolbar.'},
   {k:'reqUplift',t:'Required uplift %',cls:'num',grp:'sv',tip:'How much faster than today the best % has to sell.'},
   {k:'clearMinSV',t:'Clear-min SV /day',cls:'num',grp:'sv',tip:'Pace that empties the aged stock inside the clear-window in the toolbar, economics aside. The floor below which the stock simply is not moving.'},

@@ -899,10 +899,42 @@
 
   /* ---- frozen first column + sticky totals strip: both hardcoded the old
          dark surface, which painted a black band down a light table ---- */
-  tbody td:first-child,thead th:first-child{background:var(--panel);
+  tbody td:first-child,thead th:first-child{background-color:var(--panel);
     box-shadow:1px 0 0 var(--line)}
-  thead th:first-child{background:var(--panel2)}
-  tbody tr:hover td:first-child{background:var(--panel2)}
+  thead th:first-child{background-color:var(--panel2)}
+  tbody tr:hover td:first-child{background-color:var(--panel2)}
+
+  /* A pinned column has to be OPAQUE or the columns scrolling underneath draw
+     straight through it. The group tints below paint the frozen column at 2%
+     white — and `#viewProj table td.g-id` outranks `tbody td:first-child`, so
+     that near-transparent tint won and the SKU names had the Size/Price columns
+     sliding through them on any sideways scroll.
+     The tint is restored as a background-IMAGE over an opaque base: same
+     appearance, but it now hides what is behind it. */
+  #viewProj table td.g-id:first-child,
+  #viewDPlan table td.d-id:first-child{
+    background-color:var(--panel);
+    background-image:linear-gradient(var(--glass),var(--glass))}
+  #viewProj table thead th.g-id:first-child,
+  #viewDPlan table thead th.d-id:first-child{
+    background-color:var(--panel2);
+    background-image:linear-gradient(var(--glass),var(--glass))}
+  #viewProj table tbody tr:hover td.g-id:first-child,
+  #viewDPlan table tbody tr:hover td.d-id:first-child{background-color:var(--panel2)}
+  /* Same defect on the header rows: the group tints (`#viewProj table th.g-*`,
+     2–9% alpha) outrank the opaque `thead th` rule, and the whole head is
+     sticky — so rows scrolled straight through the column labels. Opaque base
+     wins over a tint that was barely visible anyway; the per-group colour
+     coding lives in the TEXT colour, which is untouched.
+
+     The [class] attribute selector is deliberate: the tint rules are
+     `#viewProj table th.g-hold`, specificity (1,1,2). A plain
+     `#viewProj table thead th` is (1,0,3) and LOSES to it — one class beats
+     any number of element names. [class] contributes a class of its own and
+     matches every one of these cells, without naming all twelve groups. */
+  #viewProj table thead th[class],#viewDPlan table thead th[class]{background-color:var(--panel2)}
+  #viewProj table thead th.g-id:first-child,
+  #viewDPlan table thead th.d-id:first-child{background-color:var(--panel2)}
   #viewProj table th.g-id:first-child,#viewProj table td.g-id:first-child,
   #viewDPlan table th.d-id:first-child,#viewDPlan table td.d-id:first-child{
     box-shadow:2px 0 0 var(--line)}

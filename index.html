@@ -983,7 +983,9 @@
 <script data-theme-boot>
 /* Theme resolution runs BEFORE first paint — set from <head>, not on load, or
    the page flashes the default theme before the saved one lands. Saved choice
-   wins; with none, follow the OS.
+   wins; with none, light — deliberately NOT the OS preference, so a first-time
+   visitor on a dark-mode machine still opens on the light board everyone
+   reviews together.  The toggle still switches and still persists.
 
    NOTE the data-theme-boot attribute: assemble_index.py splits the file on the
    bare opening script tag, so an unadorned tag here would be mistaken for the
@@ -995,8 +997,7 @@
   /* ?theme=light|dark pins the theme for this load — lets a link, a print, or a
      screenshot be deterministic instead of inheriting whoever's OS opens it. */
   var q=(location.search.match(/[?&]theme=(light|dark)/)||[])[1];
-  var t=q || ((saved==='light'||saved==='dark') ? saved
-      : ((window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light'));
+  var t=q || ((saved==='light'||saved==='dark') ? saved : 'light');
   document.documentElement.setAttribute('data-theme',t);
   window.__setTheme=function(next){
     document.documentElement.setAttribute('data-theme',next);
@@ -1011,13 +1012,8 @@
       if(t) window.__setTheme(t.dataset.themeSet);
     });
   });
-  /* follow the OS only while the user has expressed no preference of their own */
-  if(!saved && window.matchMedia){
-    try{ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',function(ev){
-      var s=null; try{ s=localStorage.getItem(K); }catch(e){}
-      if(!s) window.__setTheme(ev.matches?'dark':'light');
-    }); }catch(e){}
-  }
+  /* No OS listener: the board must not flip to dark under someone mid-review
+     because their machine crossed into night mode. Only the toggle changes it. */
 })();
 </script>
 </head>
@@ -4811,9 +4807,41 @@ document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
   else if(tab==='track'){ renderTracking(); reveal('trkKpis'); }
   else if(tab==='pulse'){ renderPulse(); startPulseClock(); }
   else if(tab==='deal'){ renderDp(); reveal('dpKpis'); }
-  else if(tab==='kpi'){ /* self-contained iframe loads its own data */ }
+  else if(tab==='kpi'){ syncKpiTheme(); }   /* self-contained iframe loads its own data */
   else { renderLtsfOverview(); reveal('kpis'); }
 });
+
+/* ---- KPI tab: hold the embedded tracker to the app's theme ----
+   metrics-tracker.html ships its own OS-driven dark rules, every one of them
+   guarded by :not([data-theme="light"]) — so stamping that attribute on its
+   root disables them.  It is done from here, not by editing that file, because
+   Update-Dashboard.bat regenerates it and would wipe any edit.  Same-origin on
+   the hosted site; over file:// the read throws and the frame keeps its own
+   theme, which is the harmless case. */
+function syncKpiTheme(){
+  const f=document.querySelector('#viewKpi iframe'); if(!f) return;
+  const t=document.documentElement.getAttribute('data-theme')||'light';
+  let tries=0;
+  const stamp=()=>{
+    let doc;
+    try{ doc=f.contentDocument; }catch(e){ return; }      // cross-origin: give up quietly
+    // about:blank is the placeholder before the real document arrives; stamping
+    // it would be thrown away, so keep waiting for the real one.
+    const live=doc&&doc.documentElement&&doc.location&&doc.location.href!=='about:blank';
+    if(live){ doc.documentElement.setAttribute('data-theme',t); return; }
+    if(tries++<120) requestAnimationFrame(stamp);         // ~2s of frames, then stop
+  };
+  stamp();
+}
+(function(){
+  const f=document.querySelector('#viewKpi iframe');
+  if(f) f.addEventListener('load',syncKpiTheme);          // every (re)load, not just the first
+  // the header toggle must carry the frame with it
+  if(window.__setTheme){
+    const base=window.__setTheme;
+    window.__setTheme=function(next){ base(next); syncKpiTheme(); };
+  }
+})();
 
 /* ---- overview wireup ---- */
 ['skuSearch','skuTag','skuSize','skuBand'].forEach(id=>document.getElementById(id).addEventListener('input',renderSkuTable));
